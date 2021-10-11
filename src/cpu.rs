@@ -1,3 +1,5 @@
+use crate::utils::{BitIndex, get_bit, set_bit};
+
 pub enum Register {
     A(u8), // Accumulator
     F(u8), // Flags
@@ -16,6 +18,13 @@ pub enum Register {
     PC(u16),
 }
 
+pub enum FlagRegister {
+    Zero(bool), // Set when the result of a math operation is zero or if two values matches using the CP instruction
+    Substract(bool), // Set if a substraction was performed in the last math instruction
+    HalfCarry(bool), // Set if a carry ocurred from the lower nibble in the last math operation
+    Carry(bool), // Set if a carry was ocurrend from the last math operation or if register A is the smaller value when executing the CP instruction
+}
+
 pub struct Registers {
     a: u8,
     f: u8,
@@ -30,6 +39,21 @@ pub struct Registers {
 }
 
 impl Registers {
+    pub fn new() -> Self {
+        Self {
+            a: 0,
+            f: 0b11110000, // The first 4 lower bits are always set to 0
+            b: 0,
+            c: 0,
+            d: 0,
+            e: 0,
+            h: 0,
+            l: 0,
+            sp: 0,
+            pc: 0,
+        }
+    }
+
     pub fn get(&self, register: Register) -> u16 {
         match register {
             Register::A(_) => self.a as u16,
@@ -50,19 +74,37 @@ impl Registers {
 
     pub fn set(&mut self, register: Register) {
         match register {
-            Register::A(val) => self.a = val,
-            Register::B(val) => self.b = val,
-            Register::C(val) => self.c = val,
-            Register::D(val) => self.d = val,
-            Register::E(val) => self.e = val,
-            Register::F(val) => self.f = val,
-            Register::H(val) => self.h = val,
-            Register::L(val) => self.l = val,
+            Register::A(val)  => self.a = val,
+            Register::B(val)  => self.b = val,
+            Register::C(val)  => self.c = val,
+            Register::D(val)  => self.d = val,
+            Register::E(val)  => self.e = val,
+            Register::F(val)  => self.f = val,
+            Register::H(val)  => self.h = val,
+            Register::L(val)  => self.l = val,
             Register::BC(val) => self.set_bc(val),
             Register::DE(val) => self.set_de(val),
             Register::HL(val) => self.set_hl(val),
             Register::SP(val) => self.sp = val,
             Register::PC(val) => self.pc = val,
+        }
+    }
+
+    pub fn get_flag(&self, flag: FlagRegister) -> bool {
+        match flag {
+            FlagRegister::Zero(_)      => get_bit(self.f, BitIndex::I7),
+            FlagRegister::Substract(_) => get_bit(self.f, BitIndex::I6),
+            FlagRegister::HalfCarry(_) => get_bit(self.f, BitIndex::I5),
+            FlagRegister::Carry(_)     => get_bit(self.f, BitIndex::I4),
+        }
+    }
+
+    pub fn set_flag(&mut self, flag: FlagRegister) {
+        match flag {
+            FlagRegister::Zero(val)      => self.f = set_bit(self.f, val, BitIndex::I7),
+            FlagRegister::Substract(val) => self.f = set_bit(self.f, val, BitIndex::I6),
+            FlagRegister::HalfCarry(val) => self.f = set_bit(self.f, val, BitIndex::I5),
+            FlagRegister::Carry(val)     => self.f = set_bit(self.f, val, BitIndex::I4),
         }
     }
 

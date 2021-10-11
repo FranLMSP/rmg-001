@@ -1,3 +1,4 @@
 fn main() {
-    println!("Hello, world!");
+    println!("TEST");
+    println!("{}", false as u8);
 }
