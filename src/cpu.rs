@@ -142,3 +142,51 @@ impl Registers {
 pub struct CPU {
     registers: Registers,
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_registers_setters_getters() {
+        // Test 8 bit setters and getters
+        let mut registers = Registers::new();
+        registers.set(Register::A(0b01010101));
+        assert_eq!(registers.get(Register::A(0)), 0b01010101);
+        registers.set(Register::F(0b01010101));
+        assert_eq!(registers.get(Register::F(0)), 0b01010101);
+        registers.set(Register::B(0b01010101));
+        assert_eq!(registers.get(Register::B(0)), 0b01010101);
+        registers.set(Register::C(0b01010101));
+        assert_eq!(registers.get(Register::C(0)), 0b01010101);
+        registers.set(Register::D(0b01010101));
+        assert_eq!(registers.get(Register::D(0)), 0b01010101);
+        registers.set(Register::E(0b01010101));
+        assert_eq!(registers.get(Register::E(0)), 0b01010101);
+        registers.set(Register::H(0b01010101));
+        assert_eq!(registers.get(Register::H(0)), 0b01010101);
+        registers.set(Register::L(0b01010101));
+        assert_eq!(registers.get(Register::L(0)), 0b01010101);
+
+        // Test 16 bit setters and getters
+        let mut registers = Registers::new();
+        registers.set(Register::B(0b01010101));
+        registers.set(Register::C(0b11111111));
+        assert_eq!(registers.get(Register::BC(0)), 0b0101010111111111);
+
+        registers.set(Register::D(0b01010101));
+        registers.set(Register::E(0b11111111));
+        assert_eq!(registers.get(Register::DE(0)), 0b0101010111111111);
+
+        registers.set(Register::H(0b01010101));
+        registers.set(Register::L(0b11111111));
+        assert_eq!(registers.get(Register::HL(0)), 0b0101010111111111);
+
+        registers.set(Register::SP(0b0101010111111111));
+        assert_eq!(registers.get(Register::SP(0)), 0b0101010111111111);
+
+        registers.set(Register::PC(0b0101010111111111));
+        assert_eq!(registers.get(Register::PC(0)), 0b0101010111111111);
+    }
+}
