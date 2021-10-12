@@ -186,6 +186,7 @@ pub enum CpuOpcode {
     RST,
     RET,
     RETI,
+    IllegalInstruction,
 }
 
 
@@ -450,7 +451,7 @@ impl CPU {
             0x76 => CpuOpcode::HALT,
             0x10 => CpuOpcode::STOP,
             0x00 => CpuOpcode::NOP,
-            _ => CpuOpcode::NOP,
+            _ => CpuOpcode::IllegalInstruction,
         }
     }
 }
