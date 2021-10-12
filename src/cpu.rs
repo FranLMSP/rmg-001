@@ -569,4 +569,8 @@ mod tests {
         registers.set(Register::PC(0b0101010111111111));
         assert_eq!(registers.get(Register::PC(0)), 0b0101010111111111);
     }
+
+    #[test]
+    fn test_cpu_instructions() {
+    }
 }
