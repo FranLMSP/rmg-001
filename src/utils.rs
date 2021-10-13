@@ -1,3 +1,5 @@
+pub struct AddressRange(u16, u16);
+
 pub enum BitIndex {
     I0,
     I1,
