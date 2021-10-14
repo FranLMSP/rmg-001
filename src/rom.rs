@@ -1,6 +1,12 @@
 use std::fs::File;
 use std::io::Read;
 
+pub struct ROMInfo {
+}
+
+impl ROMInfo {
+}
+
 pub struct ROM {
     bytes: Vec<u8>,
 }

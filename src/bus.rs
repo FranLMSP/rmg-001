@@ -37,7 +37,7 @@ impl MemoryMap {
 
 pub struct Bus {
     game_rom: ROM,
-    data: [u8; 0xFFFF],
+    data: [u8; 0x10000],
 }
 
 impl Bus {
@@ -48,7 +48,7 @@ impl Bus {
         };
         game_rom.print_content(Some(0x102));
         Self {
-            data: [0; 0xFFFF],
+            data: [0; 0x10000],
             game_rom,
         }
     }
@@ -56,6 +56,8 @@ impl Bus {
     pub fn read(&self, address: u16) -> u8 {
         match MemoryMap::get_map(address) {
             MemoryMap::BankZero => self.game_rom.read(address),
+            MemoryMap::BankSwitchable => self.game_rom.read(address),
+            MemoryMap::InterruptEnableRegister => self.data[address as usize],
             _ => self.data[address as usize],
         }
     }

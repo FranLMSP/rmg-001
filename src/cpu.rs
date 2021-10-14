@@ -29,6 +29,26 @@ pub enum FlagRegister {
     Carry(bool), // Set if a carry was ocurrend from the last math operation or if register A is the smaller value when executing the CP instruction
 }
 
+pub enum InterruptFlag {
+    VBlank,
+    LCDSTAT,
+    Timer,
+    Serial,
+    Joypad,
+}
+
+impl InterruptFlag {
+    pub fn get_bit_index(interrupt: InterruptFlag) -> BitIndex {
+        match interrupt {
+            InterruptFlag::VBlank  => BitIndex::I0,
+            InterruptFlag::LCDSTAT => BitIndex::I1,
+            InterruptFlag::Timer   => BitIndex::I2,
+            InterruptFlag::Serial  => BitIndex::I3,
+            InterruptFlag::Joypad  => BitIndex::I4,
+        }
+    }
+}
+
 pub struct Registers {
     a: u8,
     f: u8,
@@ -58,7 +78,7 @@ impl Registers {
         }
     }
 
-    pub fn get(&self, register: Register) -> u16 {
+    pub fn get(&self, register: &Register) -> u16 {
         match register {
             Register::A(_) => self.a as u16,
             Register::B(_) => self.b as u16,
@@ -77,26 +97,26 @@ impl Registers {
         }
     }
 
-    pub fn set(&mut self, register: Register) {
+    pub fn set(&mut self, register: &Register) {
         match register {
-            Register::A(val)  => self.a = val,
-            Register::B(val)  => self.b = val,
-            Register::C(val)  => self.c = val,
-            Register::D(val)  => self.d = val,
-            Register::E(val)  => self.e = val,
-            Register::F(val)  => self.f = val,
-            Register::H(val)  => self.h = val,
-            Register::L(val)  => self.l = val,
-            Register::AF(val) => self.set_af(val),
-            Register::BC(val) => self.set_bc(val),
-            Register::DE(val) => self.set_de(val),
-            Register::HL(val) => self.set_hl(val),
-            Register::SP(val) => self.sp = val,
-            Register::PC(val) => self.pc = val,
+            Register::A(val)  => self.a = *val,
+            Register::B(val)  => self.b = *val,
+            Register::C(val)  => self.c = *val,
+            Register::D(val)  => self.d = *val,
+            Register::E(val)  => self.e = *val,
+            Register::F(val)  => self.f = *val,
+            Register::H(val)  => self.h = *val,
+            Register::L(val)  => self.l = *val,
+            Register::AF(val) => self.set_af(*val),
+            Register::BC(val) => self.set_bc(*val),
+            Register::DE(val) => self.set_de(*val),
+            Register::HL(val) => self.set_hl(*val),
+            Register::SP(val) => self.sp = *val,
+            Register::PC(val) => self.pc = *val,
         }
     }
 
-    pub fn get_flag(&self, flag: FlagRegister) -> bool {
+    pub fn get_flag(&self, flag: &FlagRegister) -> bool {
         match flag {
             FlagRegister::Zero(_)      => get_bit(self.f, BitIndex::I7),
             FlagRegister::Substract(_) => get_bit(self.f, BitIndex::I6),
@@ -105,17 +125,17 @@ impl Registers {
         }
     }
 
-    pub fn set_flag(&mut self, flag: FlagRegister) {
+    pub fn set_flag(&mut self, flag: &FlagRegister) {
         match flag {
-            FlagRegister::Zero(val)      => self.f = set_bit(self.f, val, BitIndex::I7),
-            FlagRegister::Substract(val) => self.f = set_bit(self.f, val, BitIndex::I6),
-            FlagRegister::HalfCarry(val) => self.f = set_bit(self.f, val, BitIndex::I5),
-            FlagRegister::Carry(val)     => self.f = set_bit(self.f, val, BitIndex::I4),
+            FlagRegister::Zero(val)      => self.f = set_bit(self.f, *val, BitIndex::I7),
+            FlagRegister::Substract(val) => self.f = set_bit(self.f, *val, BitIndex::I6),
+            FlagRegister::HalfCarry(val) => self.f = set_bit(self.f, *val, BitIndex::I5),
+            FlagRegister::Carry(val)     => self.f = set_bit(self.f, *val, BitIndex::I4),
         }
     }
 
-    pub fn increment_pc(&mut self) {
-        self.pc += 1;
+    pub fn increment_pc(&mut self, times: u8) {
+        self.pc += times as u16;
     }
 
     fn get_af(&self) -> u16 {
@@ -167,7 +187,7 @@ pub enum OpcodeParameter {
     Register_I8(Register),
     Register_I16(Register),
     U8_Register(Register),
-    U16_Register(Register),
+    U16_Register(u16, Register),
     I8_Register(Register),
     I16_Register(Register),
     Register_16BitAddress(Register),
@@ -266,25 +286,65 @@ impl CPU {
 
     // Get the program counter
     pub fn get_register(&self, register: Register) -> u16 {
-        self.registers.get(register)
+        self.registers.get(&register)
     }
 
     pub fn run(&mut self, bus: &mut Bus) {
-        let program_counter = self.registers.get(Register::PC(0));
+        let program_counter = self.registers.get(&Register::PC(0));
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
+        println!("{:02X?}", parameter_bytes);
         let opcode = CPU::parse_opcode(&parameter_bytes);
         self.exec(opcode, bus);
     }
 
     pub fn exec(&mut self, opcode: CpuOpcode, bus: &mut Bus) {
         println!("Executing {:?}", opcode);
-        println!("Current PC{:?}", self.registers.get(Register::PC(0)));
+        println!("Current PC: {:02X?}", self.registers.get(&Register::PC(0)));
         match opcode {
+            // Load
+            CpuOpcode::LD(params) => match params {
+                OpcodeParameter::Register_U16(register) => {
+                    self.registers.set(&register);
+                    self.registers.increment_pc(3);
+                },
+                OpcodeParameter::U16_Register(address, register) => {
+                    type Rg = Register;
+                    let value = self.registers.get(&register);
+                    let bytes = value.to_be_bytes();
+                    match register {
+                        Rg::A(_) | Rg::F(_) | Rg::B(_) | Rg::C(_) | Rg::D(_) | Rg::E(_) | Rg::H(_) | Rg::L(_) => {
+                            bus.write(address, bytes[1]);
+                        },
+                        Rg::AF(_) | Rg::BC(_) | Rg::DE(_) | Rg::HL(_) | Rg::SP(_) | Rg::PC(_) => {
+                            bus.write(address, bytes[1]);
+                            bus.write(address + 1, bytes[0]);
+                        }
+                    }
+                    self.registers.increment_pc(3);
+                },
+                _ => {},
+            }
+            // Jump to address
             CpuOpcode::JP(params) => match params {
-                OpcodeParameter::U16(address) => self.registers.set(Register::PC(address)),
+                OpcodeParameter::U16(address) => self.registers.set(&Register::PC(address)),
                 _ => {},
             },
-            CpuOpcode::NOP => self.registers.increment_pc(),
+            // Rotate A Left
+            CpuOpcode::RLCA => {
+                let val = self.registers.get(&Register::A(0)).to_be_bytes()[1];
+                let result = val.rotate_left(7);
+                if get_bit(result, BitIndex::I7) {
+                    self.registers.set_flag(&FlagRegister::Carry(true));
+                }
+                self.registers.set(&Register::A(result));
+                self.registers.increment_pc(1);
+            },
+            // Disable interrupts
+            CpuOpcode::DI => {
+                bus.write(0xFFFF, 0x00); // Disable all interrupts
+                self.registers.increment_pc(1);
+            },
+            CpuOpcode::NOP => self.registers.increment_pc(1),
             _ => println!("Illegal instruction"),
         };
     }
@@ -299,6 +359,7 @@ impl CPU {
 
     pub fn parse_opcode(params: &[u8; 3]) -> CpuOpcode {
         let opcode = params[0];
+        let two_byte_param = join_bytes(params[2], params[1]);
         match opcode {
             0x06 => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::B(0))),
             0x0E => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::C(0))),
@@ -376,7 +437,7 @@ impl CPU {
             0x02 => CpuOpcode::LD(OpcodeParameter::Register_Register(Register::BC(0), Register::A(0))),
             0x12 => CpuOpcode::LD(OpcodeParameter::Register_Register(Register::DE(0), Register::A(0))),
             0x77 => CpuOpcode::LD(OpcodeParameter::Register_Register(Register::HL(0), Register::A(0))),
-            0xEA => CpuOpcode::LD(OpcodeParameter::U16_Register(Register::A(0))),
+            0xEA => CpuOpcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::A(0))),
             0xF2 => CpuOpcode::LD(OpcodeParameter::Register_FF00plusRegister(Register::A(0), Register::C(0))),
             0xE2 => CpuOpcode::LD(OpcodeParameter::FF00plusRegister_Register(Register::A(0), Register::C(0))),
             0x3A => CpuOpcode::LDD(OpcodeParameter::Register_RegisterDecrement(Register::A(0), Register::HL(0))),
@@ -388,10 +449,10 @@ impl CPU {
             0x01 => CpuOpcode::LD(OpcodeParameter::Register_U16(Register::BC(0))),
             0x11 => CpuOpcode::LD(OpcodeParameter::Register_U16(Register::DE(0))),
             0x21 => CpuOpcode::LD(OpcodeParameter::Register_U16(Register::HL(0))),
-            0x31 => CpuOpcode::LD(OpcodeParameter::Register_U16(Register::SP(0))),
+            0x31 => CpuOpcode::LD(OpcodeParameter::Register_U16(Register::SP(two_byte_param))),
             0xF9 => CpuOpcode::LD(OpcodeParameter::Register_Register(Register::SP(0), Register::HL(0))),
             0xF8 => CpuOpcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL(0), Register::SP(0))),
-            0x08 => CpuOpcode::LD(OpcodeParameter::U16_Register(Register::SP(0))),
+            0x08 => CpuOpcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::SP(0))),
             0xC5 => CpuOpcode::PUSH(Register::BC(0)),
             0xD5 => CpuOpcode::PUSH(Register::DE(0)),
             0xE5 => CpuOpcode::PUSH(Register::HL(0)),
@@ -521,7 +582,7 @@ impl CPU {
             //0xCB => CpuOpcode::BIT,
             //0xCB => CpuOpcode::SET,
             //0xCB => CpuOpcode::RES,
-            0xC3 => CpuOpcode::JP(OpcodeParameter::U16(join_bytes(params[1], params[2]))),
+            0xC3 => CpuOpcode::JP(OpcodeParameter::U16(two_byte_param)),
             0xC2 => CpuOpcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero(true), 0)),
             0xCA => CpuOpcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero(true), 0)),
             0xD2 => CpuOpcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry(true), 0)),
@@ -569,66 +630,97 @@ mod tests {
     fn test_registers_setters_getters() {
         // Test 8 bit setters and getters
         let mut registers = Registers::new();
-        registers.set(Register::A(0b01010101));
-        assert_eq!(registers.get(Register::A(0)), 0b01010101);
-        registers.set(Register::F(0b01010101));
-        assert_eq!(registers.get(Register::F(0)), 0b01010101);
-        registers.set(Register::B(0b01010101));
-        assert_eq!(registers.get(Register::B(0)), 0b01010101);
-        registers.set(Register::C(0b01010101));
-        assert_eq!(registers.get(Register::C(0)), 0b01010101);
-        registers.set(Register::D(0b01010101));
-        assert_eq!(registers.get(Register::D(0)), 0b01010101);
-        registers.set(Register::E(0b01010101));
-        assert_eq!(registers.get(Register::E(0)), 0b01010101);
-        registers.set(Register::H(0b01010101));
-        assert_eq!(registers.get(Register::H(0)), 0b01010101);
-        registers.set(Register::L(0b01010101));
-        assert_eq!(registers.get(Register::L(0)), 0b01010101);
+        registers.set(&Register::A(0b01010101));
+        assert_eq!(registers.get(&Register::A(0)), 0b01010101);
+        registers.set(&Register::F(0b01010101));
+        assert_eq!(registers.get(&Register::F(0)), 0b01010101);
+        registers.set(&Register::B(0b01010101));
+        assert_eq!(registers.get(&Register::B(0)), 0b01010101);
+        registers.set(&Register::C(0b01010101));
+        assert_eq!(registers.get(&Register::C(0)), 0b01010101);
+        registers.set(&Register::D(0b01010101));
+        assert_eq!(registers.get(&Register::D(0)), 0b01010101);
+        registers.set(&Register::E(0b01010101));
+        assert_eq!(registers.get(&Register::E(0)), 0b01010101);
+        registers.set(&Register::H(0b01010101));
+        assert_eq!(registers.get(&Register::H(0)), 0b01010101);
+        registers.set(&Register::L(0b01010101));
+        assert_eq!(registers.get(&Register::L(0)), 0b01010101);
 
         // Test 16 bit setters and getters
         let mut registers = Registers::new();
-        registers.set(Register::A(0b01010101));
-        registers.set(Register::F(0b11111111));
-        assert_eq!(registers.get(Register::AF(0)), 0b0101010111111111);
-        registers.set(Register::AF(0b1111111101010101));
-        assert_eq!(registers.get(Register::AF(0)), 0b1111111101010101);
+        registers.set(&Register::A(0b01010101));
+        registers.set(&Register::F(0b11111111));
+        assert_eq!(registers.get(&Register::AF(0)), 0b0101010111111111);
+        registers.set(&Register::AF(0b1111111101010101));
+        assert_eq!(registers.get(&Register::AF(0)), 0b1111111101010101);
 
-        registers.set(Register::B(0b01010101));
-        registers.set(Register::C(0b11111111));
-        assert_eq!(registers.get(Register::BC(0)), 0b0101010111111111);
-        registers.set(Register::BC(0b1111111101010101));
-        assert_eq!(registers.get(Register::BC(0)), 0b1111111101010101);
+        registers.set(&Register::B(0b01010101));
+        registers.set(&Register::C(0b11111111));
+        assert_eq!(registers.get(&Register::BC(0)), 0b0101010111111111);
+        registers.set(&Register::BC(0b1111111101010101));
+        assert_eq!(registers.get(&Register::BC(0)), 0b1111111101010101);
 
-        registers.set(Register::D(0b01010101));
-        registers.set(Register::E(0b11111111));
-        assert_eq!(registers.get(Register::DE(0)), 0b0101010111111111);
-        registers.set(Register::DE(0b1111111101010101));
-        assert_eq!(registers.get(Register::DE(0)), 0b1111111101010101);
+        registers.set(&Register::D(0b01010101));
+        registers.set(&Register::E(0b11111111));
+        assert_eq!(registers.get(&Register::DE(0)), 0b0101010111111111);
+        registers.set(&Register::DE(0b1111111101010101));
+        assert_eq!(registers.get(&Register::DE(0)), 0b1111111101010101);
 
-        registers.set(Register::H(0b01010101));
-        registers.set(Register::L(0b11111111));
-        assert_eq!(registers.get(Register::HL(0)), 0b0101010111111111);
-        registers.set(Register::HL(0b1111111101010101));
-        assert_eq!(registers.get(Register::HL(0)), 0b1111111101010101);
+        registers.set(&Register::H(0b01010101));
+        registers.set(&Register::L(0b11111111));
+        assert_eq!(registers.get(&Register::HL(0)), 0b0101010111111111);
+        registers.set(&Register::HL(0b1111111101010101));
+        assert_eq!(registers.get(&Register::HL(0)), 0b1111111101010101);
 
-        registers.set(Register::SP(0b0101010111111111));
-        assert_eq!(registers.get(Register::SP(0)), 0b0101010111111111);
+        registers.set(&Register::SP(0b0101010111111111));
+        assert_eq!(registers.get(&Register::SP(0)), 0b0101010111111111);
 
-        registers.set(Register::PC(0b0101010111111111));
-        assert_eq!(registers.get(Register::PC(0)), 0b0101010111111111);
+        registers.set(&Register::PC(0b0101010111111111));
+        assert_eq!(registers.get(&Register::PC(0)), 0b0101010111111111);
     }
 
     #[test]
     fn test_cpu_instructions() {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
-        cpu.exec(CpuOpcode::NOP, &mut bus);
-        assert_eq!(cpu.registers.get(Register::PC(0)), 0x101);
+        cpu.exec(CpuOpcode::LD(OpcodeParameter::Register_U16(Register::SP(0xF1F1))), &mut bus);
+        assert_eq!(cpu.registers.get(&Register::SP(0xF1F1)), 0xF1F1);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x103);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set(&Register::SP(0x1234));
+        cpu.exec(CpuOpcode::LD(OpcodeParameter::U16_Register(0xF0F0, Register::SP(0))), &mut bus);
+        assert_eq!(bus.read(0xF0F0), 0x34);
+        assert_eq!(bus.read(0xF0F1), 0x12);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x103);
 
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(CpuOpcode::JP(OpcodeParameter::U16(0x1F1F)), &mut bus);
-        assert_eq!(cpu.registers.get(Register::PC(0)), 0x1F1F);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x1F1F);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.exec(CpuOpcode::DI, &mut bus);
+        assert_eq!(bus.read(0xFFFF), 0x00);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set(&Register::A(0b00000010));
+        cpu.exec(CpuOpcode::RLCA, &mut bus);
+        assert_eq!(cpu.registers.get(&Register::A(0)), 0b00000001);
+        assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(false)), false);
+        cpu.registers.set(&Register::A(0b00000001));
+        cpu.exec(CpuOpcode::RLCA, &mut bus);
+        assert_eq!(cpu.registers.get(&Register::A(0)), 0b10000000);
+        assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(true)), true);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.exec(CpuOpcode::NOP, &mut bus);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
     }
 }
