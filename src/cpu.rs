@@ -1,4 +1,5 @@
 use crate::utils::{BitIndex, get_bit, set_bit};
+use crate::bus::Bus;
 
 pub enum Register {
     A(u8), // Accumulator
@@ -43,7 +44,7 @@ impl Registers {
     pub fn new() -> Self {
         Self {
             a: 0,
-            f: 0b11110000, // The first 4 lower bits are always set to 0
+            f: 0b00000000, // The first 4 lower bits are always set to 0
             b: 0,
             c: 0,
             d: 0,
@@ -109,6 +110,10 @@ impl Registers {
             FlagRegister::HalfCarry(val) => self.f = set_bit(self.f, val, BitIndex::I5),
             FlagRegister::Carry(val)     => self.f = set_bit(self.f, val, BitIndex::I4),
         }
+    }
+
+    pub fn increment_pc(&mut self) {
+        self.pc += 1;
     }
 
     fn get_af(&self) -> u16 {
@@ -249,6 +254,28 @@ pub struct CPU {
 }
 
 impl CPU {
+    pub fn new() -> Self {
+        Self {
+            registers: Registers::new(),
+        }
+    }
+
+    // Get the program counter
+    pub fn get_register(&self, register: Register) -> u16 {
+        self.registers.get(register)
+    }
+
+    pub fn run(&mut self, bus: &mut Bus) {
+        println!("Opcode: {:02X}", bus.read(self.registers.get(Register::PC(0))));
+    }
+
+    pub fn exec(&mut self, opcode: CpuOpcode) {
+        match opcode {
+            CpuOpcode::NOP => self.registers.increment_pc(),
+            _ => println!("Illegal instruction"),
+        };
+    }
+
     pub fn parse_opcode(opcode: u8) -> CpuOpcode {
         match opcode {
             0x06 => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::B(0))),
@@ -572,5 +599,8 @@ mod tests {
 
     #[test]
     fn test_cpu_instructions() {
+        let mut cpu = CPU::new();
+        cpu.exec(CpuOpcode::NOP);
+        assert_eq!(cpu.registers.get(Register::PC(0)), 0x101);
     }
 }

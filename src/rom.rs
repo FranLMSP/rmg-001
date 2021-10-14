@@ -15,7 +15,23 @@ impl ROM {
         })
     }
 
-    pub fn print_content(&self) {
-        println!("{:02X?}", self.bytes);
+    pub fn read(&self, address: u16) -> u8 {
+        match self.bytes.get(address as usize) {
+            Some(val) => *val,
+            None => 0xFF,
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self {
+            bytes: bytes.to_vec(),
+        }
+    }
+
+    pub fn print_content(&self, address: Option<u16>) {
+        match address {
+            Some(address) => println!("{:02X?}", self.read(address)),
+            None => println!("{:02X?}", self.bytes),
+        };
     }
 }
