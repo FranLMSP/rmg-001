@@ -265,10 +265,10 @@ pub enum CpuOpcode {
     JP(OpcodeParameter),
     JR(OpcodeParameter),
     CALL(OpcodeParameter),
-    RST(u16),
+    RST(u8),
     RET(OpcodeParameter),
     RETI,
-    PREFIX_CB,
+    PrefixCB,
     IllegalInstruction,
 }
 
@@ -329,6 +329,12 @@ impl CPU {
                 OpcodeParameter::U16(address) => self.registers.set(&Register::PC(address)),
                 _ => {},
             },
+            CpuOpcode::CALL(params) => match params {
+                OpcodeParameter::U16(address) => {
+                    self.registers.set(&Register::PC(address));
+                },
+                _ => {},
+            },
             // Rotate A Left
             CpuOpcode::RLCA => {
                 let val = self.registers.get(&Register::A(0)).to_be_bytes()[1];
@@ -336,7 +342,15 @@ impl CPU {
                 if get_bit(result, BitIndex::I7) {
                     self.registers.set_flag(&FlagRegister::Carry(true));
                 }
-                self.registers.set(&Register::A(result));
+                self.registers.increment_pc(1);
+            },
+            // Rotate A Right 
+            CpuOpcode::RRCA => {
+                let val = self.registers.get(&Register::A(0)).to_be_bytes()[1];
+                let result = val.rotate_right(7);
+                if get_bit(result, BitIndex::I0) {
+                    self.registers.set_flag(&FlagRegister::Carry(true));
+                }
                 self.registers.increment_pc(1);
             },
             // Disable interrupts
@@ -570,7 +584,7 @@ impl CPU {
             0x07 => CpuOpcode::RLCA,
             0x0F => CpuOpcode::RRCA,
             0x1F => CpuOpcode::RRA,
-            0xCB => CpuOpcode::PREFIX_CB,
+            0xCB => CpuOpcode::PrefixCB,
             //0xCB => CpuOpcode::SWAP,
             //0xCB => CpuOpcode::RLC,
             //0xCB => CpuOpcode::RL,
@@ -598,14 +612,14 @@ impl CPU {
             0xCC => CpuOpcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero(true), 0)),
             0xD4 => CpuOpcode::CALL(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry(true), 0)),
             0xDC => CpuOpcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Carry(true), 0)),
-            0xC7 => CpuOpcode::RST(0x0000),
-            0xCF => CpuOpcode::RST(0x0008),
-            0xD7 => CpuOpcode::RST(0x0010),
-            0xDF => CpuOpcode::RST(0x0018),
-            0xE7 => CpuOpcode::RST(0x0020),
-            0xEF => CpuOpcode::RST(0x0028),
-            0xF7 => CpuOpcode::RST(0x0030),
-            0xFF => CpuOpcode::RST(0x0038),
+            0xC7 => CpuOpcode::RST(0x00),
+            0xCF => CpuOpcode::RST(0x08),
+            0xD7 => CpuOpcode::RST(0x10),
+            0xDF => CpuOpcode::RST(0x18),
+            0xE7 => CpuOpcode::RST(0x20),
+            0xEF => CpuOpcode::RST(0x28),
+            0xF7 => CpuOpcode::RST(0x30),
+            0xFF => CpuOpcode::RST(0x38),
             0xC9 => CpuOpcode::RET(OpcodeParameter::NoParam),
             0xC0 => CpuOpcode::RET(OpcodeParameter::FlagRegisterReset(FlagRegister::Zero(true))),
             0xC8 => CpuOpcode::RET(OpcodeParameter::FlagRegisterSet(FlagRegister::Zero(true))),
@@ -711,12 +725,32 @@ mod tests {
         let mut bus = Bus::new();
         cpu.registers.set(&Register::A(0b00000010));
         cpu.exec(CpuOpcode::RLCA, &mut bus);
-        assert_eq!(cpu.registers.get(&Register::A(0)), 0b00000001);
+        assert_eq!(cpu.registers.get(&Register::A(0)), 0b00000010);
         assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(false)), false);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
+        let mut cpu = CPU::new();
         cpu.registers.set(&Register::A(0b00000001));
         cpu.exec(CpuOpcode::RLCA, &mut bus);
+        assert_eq!(cpu.registers.get(&Register::A(0)), 0b00000001);
+        assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(true)), true);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set(&Register::A(0b01000000));
+        cpu.exec(CpuOpcode::RRCA, &mut bus);
+        assert_eq!(cpu.registers.get(&Register::A(0)), 0b01000000);
+        assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(false)), false);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
+        let mut cpu = CPU::new();
+        cpu.registers.set(&Register::A(0b10000000));
+        cpu.exec(CpuOpcode::RRCA, &mut bus);
         assert_eq!(cpu.registers.get(&Register::A(0)), 0b10000000);
         assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(true)), true);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
+
+        let mut cpu = CPU::new();
+        cpu.exec(CpuOpcode::CALL(OpcodeParameter::U16(0xF0F0)), &mut bus);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0xF0F0);
 
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
