@@ -1,6 +1,7 @@
-use crate::utils::{BitIndex, get_bit, set_bit};
+use crate::utils::{BitIndex, get_bit, set_bit, join_bytes};
 use crate::bus::Bus;
 
+#[derive(Debug)]
 pub enum Register {
     A(u8), // Accumulator
     F(u8), // Flags
@@ -20,6 +21,7 @@ pub enum Register {
     PC(u16), // Program counter
 }
 
+#[derive(Debug)]
 pub enum FlagRegister {
     Zero(bool), // Set when the result of a math operation is zero or if two values matches using the CP instruction
     Substract(bool), // Set if a substraction was performed in the last math instruction
@@ -117,19 +119,19 @@ impl Registers {
     }
 
     fn get_af(&self) -> u16 {
-        ((self.a as u16) << 8) | (self.f as u16)
+        join_bytes(self.a, self.f)
     }
 
     fn get_bc(&self) -> u16 {
-        ((self.b as u16) << 8) | (self.c as u16)
+        join_bytes(self.b, self.c)
     }
 
     fn get_de(&self) -> u16 {
-        ((self.d as u16) << 8) | (self.e as u16)
+        join_bytes(self.d, self.e)
     }
 
     fn get_hl(&self) -> u16 {
-        ((self.h as u16) << 8) | (self.l as u16)
+        join_bytes(self.h, self.l)
     }
 
     fn set_af(&mut self, val: u16) {
@@ -157,6 +159,7 @@ impl Registers {
     }
 }
 
+#[derive(Debug)]
 pub enum OpcodeParameter {
     Register(Register),
     Register_U8(Register),
@@ -197,6 +200,7 @@ pub enum OpcodeParameter {
     NoParam,
 }
 
+#[derive(Debug)]
 pub enum CpuOpcode {
     LD(OpcodeParameter),
     LDD(OpcodeParameter),
@@ -266,17 +270,35 @@ impl CPU {
     }
 
     pub fn run(&mut self, bus: &mut Bus) {
-        println!("Opcode: {:02X}", bus.read(self.registers.get(Register::PC(0))));
+        let program_counter = self.registers.get(Register::PC(0));
+        let byte_read = bus.read(program_counter);
+        let opcode = CPU::parse_opcode(byte_read, program_counter, bus);
+        self.exec(opcode, bus);
     }
 
-    pub fn exec(&mut self, opcode: CpuOpcode) {
+    pub fn exec(&mut self, opcode: CpuOpcode, bus: &mut Bus) {
+        println!("Executing {:?}", opcode);
+        println!("Current PC{:?}", self.registers.get(Register::PC(0)));
         match opcode {
+            CpuOpcode::JP(params) => match params {
+                OpcodeParameter::U16(address) => self.registers.set(Register::PC(address)),
+                _ => {},
+            },
             CpuOpcode::NOP => self.registers.increment_pc(),
             _ => println!("Illegal instruction"),
         };
     }
 
-    pub fn parse_opcode(opcode: u8) -> CpuOpcode {
+    fn read_parameter_bytes(address: u16, bus: &Bus) -> [u8; 3] {
+        [
+            bus.read(address),
+            bus.read(address + 1),
+            bus.read(address + 2),
+        ]
+    }
+
+    pub fn parse_opcode(opcode: u8, address: u16, bus: &Bus) -> CpuOpcode {
+        let params = CPU::read_parameter_bytes(address, &bus);
         match opcode {
             0x06 => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::B(0))),
             0x0E => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::C(0))),
@@ -499,7 +521,7 @@ impl CPU {
             //0xCB => CpuOpcode::BIT,
             //0xCB => CpuOpcode::SET,
             //0xCB => CpuOpcode::RES,
-            0xC3 => CpuOpcode::JP(OpcodeParameter::U16(0)),
+            0xC3 => CpuOpcode::JP(OpcodeParameter::U16(join_bytes(params[1], params[2]))),
             0xC2 => CpuOpcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero(true), 0)),
             0xCA => CpuOpcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero(true), 0)),
             0xD2 => CpuOpcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry(true), 0)),
@@ -600,7 +622,13 @@ mod tests {
     #[test]
     fn test_cpu_instructions() {
         let mut cpu = CPU::new();
-        cpu.exec(CpuOpcode::NOP);
+        let mut bus = Bus::new();
+        cpu.exec(CpuOpcode::NOP, &mut bus);
         assert_eq!(cpu.registers.get(Register::PC(0)), 0x101);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.exec(CpuOpcode::JP(OpcodeParameter::U16(0x1F1F)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC(0)), 0x1F1F);
     }
 }

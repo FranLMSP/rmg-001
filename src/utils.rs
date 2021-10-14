@@ -33,6 +33,10 @@ pub fn set_bit(byte: u8, value: bool, index: BitIndex) -> u8 {
     }
 }
 
+pub fn join_bytes(byte1: u8, byte2: u8) -> u16 {
+    ((byte1 as u16) << 8) | (byte2 as u16)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,5 +87,11 @@ mod tests {
         assert_eq!(get_bit(0b11011111, BitIndex::I5), false);
         assert_eq!(get_bit(0b10111111, BitIndex::I6), false);
         assert_eq!(get_bit(0b01111111, BitIndex::I7), false);
+    }
+
+    #[test]
+    fn test_join_two_bytes() {
+        assert_eq!(join_bytes(0b10101010, 0b11111111), 0b1010101011111111);
+        assert_eq!(join_bytes(0b11111111, 0b10101010), 0b1111111110101010);
     }
 }

@@ -1,3 +1,5 @@
+use std::{thread, time};
+
 use crate::cpu::CPU;
 use crate::ppu::PPU;
 use crate::bus::Bus;
@@ -18,6 +20,11 @@ impl Console {
     }
 
     pub fn cpu_run(&mut self) {
-        self.cpu.run(&mut self.bus);
+        let mut exit = false;
+        while !exit {
+            self.cpu.run(&mut self.bus);
+
+            thread::sleep(time::Duration::from_millis(100));
+        }
     }
 }
