@@ -138,6 +138,18 @@ impl Registers {
         self.pc += times as u16;
     }
 
+    pub fn decrement_pc(&mut self, times: u8) {
+        self.pc -= times as u16;
+    }
+
+    pub fn increment_sp(&mut self, times: u8) {
+        self.sp += times as u16;
+    }
+
+    pub fn decrement_sp(&mut self, times: u8) {
+        self.sp -= times as u16;
+    }
+
     fn get_af(&self) -> u16 {
         join_bytes(self.a, self.f)
     }
@@ -329,12 +341,20 @@ impl CPU {
                 OpcodeParameter::U16(address) => self.registers.set(&Register::PC(address)),
                 _ => {},
             },
+            // CALL
             CpuOpcode::CALL(params) => match params {
                 OpcodeParameter::U16(address) => {
+                    let pc_bytes = self.registers.get(&Register::PC(0)).to_be_bytes();
+                    self.registers.decrement_sp(2);
+                    let sp = self.registers.get(&Register::SP(0));
+                    bus.write(sp, pc_bytes[1]);
+                    bus.write(sp + 1, pc_bytes[0]);
                     self.registers.set(&Register::PC(address));
                 },
                 _ => {},
             },
+            // RST, same as Call
+            CpuOpcode::RST(address) => self.exec(CpuOpcode::CALL(OpcodeParameter::U16(address as u16)), bus),
             // Rotate A Left
             CpuOpcode::RLCA => {
                 let val = self.registers.get(&Register::A(0)).to_be_bytes()[1];
@@ -696,12 +716,12 @@ mod tests {
 
     #[test]
     fn test_cpu_instructions() {
+        // LD
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(CpuOpcode::LD(OpcodeParameter::Register_U16(Register::SP(0xF1F1))), &mut bus);
         assert_eq!(cpu.registers.get(&Register::SP(0xF1F1)), 0xF1F1);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x103);
-
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.registers.set(&Register::SP(0x1234));
@@ -710,17 +730,20 @@ mod tests {
         assert_eq!(bus.read(0xF0F1), 0x12);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x103);
 
+        // JP
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(CpuOpcode::JP(OpcodeParameter::U16(0x1F1F)), &mut bus);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x1F1F);
 
+        // DI
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(CpuOpcode::DI, &mut bus);
         assert_eq!(bus.read(0xFFFF), 0x00);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
 
+        // RLCA
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.registers.set(&Register::A(0b00000010));
@@ -735,6 +758,7 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(true)), true);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
 
+        // RRCA
         let mut cpu = CPU::new();
         cpu.registers.set(&Register::A(0b01000000));
         cpu.exec(CpuOpcode::RRCA, &mut bus);
@@ -748,10 +772,29 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(&FlagRegister::Carry(true)), true);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0x101);
 
+        // CALL
         let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(&Register::SP(sp));
+        cpu.registers.set(&Register::PC(0x1234));
         cpu.exec(CpuOpcode::CALL(OpcodeParameter::U16(0xF0F0)), &mut bus);
+        assert_eq!(bus.read(sp - 2), 0x34);
+        assert_eq!(bus.read(sp - 1), 0x12);
+        assert_eq!(cpu.registers.get(&Register::SP(0)), sp - 2);
         assert_eq!(cpu.registers.get(&Register::PC(0)), 0xF0F0);
 
+        // RST
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(&Register::SP(sp));
+        cpu.registers.set(&Register::PC(0x1234));
+        cpu.exec(CpuOpcode::RST(0xF0), &mut bus);
+        assert_eq!(bus.read(sp - 2), 0x34);
+        assert_eq!(bus.read(sp - 1), 0x12);
+        assert_eq!(cpu.registers.get(&Register::SP(0)), sp - 2);
+        assert_eq!(cpu.registers.get(&Register::PC(0)), 0x00F0);
+
+        // NOP
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(CpuOpcode::NOP, &mut bus);

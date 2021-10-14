@@ -57,7 +57,7 @@ impl Bus {
         match MemoryMap::get_map(address) {
             MemoryMap::BankZero => self.game_rom.read(address),
             MemoryMap::BankSwitchable => self.game_rom.read(address),
-            MemoryMap::InterruptEnableRegister => self.data[address as usize],
+            // MemoryMap::InterruptEnableRegister => self.data[address as usize],
             _ => self.data[address as usize],
         }
     }
