@@ -271,8 +271,8 @@ impl CPU {
 
     pub fn run(&mut self, bus: &mut Bus) {
         let program_counter = self.registers.get(Register::PC(0));
-        let byte_read = bus.read(program_counter);
-        let opcode = CPU::parse_opcode(byte_read, program_counter, bus);
+        let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
+        let opcode = CPU::parse_opcode(&parameter_bytes);
         self.exec(opcode, bus);
     }
 
@@ -297,8 +297,8 @@ impl CPU {
         ]
     }
 
-    pub fn parse_opcode(opcode: u8, address: u16, bus: &Bus) -> CpuOpcode {
-        let params = CPU::read_parameter_bytes(address, &bus);
+    pub fn parse_opcode(params: &[u8; 3]) -> CpuOpcode {
+        let opcode = params[0];
         match opcode {
             0x06 => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::B(0))),
             0x0E => CpuOpcode::LD(OpcodeParameter::Register_U8(Register::C(0))),
