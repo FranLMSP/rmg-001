@@ -816,7 +816,15 @@ mod tests {
         cpu.exec(Opcode::INC(true, Register::A), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
-        //assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::HL, 0b0000111111111111);
+        cpu.exec(Opcode::INC(true, Register::HL), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
+        assert_eq!(cpu.registers.get(Register::HL), 0b0001000000000000);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
 
         // DEC
@@ -835,6 +843,14 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
         assert_eq!(cpu.registers.get(Register::A), 0b00001111);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::HL, 0b0001000000000000);
+        cpu.exec(Opcode::DEC(true, Register::HL), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), true);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
+        assert_eq!(cpu.registers.get(Register::HL), 0b0000111111111111);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
 
         // NOP
