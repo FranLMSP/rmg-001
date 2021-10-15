@@ -28,6 +28,21 @@ pub enum Register {
     PC, // Program counter
 }
 
+type Rg = Register;
+
+impl Register {
+    pub fn is_8bit(&self) -> bool {
+        match self {
+            Rg::A | Rg::F | Rg::B | Rg::C | Rg::D | Rg::E | Rg::H | Rg::L => true,
+            Rg::AF | Rg::BC | Rg::DE | Rg::HL | Rg::SP | Rg::PC => false,
+        }
+    }
+
+    pub fn is_16bit(&self) -> bool {
+        !self.is_8bit()
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum FlagRegister {
     Zero, // Set when the result of a math operation is zero or if two values matches using the CP instruction
@@ -275,14 +290,11 @@ impl CPU {
                     self.registers.increment(Register::PC, 3);
                 },
                 OpcodeParameter::U16_Register(address, register) => {
-                    type Rg = Register;
                     let value = self.registers.get(register);
                     let bytes = value.to_be_bytes();
-                    match register {
-                        Rg::A | Rg::F | Rg::B | Rg::C | Rg::D | Rg::E | Rg::H | Rg::L => {
-                            bus.write(address, bytes[1]);
-                        },
-                        Rg::AF | Rg::BC | Rg::DE | Rg::HL | Rg::SP | Rg::PC => {
+                    match register.is_8bit() {
+                        true => bus.write(address, bytes[1]),
+                        false => {
                             bus.write(address, bytes[1]);
                             bus.write(address + 1, bytes[0]);
                         }
@@ -297,7 +309,12 @@ impl CPU {
                 self.registers.increment(register, 1);
                 if affect_flags {
                     self.registers.set_flag(FlagRegister::Substract, false);
-                    if add_half_carry(prev_value.to_be_bytes()[1], 1) {
+                    let mut byte_compare = 0;
+                    match register.is_8bit() {
+                        true => byte_compare = prev_value.to_be_bytes()[1],
+                        false => byte_compare = prev_value.to_be_bytes()[0],
+                    }
+                    if add_half_carry(byte_compare, 1) {
                         self.registers.set_flag(FlagRegister::HalfCarry, true);
                     }
                     let result = self.registers.get(register);
@@ -313,7 +330,12 @@ impl CPU {
                 self.registers.decrement(register, 1);
                 if affect_flags {
                     self.registers.set_flag(FlagRegister::Substract, true);
-                    if sub_half_carry(prev_value.to_be_bytes()[1], 1) {
+                    let mut byte_compare = 0;
+                    match register.is_8bit() {
+                        true => byte_compare = prev_value.to_be_bytes()[1],
+                        false => byte_compare = prev_value.to_be_bytes()[0],
+                    }
+                    if sub_half_carry(byte_compare, 1) {
                         self.registers.set_flag(FlagRegister::HalfCarry, true);
                     }
                     let result = self.registers.get(register);
