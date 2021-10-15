@@ -113,6 +113,7 @@ mod tests {
         assert_eq!(add_half_carry(0b00000100, 0b00001100), true);
         assert_eq!(add_half_carry(0b00000100, 0b00000100), false);
         assert_eq!(add_half_carry(0b00000100, 0b00001000), false);
+        assert_eq!(add_half_carry(0b00001111, 0b00000001), true);
 
         assert_eq!(sub_half_carry(0b00010000, 0b00001000), true);
         assert_eq!(sub_half_carry(0b00000000, 0b00000001), true);
