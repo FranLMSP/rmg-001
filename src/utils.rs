@@ -37,6 +37,18 @@ pub fn join_bytes(byte1: u8, byte2: u8) -> u16 {
     ((byte1 as u16) << 8) | (byte2 as u16)
 }
 
+pub fn add_half_carry(byte1: u8, byte2: u8) -> bool {
+    let byte1 = byte1 & 0b00001111;
+    let byte2 = byte2 & 0b00001111;
+    get_bit(byte1 + byte2, BitIndex::I4)
+}
+
+pub fn sub_half_carry(byte1: u8, byte2: u8) -> bool {
+    let byte1 = byte1 & 0b00001111;
+    let byte2 = byte2 & 0b00001111;
+    byte2 > byte1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,5 +105,17 @@ mod tests {
     fn test_join_two_bytes() {
         assert_eq!(join_bytes(0b10101010, 0b11111111), 0b1010101011111111);
         assert_eq!(join_bytes(0b11111111, 0b10101010), 0b1111111110101010);
+    }
+
+    #[test]
+    fn test_half_carry() {
+        assert_eq!(add_half_carry(0b10101010, 0b11111111), true);
+        assert_eq!(add_half_carry(0b00000100, 0b00001100), true);
+        assert_eq!(add_half_carry(0b00000100, 0b00000100), false);
+        assert_eq!(add_half_carry(0b00000100, 0b00001000), false);
+
+        assert_eq!(sub_half_carry(0b00010000, 0b00001000), true);
+        assert_eq!(sub_half_carry(0b00000000, 0b00000001), true);
+        assert_eq!(sub_half_carry(0b00001000, 0b00001000), false);
     }
 }

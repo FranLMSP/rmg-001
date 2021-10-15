@@ -769,8 +769,10 @@ mod tests {
         // INC
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0);
-        cpu.exec(Opcode::INC(false, Register::A), &mut bus);
-        assert_eq!(cpu.registers.get(Register::A), 1);
+        cpu.exec(Opcode::INC(true, Register::A), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
 
         // DEC
