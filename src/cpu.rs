@@ -364,6 +364,22 @@ impl CPU {
             },
             // RST, same as Call
             Opcode::RST(address) => self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus),
+            // POP
+            Opcode::POP(register) => {
+                if register.is_16bit() {
+                    let sp = self.registers.get(Register::SP);
+                    let val = join_bytes(bus.read(sp + 1), bus.read(sp));
+                    self.registers.set(register, val);
+                    self.registers.increment(Register::SP, 2);
+                }
+            },
+            // RET, same as POP PC when no parameter is specified
+            Opcode::RET(params) => {
+                match params {
+                    OpcodeParameter::NoParam => self.exec(Opcode::POP(Register::PC), bus),
+                    _ => {},
+                }
+            }
             // Rotate A Left
             Opcode::RLCA => {
                 let val = self.registers.get(Register::A).to_be_bytes()[1];
@@ -802,6 +818,26 @@ mod tests {
         assert_eq!(bus.read(sp - 1), 0x12);
         assert_eq!(cpu.registers.get(Register::SP), sp - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0x00F0);
+
+        // POP
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        bus.write(sp,     0x34);
+        bus.write(sp + 1, 0x12);
+        cpu.exec(Opcode::POP(Register::HL), &mut bus);
+        assert_eq!(cpu.registers.get(Register::HL), 0x1234);
+        assert_eq!(cpu.registers.get(Register::SP), sp + 2);
+
+        // RET
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        bus.write(sp,     0x34);
+        bus.write(sp + 1, 0x12);
+        cpu.exec(Opcode::RET(OpcodeParameter::NoParam), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x1234);
+        assert_eq!(cpu.registers.get(Register::SP), sp + 2);
 
         // INC
         let mut cpu = CPU::new();
