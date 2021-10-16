@@ -87,16 +87,16 @@ pub struct Registers {
 impl Registers {
     pub fn new() -> Self {
         Self {
-            a: 0,
-            f: 0b00000000, // The first 4 lower bits are always set to 0
-            b: 0,
-            c: 0,
-            d: 0,
-            e: 0,
-            h: 0,
-            l: 0,
-            sp: 0,
-            pc: 0x100, // On power up, the Gameboy executes the instruction at hex 100
+            a: 0x01,
+            f: 0xB0, // The first 4 lower bits are always set to 0
+            b: 0x00,
+            c: 0x00,
+            d: 0x00,
+            e: 0xD8,
+            h: 0x01,
+            l: 0x4D,
+            sp: 0xFFFE,
+            pc: 0x0100, // On power up, the Gameboy executes the instruction at hex 100
         }
     }
 
@@ -275,9 +275,20 @@ impl CPU {
         let program_counter = self.registers.get(Register::PC);
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
         let opcode = CPU::parse_opcode(&parameter_bytes);
-        println!("{:?}", opcode);
-        println!("PC: {:04X?}", self.registers.get(Register::PC));
-        println!("{:02X?}", &parameter_bytes);
+        // println!("Opcode: {:02X?} | PC: {:04X?} | Params: {:02X?}", opcode, self.registers.get(Register::PC), &parameter_bytes);
+        println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} {:02X?}",
+            self.registers.get(Register::A),
+            self.registers.get(Register::F),
+            self.registers.get(Register::B),
+            self.registers.get(Register::C),
+            self.registers.get(Register::D),
+            self.registers.get(Register::E),
+            self.registers.get(Register::H),
+            self.registers.get(Register::L),
+            self.registers.get(Register::SP),
+            self.registers.get(Register::PC),
+            parameter_bytes,
+         );
         self.exec(opcode, bus);
     }
 
