@@ -1,5 +1,5 @@
 # Rust Boy
-A Gameboy emulator written in Rust.
+Yet another Gameboy emulator written in Rust.
 
 This is just a fun project I'm making for learning and practice purposes. If you want a fully-featured Gameboy emulator, this is not probably the best one :P
 
