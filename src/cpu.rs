@@ -90,7 +90,7 @@ impl Registers {
             a: 0x01,
             f: 0xB0, // The first 4 lower bits are always set to 0
             b: 0x00,
-            c: 0x00,
+            c: 0x13,
             d: 0x00,
             e: 0xD8,
             h: 0x01,
@@ -273,14 +273,15 @@ impl CPU {
     pub fn new() -> Self {
         Self {
             registers: Registers::new(),
+            exec_calls_count: 0,
         }
     }
 
-    pub fn get_exec_calls_count(&self) {
+    pub fn get_exec_calls_count(&self) -> usize {
         self.exec_calls_count
     }
 
-    pub fn increment_exec_calls_count(&mut self) {
+    fn increment_exec_calls_count(&mut self) {
         self.exec_calls_count += 1;
     }
 
@@ -306,6 +307,7 @@ impl CPU {
             parameter_bytes.3,
          );
         self.exec(opcode, bus);
+        self.increment_exec_calls_count();
     }
 
     pub fn exec(&mut self, opcode: Opcode, bus: &mut Bus) {
@@ -346,6 +348,7 @@ impl CPU {
             },
             // Increment or decrement program counter by signed N
             Opcode::JR(params) => {
+                self.registers.increment(Register::PC, 2);
                 let mut condition_met = false;
                 let mut value = 0 as i16;
                 match params {
@@ -367,7 +370,6 @@ impl CPU {
                     let pc = (self.registers.get(Register::PC) as i16) + (value as i16);
                     self.registers.set(Register::PC, pc as u16);
                 }
-                self.registers.increment(Register::PC, 2);
             },
             // Load and increment
             Opcode::LDI(params) => match params {
@@ -560,8 +562,8 @@ impl CPU {
             0x36 => Opcode::LD(OpcodeParameter::Register_U8(Register::HL, params.1)),
             0x0A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::BC)),
             0x1A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::DE)),
-            0xFA => Opcode::LD(OpcodeParameter::Register_U8(Register::A, params.1)), // Receives 16 bit value, but lower bit is ignored
-            0x3E => Opcode::LD(OpcodeParameter::Register_U16(Register::A, two_byte_param)),
+            0xFA => Opcode::LD(OpcodeParameter::Register_U16(Register::A, two_byte_param)), // Receives 16 bit value, but lower bit is ignored
+            0x3E => Opcode::LD(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xEA => Opcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::A)),
             0xF2 => Opcode::LD(OpcodeParameter::Register_FF00plusRegister(Register::A, Register::C)),
             0xE2 => Opcode::LD(OpcodeParameter::FF00plusRegister_Register(Register::A, Register::C)),
