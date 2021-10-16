@@ -344,6 +344,17 @@ impl CPU {
                     }
                     self.registers.increment(Register::PC, 3);
                 },
+                OpcodeParameter::Register_FF00plusU8(register, val) => {
+                    self.registers.set(register, bus.read(0xFF00 + (val as u16)) as u16);
+                    self.registers.increment(Register::PC, 2);
+                },
+                OpcodeParameter::FF00plusU8_Register(val, register) => {
+                    match register.is_8bit() {
+                        true => bus.write(0xFF00 + (val as u16), self.registers.get(register).to_be_bytes()[1]),
+                        false => bus.write_16bit(0xFF00 + (val as u16), self.registers.get(register)),
+                    }
+                    self.registers.increment(Register::PC, 2);
+                },
                 _ => {},
             },
             // Increment or decrement program counter by signed N
@@ -855,6 +866,23 @@ mod tests {
         cpu.exec(Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get(Register::A), 0xFF);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let addr = 0xFF00;
+        cpu.registers.set(Register::A, 0xF1);
+        cpu.exec(Opcode::LD(OpcodeParameter::FF00plusU8_Register(4, Register::A)), &mut bus);
+        assert_eq!(bus.read(addr + 4), 0xF1);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let addr = 0xFF00;
+        cpu.registers.set(Register::A, 0x00);
+        bus.write(addr + 4, 0xF1);
+        cpu.exec(Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, 4)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::A), 0xF1);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
 
         // LDI
         let mut bus = Bus::new();
