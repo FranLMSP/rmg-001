@@ -194,15 +194,19 @@ pub enum OpcodeParameter {
     Register_RegisterPlusI8(Register, Register, u8),
 
     U8(u8),
-    I8(u8),
+    I8(i8),
     U16(u16),
-    I16(u16),
+    I16(i16),
     FlagRegisterReset(FlagRegister),
     FlagRegisterSet(FlagRegister),
     FlagRegisterReset_U16(FlagRegister, u16),
     FlagRegisterSet_U16(FlagRegister, u16),
-    FlagRegisterReset_I16(FlagRegister, u16),
-    FlagRegisterSet_I16(FlagRegister, u16),
+    FlagRegisterReset_I16(FlagRegister, i16),
+    FlagRegisterSet_I16(FlagRegister, i16),
+    FlagRegisterReset_U8(FlagRegister, u8),
+    FlagRegisterSet_U8(FlagRegister, u8),
+    FlagRegisterReset_I8(FlagRegister, i8),
+    FlagRegisterSet_I8(FlagRegister, i8),
 
     NoParam,
 }
@@ -262,6 +266,7 @@ pub enum Opcode {
 
 pub struct CPU {
     registers: Registers,
+    exec_calls_count: usize,
 }
 
 impl CPU {
@@ -271,12 +276,20 @@ impl CPU {
         }
     }
 
+    pub fn get_exec_calls_count(&self) {
+        self.exec_calls_count
+    }
+
+    pub fn increment_exec_calls_count(&mut self) {
+        self.exec_calls_count += 1;
+    }
+
     pub fn run(&mut self, bus: &mut Bus) {
         let program_counter = self.registers.get(Register::PC);
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
-        let opcode = CPU::parse_opcode(&parameter_bytes);
+        let opcode = CPU::parse_opcode(parameter_bytes);
         // println!("Opcode: {:02X?} | PC: {:04X?} | Params: {:02X?}", opcode, self.registers.get(Register::PC), &parameter_bytes);
-        println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} {:02X?}",
+        println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
             self.registers.get(Register::A),
             self.registers.get(Register::F),
             self.registers.get(Register::B),
@@ -287,7 +300,10 @@ impl CPU {
             self.registers.get(Register::L),
             self.registers.get(Register::SP),
             self.registers.get(Register::PC),
-            parameter_bytes,
+            parameter_bytes.0,
+            parameter_bytes.1,
+            parameter_bytes.2,
+            parameter_bytes.3,
          );
         self.exec(opcode, bus);
     }
@@ -328,6 +344,31 @@ impl CPU {
                 },
                 _ => {},
             },
+            // Increment or decrement program counter by signed N
+            Opcode::JR(params) => {
+                let mut condition_met = false;
+                let mut value = 0 as i16;
+                match params {
+                    OpcodeParameter::I8(val) => {
+                        condition_met = true;
+                        value = val as i16;
+                    },
+                    OpcodeParameter::FlagRegisterReset_I8(flag, val) => {
+                        condition_met = !self.registers.get_flag(flag);
+                        value = val as i16;
+                    },
+                    OpcodeParameter::FlagRegisterSet_I8(flag, val) => {
+                        condition_met = self.registers.get_flag(flag);
+                        value = val as i16;
+                    },
+                    _ => {},
+                };
+                if condition_met {
+                    let pc = (self.registers.get(Register::PC) as i16) + (value as i16);
+                    self.registers.set(Register::PC, pc as u16);
+                }
+                self.registers.increment(Register::PC, 2);
+            },
             // Load and increment
             Opcode::LDI(params) => match params {
                 OpcodeParameter::Register_RegisterIncrement(reg1, reg2) => {
@@ -349,13 +390,9 @@ impl CPU {
                         true => byte_compare = prev_value.to_be_bytes()[1],
                         false => byte_compare = prev_value.to_be_bytes()[0],
                     }
-                    if add_half_carry(byte_compare, 1) {
-                        self.registers.set_flag(FlagRegister::HalfCarry, true);
-                    }
+                    self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(byte_compare, 1));
                     let result = self.registers.get(register);
-                    if result == 0 {
-                        self.registers.set_flag(FlagRegister::Zero, true);
-                    }
+                    self.registers.set_flag(FlagRegister::Zero, result == 0);
                 }
                 self.registers.increment(Register::PC, 1);
             },
@@ -370,13 +407,9 @@ impl CPU {
                         true => byte_compare = prev_value.to_be_bytes()[1],
                         false => byte_compare = prev_value.to_be_bytes()[0],
                     }
-                    if sub_half_carry(byte_compare, 1) {
-                        self.registers.set_flag(FlagRegister::HalfCarry, true);
-                    }
+                    self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(byte_compare, 1));
                     let result = self.registers.get(register);
-                    if result == 0 {
-                        self.registers.set_flag(FlagRegister::Zero, true);
-                    }
+                    self.registers.set_flag(FlagRegister::Zero, result == 0);
                 }
                 self.registers.increment(Register::PC, 1);
             },
@@ -440,24 +473,25 @@ impl CPU {
         };
     }
 
-    fn read_parameter_bytes(address: u16, bus: &Bus) -> [u8; 3] {
-        [
+    fn read_parameter_bytes(address: u16, bus: &Bus) -> (u8, u8, u8, u8) {
+        (
             bus.read(address),
             bus.read(address + 1),
             bus.read(address + 2),
-        ]
+            bus.read(address + 3),
+        )
     }
 
-    pub fn parse_opcode(params: &[u8; 3]) -> Opcode {
-        let opcode = params[0];
-        let two_byte_param = join_bytes(params[2], params[1]);
+    pub fn parse_opcode(params: (u8, u8, u8, u8)) -> Opcode {
+        let opcode = params.0;
+        let two_byte_param = join_bytes(params.2, params.1);
         match opcode {
-            0x06 => Opcode::LD(OpcodeParameter::Register_U8(Register::B, params[1])),
-            0x0E => Opcode::LD(OpcodeParameter::Register_U8(Register::C, params[1])),
-            0x16 => Opcode::LD(OpcodeParameter::Register_U8(Register::D, params[1])),
-            0x1E => Opcode::LD(OpcodeParameter::Register_U8(Register::E, params[1])),
-            0x26 => Opcode::LD(OpcodeParameter::Register_U8(Register::H, params[1])),
-            0x2E => Opcode::LD(OpcodeParameter::Register_U8(Register::L, params[1])),
+            0x06 => Opcode::LD(OpcodeParameter::Register_U8(Register::B, params.1)),
+            0x0E => Opcode::LD(OpcodeParameter::Register_U8(Register::C, params.1)),
+            0x16 => Opcode::LD(OpcodeParameter::Register_U8(Register::D, params.1)),
+            0x1E => Opcode::LD(OpcodeParameter::Register_U8(Register::E, params.1)),
+            0x26 => Opcode::LD(OpcodeParameter::Register_U8(Register::H, params.1)),
+            0x2E => Opcode::LD(OpcodeParameter::Register_U8(Register::L, params.1)),
             0x7F => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0x78 => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0x79 => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -523,10 +557,10 @@ impl CPU {
             0x02 => Opcode::LD(OpcodeParameter::Register_Register(Register::BC, Register::A)),
             0x12 => Opcode::LD(OpcodeParameter::Register_Register(Register::DE, Register::A)),
             0x77 => Opcode::LD(OpcodeParameter::Register_Register(Register::HL, Register::A)),
-            0x36 => Opcode::LD(OpcodeParameter::Register_U8(Register::HL, params[1])),
+            0x36 => Opcode::LD(OpcodeParameter::Register_U8(Register::HL, params.1)),
             0x0A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::BC)),
             0x1A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::DE)),
-            0xFA => Opcode::LD(OpcodeParameter::Register_U8(Register::A, params[1])), // Receives 16 bit value, but lower bit is ignored
+            0xFA => Opcode::LD(OpcodeParameter::Register_U8(Register::A, params.1)), // Receives 16 bit value, but lower bit is ignored
             0x3E => Opcode::LD(OpcodeParameter::Register_U16(Register::A, two_byte_param)),
             0xEA => Opcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::A)),
             0xF2 => Opcode::LD(OpcodeParameter::Register_FF00plusRegister(Register::A, Register::C)),
@@ -535,14 +569,14 @@ impl CPU {
             0x32 => Opcode::LDD(OpcodeParameter::RegisterDecrement_Register(Register::HL, Register::A)),
             0x2A => Opcode::LDI(OpcodeParameter::Register_RegisterIncrement(Register::A, Register::HL)),
             0x22 => Opcode::LDI(OpcodeParameter::RegisterIncrement_Register(Register::HL, Register::A)),
-            0xE0 => Opcode::LD(OpcodeParameter::FF00plusU8_Register(params[1], Register::A)),
-            0xF0 => Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, params[1])),
+            0xE0 => Opcode::LD(OpcodeParameter::FF00plusU8_Register(params.1, Register::A)),
+            0xF0 => Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, params.1)),
             0x01 => Opcode::LD(OpcodeParameter::Register_U16(Register::BC, two_byte_param)),
             0x11 => Opcode::LD(OpcodeParameter::Register_U16(Register::DE, two_byte_param)),
             0x21 => Opcode::LD(OpcodeParameter::Register_U16(Register::HL, two_byte_param)),
             0x31 => Opcode::LD(OpcodeParameter::Register_U16(Register::SP, two_byte_param)),
             0xF9 => Opcode::LD(OpcodeParameter::Register_Register(Register::SP, Register::HL)),
-            0xF8 => Opcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL, Register::SP, params[1])),
+            0xF8 => Opcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL, Register::SP, params.1)),
             0x08 => Opcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::SP)),
             0xC5 => Opcode::PUSH(Register::BC),
             0xD5 => Opcode::PUSH(Register::DE),
@@ -560,7 +594,7 @@ impl CPU {
             0x84 => Opcode::ADD(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0x85 => Opcode::ADD(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0x86 => Opcode::ADD(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xC6 => Opcode::ADD(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xC6 => Opcode::ADD(OpcodeParameter::Register_U8(Register::A, params.1)),
             0x8F => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0x88 => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0x89 => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -569,7 +603,7 @@ impl CPU {
             0x8C => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0x8D => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0x8E => Opcode::ADC(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xCE => Opcode::ADC(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xCE => Opcode::ADC(OpcodeParameter::Register_U8(Register::A, params.1)),
             0x97 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0x90 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0x91 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -578,7 +612,7 @@ impl CPU {
             0x94 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0x95 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0x96 => Opcode::SUB(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xD6 => Opcode::SUB(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xD6 => Opcode::SUB(OpcodeParameter::Register_U8(Register::A, params.1)),
             0x9F => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0x98 => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0x99 => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -587,7 +621,7 @@ impl CPU {
             0x9C => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0x9D => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0x9E => Opcode::SBC(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xDE => Opcode::SBC(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xDE => Opcode::SBC(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xA7 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0xA0 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0xA1 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -596,7 +630,7 @@ impl CPU {
             0xA4 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0xA5 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0xA6 => Opcode::AND(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xE6 => Opcode::AND(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xE6 => Opcode::AND(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xB7 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0xB0 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0xB1 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -605,7 +639,7 @@ impl CPU {
             0xB4 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0xB5 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0xB6 => Opcode::OR(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xF6 => Opcode::OR(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xF6 => Opcode::OR(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xAF => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0xA8 => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0xA9 => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -614,7 +648,7 @@ impl CPU {
             0xAC => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0xAD => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0xAE => Opcode::XOR(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xEE => Opcode::XOR(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xEE => Opcode::XOR(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xBF => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::A)),
             0xB8 => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::B)),
             0xB9 => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::C)),
@@ -623,7 +657,7 @@ impl CPU {
             0xBC => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::H)),
             0xBD => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::L)),
             0xBE => Opcode::CP(OpcodeParameter::Register_Register(Register::A, Register::HL)),
-            0xFE => Opcode::CP(OpcodeParameter::Register_U8(Register::A, params[1])),
+            0xFE => Opcode::CP(OpcodeParameter::Register_U8(Register::A, params.1)),
             0x3C => Opcode::INC(true, Register::A),
             0x04 => Opcode::INC(true, Register::B),
             0x0C => Opcode::INC(true, Register::C),
@@ -652,7 +686,7 @@ impl CPU {
             0x19 => Opcode::ADD(OpcodeParameter::Register_Register(Register::HL, Register::DE)),
             0x29 => Opcode::ADD(OpcodeParameter::Register_Register(Register::HL, Register::HL)),
             0x39 => Opcode::ADD(OpcodeParameter::Register_Register(Register::HL, Register::SP)),
-            0xE8 => Opcode::ADD(OpcodeParameter::Register_I8(Register::HL, params[1])),
+            0xE8 => Opcode::ADD(OpcodeParameter::Register_I8(Register::HL, params.1)),
             0x27 => Opcode::DAA,
             0x2F => Opcode::CPL,
             0x3F => Opcode::CCF,
@@ -679,11 +713,11 @@ impl CPU {
             0xD2 => Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry, two_byte_param)),
             0xDA => Opcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Carry, two_byte_param)),
             0xE9 => Opcode::JP(OpcodeParameter::Register(Register::HL)),
-            0x18 => Opcode::JR(OpcodeParameter::I8(params[1])),
-            0x20 => Opcode::JR(OpcodeParameter::FlagRegisterReset_I16(FlagRegister::Zero, two_byte_param)),
-            0x28 => Opcode::JR(OpcodeParameter::FlagRegisterSet_I16(FlagRegister::Zero, two_byte_param)),
-            0x30 => Opcode::JR(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry, two_byte_param)),
-            0x38 => Opcode::JR(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Carry, two_byte_param)),
+            0x18 => Opcode::JR(OpcodeParameter::I8(params.1 as i8)),
+            0x20 => Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Zero, params.1 as i8)),
+            0x28 => Opcode::JR(OpcodeParameter::FlagRegisterSet_I8(FlagRegister::Zero, params.1 as i8)),
+            0x30 => Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Carry, params.1 as i8)),
+            0x38 => Opcode::JR(OpcodeParameter::FlagRegisterSet_I8(FlagRegister::Carry, params.1 as i8)),
             0xCD => Opcode::CALL(OpcodeParameter::U16(two_byte_param)),
             0xC4 => Opcode::CALL(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, two_byte_param)),
             0xCC => Opcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, two_byte_param)),
@@ -839,6 +873,42 @@ mod tests {
         cpu.exec(Opcode::JP(OpcodeParameter::U16(0x1F1F)), &mut bus);
         assert_eq!(cpu.registers.get(Register::PC), 0x1F1F);
 
+        // JR
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set(Register::PC, 100);
+        cpu.exec(Opcode::JR(OpcodeParameter::I8(-5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 95 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.exec(Opcode::JR(OpcodeParameter::I8(5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 105 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Zero, -5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 95 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.exec(Opcode::JR(OpcodeParameter::FlagRegisterSet_I8(FlagRegister::Zero, -5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 95 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.exec(Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Zero, -5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 100 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::JR(OpcodeParameter::FlagRegisterSet_I8(FlagRegister::Zero, -5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 100 + 2);
+
+        cpu.registers.set(Register::PC, 100);
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Zero, 5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 105 + 2);
+
         // DI
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
@@ -920,16 +990,12 @@ mod tests {
         // INC
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0);
-        cpu.registers.set_flag(FlagRegister::Zero, false);
-        cpu.registers.set_flag(FlagRegister::HalfCarry, false);
         cpu.exec(Opcode::INC(true, Register::A), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         let mut cpu = CPU::new();
-        cpu.registers.set_flag(FlagRegister::Zero, false);
-        cpu.registers.set_flag(FlagRegister::HalfCarry, false);
         cpu.registers.set(Register::A, 0b00001111);
         cpu.exec(Opcode::INC(true, Register::A), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
@@ -937,8 +1003,6 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         let mut cpu = CPU::new();
-        cpu.registers.set_flag(FlagRegister::Zero, false);
-        cpu.registers.set_flag(FlagRegister::HalfCarry, false);
         cpu.registers.set(Register::HL, 0b0000111111111111);
         cpu.exec(Opcode::INC(true, Register::HL), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
@@ -949,8 +1013,6 @@ mod tests {
 
         // DEC
         let mut cpu = CPU::new();
-        cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.registers.set_flag(FlagRegister::HalfCarry, false);
         cpu.registers.set(Register::A, 1);
         cpu.exec(Opcode::DEC(true, Register::A), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
@@ -959,8 +1021,6 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::A), 0);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         let mut cpu = CPU::new();
-        cpu.registers.set_flag(FlagRegister::Zero, false);
-        cpu.registers.set_flag(FlagRegister::Carry, false);
         cpu.registers.set(Register::A, 0b00010000);
         cpu.exec(Opcode::DEC(true, Register::A), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
@@ -969,8 +1029,6 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::A), 0b00001111);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         let mut cpu = CPU::new();
-        cpu.registers.set_flag(FlagRegister::Zero, false);
-        cpu.registers.set_flag(FlagRegister::Carry, false);
         cpu.registers.set(Register::HL, 0b0001000000000000);
         cpu.exec(Opcode::DEC(true, Register::HL), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
