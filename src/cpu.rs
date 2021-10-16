@@ -274,14 +274,14 @@ impl CPU {
     pub fn run(&mut self, bus: &mut Bus) {
         let program_counter = self.registers.get(Register::PC);
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
-        println!("{:02X?}", &parameter_bytes);
         let opcode = CPU::parse_opcode(&parameter_bytes);
+        println!("{:?}", opcode);
+        println!("PC: {:04X?}", self.registers.get(Register::PC));
+        println!("{:02X?}", &parameter_bytes);
         self.exec(opcode, bus);
     }
 
     pub fn exec(&mut self, opcode: Opcode, bus: &mut Bus) {
-        println!("Executing {:?}", opcode);
-        println!("Current PC: {:02X?}", self.registers.get(Register::PC));
         match opcode {
             // Load
             Opcode::LD(params) => match params {
@@ -294,10 +294,7 @@ impl CPU {
                     let bytes = value.to_be_bytes();
                     match register.is_8bit() {
                         true => bus.write(address, bytes[1]),
-                        false => {
-                            bus.write(address, bytes[1]);
-                            bus.write(address + 1, bytes[0]);
-                        }
+                        false => bus.write_16bit(address, value),
                     }
                     self.registers.increment(Register::PC, 3);
                 },
@@ -353,11 +350,10 @@ impl CPU {
             // CALL
             Opcode::CALL(params) => match params {
                 OpcodeParameter::U16(address) => {
-                    let pc_bytes = self.registers.get(Register::PC).to_be_bytes();
+                    let pc = self.registers.get(Register::PC);
                     self.registers.decrement(Register::SP, 2);
                     let sp = self.registers.get(Register::SP);
-                    bus.write(sp, pc_bytes[1]);
-                    bus.write(sp + 1, pc_bytes[0]);
+                    bus.write_16bit(sp, pc);
                     self.registers.set(Register::PC, address);
                 },
                 _ => {},
@@ -368,7 +364,7 @@ impl CPU {
             Opcode::POP(register) => {
                 if register.is_16bit() {
                     let sp = self.registers.get(Register::SP);
-                    let val = join_bytes(bus.read(sp + 1), bus.read(sp));
+                    let val = bus.read_16bit(sp);
                     self.registers.set(register, val);
                     self.registers.increment(Register::SP, 2);
                 }
@@ -751,8 +747,7 @@ mod tests {
         let mut bus = Bus::new();
         cpu.registers.set(Register::SP, 0x1234);
         cpu.exec(Opcode::LD(OpcodeParameter::U16_Register(0xF0F0, Register::SP)), &mut bus);
-        assert_eq!(bus.read(0xF0F0), 0x34);
-        assert_eq!(bus.read(0xF0F1), 0x12);
+        assert_eq!(bus.read_16bit(0xF0F0), 0x1234);
         assert_eq!(cpu.registers.get(Register::PC), 0x103);
 
         // JP
@@ -803,8 +798,7 @@ mod tests {
         cpu.registers.set(Register::SP, sp);
         cpu.registers.set(Register::PC, 0x1234);
         cpu.exec(Opcode::CALL(OpcodeParameter::U16(0xF0F0)), &mut bus);
-        assert_eq!(bus.read(sp - 2), 0x34);
-        assert_eq!(bus.read(sp - 1), 0x12);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), sp - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0xF0F0);
 
@@ -814,8 +808,7 @@ mod tests {
         cpu.registers.set(Register::SP, sp);
         cpu.registers.set(Register::PC, 0x1234);
         cpu.exec(Opcode::RST(0xF0), &mut bus);
-        assert_eq!(bus.read(sp - 2), 0x34);
-        assert_eq!(bus.read(sp - 1), 0x12);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), sp - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0x00F0);
 
@@ -823,8 +816,7 @@ mod tests {
         let mut cpu = CPU::new();
         let sp = 0xFFDF;
         cpu.registers.set(Register::SP, sp);
-        bus.write(sp,     0x34);
-        bus.write(sp + 1, 0x12);
+        bus.write_16bit(sp, 0x1234);
         cpu.exec(Opcode::POP(Register::HL), &mut bus);
         assert_eq!(cpu.registers.get(Register::HL), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), sp + 2);
@@ -833,8 +825,7 @@ mod tests {
         let mut cpu = CPU::new();
         let sp = 0xFFDF;
         cpu.registers.set(Register::SP, sp);
-        bus.write(sp,     0x34);
-        bus.write(sp + 1, 0x12);
+        bus.write_16bit(sp, 0x1234);
         cpu.exec(Opcode::RET(OpcodeParameter::NoParam), &mut bus);
         assert_eq!(cpu.registers.get(Register::PC), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), sp + 2);
