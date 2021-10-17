@@ -537,16 +537,30 @@ impl CPU {
             // CALL
             Opcode::CALL(params) => {
                 self.registers.increment(Register::PC, 3);
+                let mut condition_met = false;
+                let mut addr = self.registers.get(Register::PC);
                 match params {
                     OpcodeParameter::U16(address) => {
-                        let pc = self.registers.get(Register::PC);
-                        self.registers.decrement(Register::SP, 2);
-                        let sp = self.registers.get(Register::SP);
-                        bus.write_16bit(sp, pc);
-                        self.registers.set(Register::PC, address);
+                        condition_met = true;
+                        addr = address;
+                    },
+                    OpcodeParameter::FlagRegisterReset_U16(flag, address) => {
+                        condition_met = !self.registers.get_flag(flag);
+                        addr = address;
+                    },
+                    OpcodeParameter::FlagRegisterSet_U16(flag, address) => {
+                        condition_met = self.registers.get_flag(flag);
+                        addr = address;
                     },
                     _ => {},
                 };
+                if condition_met {
+                    let pc = self.registers.get(Register::PC);
+                    self.registers.decrement(Register::SP, 2);
+                    let sp = self.registers.get(Register::SP);
+                    bus.write_16bit(sp, pc);
+                    self.registers.set(Register::PC, addr);
+                }
             },
             // RST, same as Call
             Opcode::RST(address) => self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus),
@@ -1110,6 +1124,44 @@ mod tests {
         assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
         assert_eq!(cpu.registers.get(Register::SP), sp - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0xF0F0);
+
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.registers.set(Register::PC, 0x1234);
+        cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(cpu.registers.get(Register::SP), sp - 2);
+        assert_eq!(cpu.registers.get(Register::PC), 0xF0F0);
+
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
+        // assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(cpu.registers.get(Register::SP), sp);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
+
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.registers.set(Register::PC, 0x1234);
+        cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(cpu.registers.get(Register::SP), sp - 2);
+        assert_eq!(cpu.registers.get(Register::PC), 0xF0F0);
+
+        let mut cpu = CPU::new();
+        let sp = 0xFFDF;
+        cpu.registers.set(Register::SP, sp);
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
+        // assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(cpu.registers.get(Register::SP), sp);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
 
         // RST
         let mut cpu = CPU::new();
