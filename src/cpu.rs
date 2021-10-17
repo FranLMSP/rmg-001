@@ -412,7 +412,7 @@ impl CPU {
                 },
                 OpcodeParameter::Register_U8(reg, val) => {
                     self.registers.increment(Register::PC, 2);
-                    self.registers.set(reg, self.registers.get(reg) | (val as u16));
+                    self.registers.set(reg, self.registers.get(reg) & (val as u16));
                     self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
                     self.registers.set_flag(FlagRegister::Substract, false);
                     self.registers.set_flag(FlagRegister::HalfCarry, true);
@@ -535,15 +535,18 @@ impl CPU {
                 _ => {},
             },
             // CALL
-            Opcode::CALL(params) => match params {
-                OpcodeParameter::U16(address) => {
-                    let pc = self.registers.get(Register::PC);
-                    self.registers.decrement(Register::SP, 2);
-                    let sp = self.registers.get(Register::SP);
-                    bus.write_16bit(sp, pc + 3);
-                    self.registers.set(Register::PC, address);
-                },
-                _ => {},
+            Opcode::CALL(params) => {
+                self.registers.increment(Register::PC, 3);
+                match params {
+                    OpcodeParameter::U16(address) => {
+                        let pc = self.registers.get(Register::PC);
+                        self.registers.decrement(Register::SP, 2);
+                        let sp = self.registers.get(Register::SP);
+                        bus.write_16bit(sp, pc);
+                        self.registers.set(Register::PC, address);
+                    },
+                    _ => {},
+                };
             },
             // RST, same as Call
             Opcode::RST(address) => self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus),
@@ -1202,8 +1205,8 @@ mod tests {
 
         let mut cpu = CPU::new();
         cpu.registers.set(Register::B, 0x1F);
-        cpu.exec(Opcode::AND(OpcodeParameter::Register_U8(Register::B, 0x1F)), &mut bus);
-        assert_eq!(cpu.registers.get(Register::B), 0x1F & 0x1F);
+        cpu.exec(Opcode::AND(OpcodeParameter::Register_U8(Register::B, 0x1A)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::B), 0x1F & 0x1A);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
