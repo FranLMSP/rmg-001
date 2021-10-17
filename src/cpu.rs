@@ -328,7 +328,10 @@ impl CPU {
                     self.registers.increment(Register::PC, 1);
                 },
                 OpcodeParameter::Register_U16(register, val) => {
-                    self.registers.set(register, val);
+                    match register.is_8bit() {
+                        true => self.registers.set(register, bus.read(val) as u16),
+                        false => self.registers.set(register, val),
+                    };
                     self.registers.increment(Register::PC, 3);
                 },
                 OpcodeParameter::Register_U8(register, val) => {
@@ -940,6 +943,14 @@ mod tests {
         let mut bus = Bus::new();
         cpu.exec(Opcode::LD(OpcodeParameter::Register_U16(Register::SP, 0xF1F1)), &mut bus);
         assert_eq!(cpu.registers.get(Register::SP), 0xF1F1);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let addr = 0xC000;
+        bus.write(addr, 0xF1);
+        cpu.exec(Opcode::LD(OpcodeParameter::Register_U16(Register::A, addr)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::A), 0xF1);
         assert_eq!(cpu.registers.get(Register::PC), 0x103);
 
         let mut cpu = CPU::new();

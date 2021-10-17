@@ -48,7 +48,7 @@ impl Bus {
             _ => ROM::from_bytes(&[0; 0xFFFF])
         };
         Self {
-            data: [0; 0x10000],
+            data: [0xFF; 0x10000],
             game_rom,
         }
     }
@@ -73,6 +73,9 @@ impl Bus {
 
     pub fn write(&mut self, address: u16, data: u8) {
         match MemoryMap::get_map(address) {
+            MemoryMap::BankZero | MemoryMap::BankSwitchable => {
+                // println!("WRITING TO ROM");
+            },
             MemoryMap::WorkRAM1 | MemoryMap::WorkRAM2 => {
                 self.data[address as usize] = data;
                 // Copy to the ECHO RAM
@@ -82,8 +85,7 @@ impl Bus {
             },
             MemoryMap::EchoRAM => {
                 self.data[address as usize] = data;
-                // Copy to the working RAM
-                self.data[(0xC000 + (address - 0xE000)) as usize] = data;
+                self.data[(0xC000 + (address - 0xE000)) as usize] = data; // Copy to the working RAM
             },
             _ => self.data[address as usize] = data,
         };
