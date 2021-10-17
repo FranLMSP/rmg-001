@@ -57,7 +57,12 @@ impl Bus {
         match MemoryMap::get_map(address) {
             MemoryMap::BankZero => self.game_rom.read(address),
             MemoryMap::BankSwitchable => self.game_rom.read(address),
-            // MemoryMap::InterruptEnableRegister => self.data[address as usize],
+            MemoryMap::WorkRAM1 | MemoryMap::WorkRAM2 | MemoryMap::InterruptEnableRegister => self.data[address as usize],
+            MemoryMap::IORegisters => match address {
+                0xFF44 => 0x90,
+                0xFF4D => 0xFF,
+                _ => self.data[address as usize],
+            }
             _ => self.data[address as usize],
         }
     }
@@ -67,7 +72,21 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        self.data[address as usize] = data;
+        match MemoryMap::get_map(address) {
+            MemoryMap::WorkRAM1 | MemoryMap::WorkRAM2 => {
+                self.data[address as usize] = data;
+                // Copy to the ECHO RAM
+                if address <= 0xDDFF {
+                    self.data[(0xE000 + (address - 0xC000)) as usize] = data;
+                }
+            },
+            MemoryMap::EchoRAM => {
+                self.data[address as usize] = data;
+                // Copy to the working RAM
+                self.data[(0xC000 + (address - 0xE000)) as usize] = data;
+            },
+            _ => self.data[address as usize] = data,
+        };
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {
