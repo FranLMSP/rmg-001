@@ -446,17 +446,19 @@ impl CPU {
             Opcode::RST(address) => self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus),
             // PUSH onto the stack
             Opcode::PUSH(register) => {
-                let val = self.registers.get(register).to_be_bytes();
-                let sp = self.registers.get(Register::SP);
-                bus.write(sp - 1, val[1]);
-                bus.write(sp - 2, val[0]);
                 self.registers.increment(Register::PC, 1);
-                self.registers.decrement(Register::SP, 2);
+                let val = self.registers.get(register).to_be_bytes();
+                self.registers.decrement(Register::SP, 1);
+                bus.write(self.registers.get(Register::SP), val[0]);
+                self.registers.decrement(Register::SP, 1);
+                bus.write(self.registers.get(Register::SP), val[1]);
             },
             // POP onto the stack
             Opcode::POP(register) => {
+                self.registers.increment(Register::PC, 1);
                 let sp = self.registers.get(Register::SP);
-                self.registers.set(register, bus.read_16bit(sp));
+                let val = bus.read_16bit(sp);
+                self.registers.set(register, val);
                 self.registers.increment(Register::SP, 2);
             },
             // RET, same as POP PC when no parameter is specified
@@ -1012,7 +1014,7 @@ mod tests {
         cpu.registers.set(Register::SP, addr);
         cpu.registers.set(Register::AF, 0x1234);
         cpu.exec(Opcode::PUSH(Register::AF), &mut bus);
-        assert_eq!(bus.read_16bit(addr - 2), 0x3412);
+        assert_eq!(bus.read_16bit(addr - 2), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), addr - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
 
