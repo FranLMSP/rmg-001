@@ -589,7 +589,6 @@ impl CPU {
                     val1 = val1 | 0x100;
                 }
                 let result = val1 - val2;
-                println!("{} {}", val1, val2);
                 self.registers.set(register, result);
                 self.registers.set_flag(FlagRegister::Zero, self.registers.get(register) == 0);
                 self.registers.set_flag(FlagRegister::Substract, true);
@@ -743,6 +742,17 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                         self.registers.set_flag(FlagRegister::Carry, get_bit(result, BitIndex::I0));
+                    },
+                    Opcode::RL(register) => {
+                        let val = self.registers.get_8bit(register);
+                        let old_carry = self.registers.get_flag(FlagRegister::Carry);
+                        let new_carry = get_bit(val, BitIndex::I1);
+                        let val = val >> 2 | ((old_carry as u8) << 6) | (val << 7);
+                        self.registers.set(register, val as u16);
+                        self.registers.set_flag(FlagRegister::Carry, new_carry);
+                        self.registers.set_flag(FlagRegister::Zero, val == 0);
+                        self.registers.set_flag(FlagRegister::Substract, false);
+                        self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     _ => {},
                 };
@@ -2253,6 +2263,43 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), true);
         assert_eq!(bus.read(addr), 0b00000001);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+    }
+
+    #[test]
+    fn test_prefix_cb_rl_instruction() {
+        let mut bus = Bus::new();
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::A, 0b00000001);
+        cpu.registers.set_flag(FlagRegister::Carry, true);
+        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
+        assert_eq!(cpu.registers.get(Register::A), 0b11000000);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::A, 0b10000000);
+        cpu.registers.set_flag(FlagRegister::Carry, false);
+        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
+        assert_eq!(cpu.registers.get(Register::A), 0b00100000);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::A, 0b00000010);
+        cpu.registers.set_flag(FlagRegister::Carry, false);
+        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), true);
+        assert_eq!(cpu.registers.get(Register::A), 0b00000000);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
     }
 
