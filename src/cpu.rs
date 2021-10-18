@@ -561,6 +561,27 @@ impl CPU {
                     _ => {},
                 };
             },
+            Opcode::ADC(params) => match params {
+                OpcodeParameter::Register_Register(reg1, reg2) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.increment(reg1, 1);
+                    }
+                    self.exec(Opcode::ADD(OpcodeParameter::Register_Register(reg1, reg2)), bus);
+                },
+                OpcodeParameter::Register_U8(reg1, val) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.increment(reg1, 1);
+                    }
+                    self.exec(Opcode::ADD(OpcodeParameter::Register_U8(reg1, val)), bus);
+                },
+                OpcodeParameter::Register_I8(reg1, val) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.increment(reg1, 1);
+                    }
+                    self.exec(Opcode::ADD(OpcodeParameter::Register_I8(reg1, val)), bus);
+                },
+                _ => {},
+            },
             Opcode::SUB(params) => {
                 self.registers.increment(Register::PC, 1);
                 let mut register = Register::A;
@@ -594,6 +615,27 @@ impl CPU {
                 self.registers.set_flag(FlagRegister::Substract, true);
                 self.registers.set_flag(FlagRegister::Carry, carry);
                 self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
+            },
+            Opcode::SBC(params) => match params {
+                OpcodeParameter::Register_Register(reg1, reg2) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.decrement(reg1, 1);
+                    }
+                    self.exec(Opcode::SUB(OpcodeParameter::Register_Register(reg1, reg2)), bus);
+                },
+                OpcodeParameter::Register_U8(reg1, val) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.decrement(reg1, 1);
+                    }
+                    self.exec(Opcode::SUB(OpcodeParameter::Register_U8(reg1, val)), bus);
+                },
+                OpcodeParameter::Register_I8(reg1, val) => {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        self.registers.decrement(reg1, 1);
+                    }
+                    self.exec(Opcode::SUB(OpcodeParameter::Register_I8(reg1, val)), bus);
+                },
+                _ => {},
             },
             // Increment by 1
             Opcode::INC(affect_flags, register) => {
