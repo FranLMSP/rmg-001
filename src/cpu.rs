@@ -724,10 +724,13 @@ impl CPU {
                 self.registers.increment(Register::SP, 2);
             },
             // RET, same as POP PC when no parameter is specified
-            Opcode::RET(params) => match params {
-                OpcodeParameter::NoParam => self.exec(Opcode::POP(Register::PC), bus),
-                _ => {},
-            }
+            Opcode::RET(params) => {
+                self.registers.increment(Register::PC, 1);
+                match params {
+                    OpcodeParameter::NoParam => self.exec(Opcode::POP(Register::PC), bus),
+                    _ => {},
+                };
+            },
             // Rotate A Left
             Opcode::RLCA => {
                 self.registers.increment(Register::PC, 1);
