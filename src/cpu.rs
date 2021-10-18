@@ -695,8 +695,22 @@ impl CPU {
                 }
             },
             // Jump to address
+            //
             Opcode::JP(params) => match params {
                 OpcodeParameter::U16(address) => self.registers.set(Register::PC, address),
+                OpcodeParameter::Register(register) => self.registers.set(Register::PC, self.registers.get(register)),
+                OpcodeParameter::FlagRegisterReset_U16(flag, addr) => {
+                    self.registers.increment(Register::PC, 3);
+                    if !self.registers.get_flag(flag) {
+                        self.registers.set(Register::PC, addr);
+                    }
+                },
+                OpcodeParameter::FlagRegisterSet_U16(flag, addr) => {
+                    self.registers.increment(Register::PC, 3);
+                    if self.registers.get_flag(flag) {
+                        self.registers.set(Register::PC, addr);
+                    }
+                },
                 _ => {},
             },
             // CALL
@@ -1685,6 +1699,32 @@ mod tests {
         let mut bus = Bus::new();
         cpu.exec(Opcode::JP(OpcodeParameter::U16(0x1F1F)), &mut bus);
         assert_eq!(cpu.registers.get(Register::PC), 0x1F1F);
+
+        let mut cpu = CPU::new();
+        let addr = 0xC000;
+        cpu.registers.set(Register::HL, addr);
+        cpu.exec(Opcode::JP(OpcodeParameter::Register(Register::HL)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), addr);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, addr)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), addr);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.exec(Opcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, addr)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), addr);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.exec(Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, addr)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
+
+        let mut cpu = CPU::new();
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.exec(Opcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, addr)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
     }
 
     #[test]
