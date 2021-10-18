@@ -728,6 +728,16 @@ impl CPU {
                 self.registers.increment(Register::PC, 1);
                 match params {
                     OpcodeParameter::NoParam => self.exec(Opcode::POP(Register::PC), bus),
+                    OpcodeParameter::FlagRegisterReset(flag) => {
+                        if !self.registers.get_flag(flag) {
+                            self.exec(Opcode::POP(Register::PC), bus);
+                        }
+                    },
+                    OpcodeParameter::FlagRegisterSet(flag) => {
+                        if self.registers.get_flag(flag) {
+                            self.exec(Opcode::POP(Register::PC), bus);
+                        }
+                    },
                     _ => {},
                 };
             },
@@ -1840,6 +1850,46 @@ mod tests {
         cpu.exec(Opcode::RET(OpcodeParameter::NoParam), &mut bus);
         assert_eq!(cpu.registers.get(Register::PC), 0x1234);
         assert_eq!(cpu.registers.get(Register::SP), sp + 2);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let sp = 0xD000;
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.registers.set(Register::SP, sp);
+        bus.write_16bit(sp, 0x1234);
+        cpu.exec(Opcode::RET(OpcodeParameter::FlagRegisterReset(FlagRegister::Zero)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x1234);
+        assert_eq!(cpu.registers.get(Register::SP), sp + 2);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let sp = 0xD000;
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.registers.set(Register::SP, sp);
+        bus.write_16bit(sp, 0x1234);
+        cpu.exec(Opcode::RET(OpcodeParameter::FlagRegisterReset(FlagRegister::Zero)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get(Register::SP), sp);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let sp = 0xD000;
+        cpu.registers.set_flag(FlagRegister::Zero, true);
+        cpu.registers.set(Register::SP, sp);
+        bus.write_16bit(sp, 0x1234);
+        cpu.exec(Opcode::RET(OpcodeParameter::FlagRegisterSet(FlagRegister::Zero)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x1234);
+        assert_eq!(cpu.registers.get(Register::SP), sp + 2);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let sp = 0xD000;
+        cpu.registers.set_flag(FlagRegister::Zero, false);
+        cpu.registers.set(Register::SP, sp);
+        bus.write_16bit(sp, 0x1234);
+        cpu.exec(Opcode::RET(OpcodeParameter::FlagRegisterSet(FlagRegister::Zero)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get(Register::SP), sp);
     }
 
     #[test]
