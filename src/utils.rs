@@ -49,6 +49,19 @@ pub fn sub_half_carry(byte1: u8, byte2: u8) -> bool {
     byte2 > byte1
 }
 
+pub fn add_half_carry_16bit(byte1: u16, byte2: u16) -> bool {
+    let byte1 = byte1 & 0b0000111111111111;
+    let byte2 = byte2 & 0b0000111111111111;
+    let result = byte1 + byte2;
+    get_bit(result.to_be_bytes()[0], BitIndex::I4)
+}
+
+pub fn sub_half_carry_16bit(byte1: u16, byte2: u16) -> bool {
+    let byte1 = byte1 & 0b0000111111111111;
+    let byte2 = byte2 & 0b0000111111111111;
+    byte2 > byte1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,8 +128,18 @@ mod tests {
         assert_eq!(add_half_carry(0b00000100, 0b00001000), false);
         assert_eq!(add_half_carry(0b00001111, 0b00000001), true);
 
+        assert_eq!(add_half_carry_16bit(0b1010101000000000, 0b1111111100000000), true);
+        assert_eq!(add_half_carry_16bit(0b0000010000000000, 0b0000110000000000), true);
+        assert_eq!(add_half_carry_16bit(0b0000010000000000, 0b0000010000000000), false);
+        assert_eq!(add_half_carry_16bit(0b0000010000000000, 0b0000100000000000), false);
+        assert_eq!(add_half_carry_16bit(0b0000111100000000, 0b0000000100000000), true);
+
         assert_eq!(sub_half_carry(0b00010000, 0b00001000), true);
         assert_eq!(sub_half_carry(0b00000000, 0b00000001), true);
         assert_eq!(sub_half_carry(0b00001000, 0b00001000), false);
+
+        assert_eq!(sub_half_carry_16bit(0b0001000000000000, 0b0000100000000000), true);
+        assert_eq!(sub_half_carry_16bit(0b0000000000000000, 0b0000000100000000), true);
+        assert_eq!(sub_half_carry_16bit(0b0000100000000000, 0b0000100000000000), false);
     }
 }
