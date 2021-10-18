@@ -563,59 +563,38 @@ impl CPU {
             },
             Opcode::SUB(params) => {
                 self.registers.increment(Register::PC, 1);
-                self.registers.set_flag(FlagRegister::Substract, true);
+                let mut register = Register::A;
+                let mut val1: u16 = 0;
+                let mut val2: u16 = 0;
                 match params {
                     OpcodeParameter::Register_Register(reg1, reg2) => {
+                        register = reg1;
+                        val1 = self.registers.get(reg1);
                         if reg1.is_8bit() && reg2.is_8bit() {
-                            let carry = self.registers.get(reg2) > self.registers.get(reg1);
-                            self.registers.set_flag(FlagRegister::Carry, carry);
-                            self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(self.registers.get_8bit(reg1), self.registers.get_8bit(reg2)));
-                            let mut val1 = self.registers.get(reg1);
-                            let val2 = self.registers.get(reg2);
-                            if carry {
-                                val1 = val1 | 0x100;
-                            }
-                            self.registers.set(reg1, val1 - val2);
-                        } else if reg1.is_16bit() && reg2.is_16bit() {
-                            let mut val1 = self.registers.get(reg1) as u32;
-                            let val2 = self.registers.get(reg2) as u32;
-                            let carry = val2 > val1;
-                            if carry {
-                                val1 = val1 | 0x10000;
-                            }
-                            let result = val1 - val2;
-                            self.registers.set(reg1, join_bytes(result.to_be_bytes()[2], result.to_be_bytes()[3]));
-                            self.registers.set_flag(FlagRegister::Carry, carry);
-                            self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[2], val2.to_be_bytes()[2]));
+                            val2 = self.registers.get(reg2);
                         } else if reg1.is_8bit() && reg2.is_16bit() {
-                            let mut val1 = self.registers.get(reg1) as u16;
-                            let val2 = bus.read(self.registers.get(reg2)) as u16;
-                            let carry = val2 > val1;
-                            if carry {
-                                val1 = val1 | 0x100;
-                            }
-                            self.registers.set(reg1, val1 - val2);
-                            self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
-                            self.registers.set_flag(FlagRegister::Carry, carry);
+                            val2 = bus.read(self.registers.get(reg2)) as u16;
                         }
-                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
                     },
                     OpcodeParameter::Register_U8(reg1, val) => {
                         self.registers.increment(Register::PC, 1);
-                        let mut val1 = self.registers.get(reg1) as u16;
-                        let val2 = val as u16;
-                        let carry = val2 > val1;
-                        if carry {
-                            val1 = val1 | 0x100;
-                        }
-                        let result = val1 - val2;
-                        self.registers.set(reg1, join_bytes(result.to_be_bytes()[0], result.to_be_bytes()[1]));
-                        self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
-                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
-                        self.registers.set_flag(FlagRegister::Carry, carry);
+                        register = reg1;
+                        val1 = self.registers.get(reg1);
+                        val2 = val as u16;
                     },
                     _ => {},
                 };
+                let carry = val2 > val1;
+                if carry {
+                    val1 = val1 | 0x100;
+                }
+                let result = val1 - val2;
+                println!("{} {}", val1, val2);
+                self.registers.set(register, result);
+                self.registers.set_flag(FlagRegister::Zero, self.registers.get(register) == 0);
+                self.registers.set_flag(FlagRegister::Substract, true);
+                self.registers.set_flag(FlagRegister::Carry, carry);
+                self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
             },
             // Increment by 1
             Opcode::INC(affect_flags, register) => {
@@ -2133,17 +2112,6 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get(Register::B), 0);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
-
-        let mut cpu = CPU::new();
-        cpu.registers.set(Register::BC, 0b0001000000000000);
-        cpu.registers.set(Register::HL, 0b0100100000000000);
-        cpu.exec(Opcode::SUB(OpcodeParameter::Register_Register(Register::BC, Register::HL)), &mut bus);
-        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), true);
-        assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
-        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
-        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), true);
-        assert_eq!(cpu.registers.get(Register::BC), 0b1100100000000000);
-        assert_eq!(cpu.registers.get(Register::PC), 0x101);
     }
 
     #[test]
