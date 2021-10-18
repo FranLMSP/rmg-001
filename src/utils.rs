@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum BitIndex {
     I0,
     I1,
