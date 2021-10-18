@@ -24,7 +24,7 @@ impl Console {
         while !exit {
             self.cpu.run(&mut self.bus);
 
-            // thread::sleep(time::Duration::from_millis(100));
+            thread::sleep(time::Duration::from_millis(100));
             exit = self.cpu.get_exec_calls_count() > 1258895;
         }
     }
