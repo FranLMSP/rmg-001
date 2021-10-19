@@ -1868,7 +1868,7 @@ mod tests {
         cpu.registers.set(Register::SP, sp);
         cpu.registers.set_flag(FlagRegister::Zero, true);
         cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
-        // assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
         assert_eq!(cpu.registers.get(Register::SP), sp);
         assert_eq!(cpu.registers.get(Register::PC), 0x103);
 
@@ -1887,7 +1887,7 @@ mod tests {
         cpu.registers.set(Register::SP, sp);
         cpu.registers.set_flag(FlagRegister::Zero, false);
         cpu.exec(Opcode::CALL(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Zero, 0xF0F0)), &mut bus);
-        // assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
         assert_eq!(cpu.registers.get(Register::SP), sp);
         assert_eq!(cpu.registers.get(Register::PC), 0x103);
     }
@@ -2824,7 +2824,7 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
-        // assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
         assert_eq!(cpu.registers.get(Register::A), 0x10);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
 
