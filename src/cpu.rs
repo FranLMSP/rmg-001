@@ -163,12 +163,14 @@ impl Registers {
         }
     }
 
-    pub fn increment(&mut self, register: Register, times: u8) {
-        self.set(register, self.get(register) + (times as u16));
+    pub fn increment(&mut self, register: Register, times: u16) {
+        let val = self.get(register);
+        self.set(register, val.wrapping_add(times));
     }
 
-    pub fn decrement(&mut self, register: Register, times: u8) {
-        self.set(register, self.get(register) - (times as u16));
+    pub fn decrement(&mut self, register: Register, times: u16) {
+        let val = self.get(register);
+        self.set(register, val.wrapping_sub(times));
     }
 }
 
@@ -323,7 +325,7 @@ impl CPU {
                 OpcodeParameter::Register_Register(reg1, reg2) => {
                     self.registers.increment(Register::PC, 1);
                     if reg1.is_16bit() && reg2.is_8bit() {
-                        let val = self.registers.get(reg2).to_be_bytes()[1];
+                        let val = self.registers.get_8bit(reg2);
                         let addr = self.registers.get(reg1);
                         bus.write(addr, val);
                     } else if reg1.is_8bit() && reg2.is_16bit() {
@@ -360,13 +362,13 @@ impl CPU {
                 OpcodeParameter::FF00plusU8_Register(val, register) => {
                     self.registers.increment(Register::PC, 2);
                     match register.is_8bit() {
-                        true => bus.write(0xFF00 + (val as u16), self.registers.get(register).to_be_bytes()[1]),
+                        true => bus.write(0xFF00 + (val as u16), self.registers.get_8bit(register)),
                         false => bus.write_16bit(0xFF00 + (val as u16), self.registers.get(register)),
                     }
                 },
                 OpcodeParameter::Register_RegisterPlusI8(reg1, reg2, val) => {
                     self.registers.increment(Register::PC, 2);
-                    let res = (self.registers.get(reg2) as i16) + (val as i16);
+                    let res = (self.registers.get(reg2) as i16).wrapping_add(val as i16);
                     self.registers.set(reg1, res as u16);
                 },
                 _ => {},
@@ -406,7 +408,7 @@ impl CPU {
                 },
                 OpcodeParameter::RegisterIncrement_Register(reg1, reg2) => {
                     self.registers.increment(Register::PC, 1);
-                    let val = self.registers.get(reg2).to_be_bytes()[1];
+                    let val = self.registers.get_8bit(reg2);
                     bus.write(self.registers.get(reg1), val);
                     self.registers.increment(reg1, 1);
                 },
@@ -422,7 +424,7 @@ impl CPU {
                 },
                 OpcodeParameter::RegisterDecrement_Register(reg1, reg2) => {
                     self.registers.increment(Register::PC, 1);
-                    let val = self.registers.get(reg2).to_be_bytes()[1];
+                    let val = self.registers.get_8bit(reg2);
                     bus.write(self.registers.get(reg1), val);
                     self.registers.decrement(reg1, 1);
                 },
@@ -532,15 +534,15 @@ impl CPU {
                     OpcodeParameter::Register_Register(reg1, reg2) => {
                         if reg1.is_8bit() && reg2.is_8bit() {
                             self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(self.registers.get_8bit(reg1), self.registers.get_8bit(reg2)));
-                            self.registers.set(reg1, self.registers.get(reg1) + self.registers.get(reg2));
+                            self.registers.increment(reg1, self.registers.get(reg2));
                             self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
                         } else if reg1.is_16bit() && reg2.is_16bit() {
                             self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry_16bit(self.registers.get(reg1), self.registers.get(reg2)));
-                            self.registers.set(reg1, self.registers.get(reg1) + self.registers.get(reg2));
+                            self.registers.increment(reg1, self.registers.get(reg2));
                         } else if reg1.is_8bit() && reg2.is_16bit() {
                             let val1 = self.registers.get(reg1);
                             let val2 = bus.read(self.registers.get(reg2)) as u16;
-                            self.registers.set(reg1, val1 + val2);
+                            self.registers.increment(reg1, val2);
                             self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
                             self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
                         }
@@ -550,7 +552,7 @@ impl CPU {
                         self.registers.increment(Register::PC, 1);
                         let val1 = self.registers.get(reg1);
                         let val2 = val as u16;
-                        self.registers.set(reg1, val1 + val2);
+                        self.registers.increment(reg1, val2);
                         self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
                         self.registers.set_flag(FlagRegister::Carry, self.registers.get(reg1) == 0);
@@ -559,7 +561,7 @@ impl CPU {
                         self.registers.increment(Register::PC, 1);
                         let val1 = self.registers.get(reg1) as i16;
                         let val2 = value as i16;
-                        self.registers.set(reg1, (val1 + val2) as u16);
+                        self.registers.increment(reg1, val2 as u16);
                         self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
                         self.registers.set_flag(FlagRegister::Carry, self.registers.get(reg1) == 0);
@@ -615,7 +617,7 @@ impl CPU {
                 if carry {
                     val1 = val1 | 0x100;
                 }
-                let result = val1 - val2;
+                let result = val1.wrapping_sub(val2);
                 self.registers.set(register, result);
                 self.registers.set_flag(FlagRegister::Zero, self.registers.get(register) == 0);
                 self.registers.set_flag(FlagRegister::Substract, true);
@@ -649,7 +651,7 @@ impl CPU {
                 if on_address {
                     let addr = self.registers.get(register);
                     let prev_value = bus.read(addr);
-                    bus.write(addr, prev_value + 1);
+                    bus.write(addr, prev_value.wrapping_add(1));
                     if affect_flags {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(prev_value, 1));
@@ -677,7 +679,7 @@ impl CPU {
                 if on_address {
                     let addr = self.registers.get(register);
                     let prev_value = bus.read(addr);
-                    bus.write(addr, prev_value - 1);
+                    bus.write(addr, prev_value.wrapping_sub(1));
                     if affect_flags {
                         self.registers.set_flag(FlagRegister::Substract, true);
                         self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(prev_value, 1));
