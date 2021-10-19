@@ -1031,10 +1031,17 @@ impl CPU {
                 self.registers.set_flag(FlagRegister::Substract, true);
                 self.registers.set_flag(FlagRegister::HalfCarry, true);
             },
+            // Invert the carry flag
+            Opcode::CCF => {
+                self.registers.increment(Register::PC, 1);
+                self.registers.set_flag(FlagRegister::Carry, !self.registers.get_flag(FlagRegister::Carry));
+                self.registers.set_flag(FlagRegister::Substract, false);
+                self.registers.set_flag(FlagRegister::HalfCarry, false);
+            },
             // Disable interrupts
             Opcode::DI => {
-                bus.write(0xFFFF, 0x00); // Disable all interrupts
                 self.registers.increment(Register::PC, 1);
+                bus.write(0xFFFF, 0x00); // Disable all interrupts
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
             // _ => println!("Illegal instruction"),
@@ -3003,6 +3010,20 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
+    }
+
+    #[test]
+    fn test_ccf_instructions() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set_flag(FlagRegister::Substract, true);
+        cpu.registers.set_flag(FlagRegister::HalfCarry, true);
+        cpu.registers.set_flag(FlagRegister::Carry, false);
+        cpu.exec(Opcode::CCF, &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), true);
     }
 
     #[test]
