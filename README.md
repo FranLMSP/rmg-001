@@ -15,3 +15,4 @@ Any help or suggestion is welcome!
 - [ ] Render the pixels
 - [ ] Gameboy Color compatibility
 - [ ] Sound
+- [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
