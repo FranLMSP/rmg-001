@@ -1339,7 +1339,6 @@ impl CPU {
                 0x45 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::L))),
                 0x46 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::HL))),
                 0x47 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::A))),
-
                 0x48 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::B))),
                 0x49 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::C))),
                 0x4A => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::D))),
@@ -1348,7 +1347,6 @@ impl CPU {
                 0x4D => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::L))),
                 0x4E => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::HL))),
                 0x4F => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::A))),
-
                 0x50 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::B))),
                 0x51 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::C))),
                 0x52 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::D))),
@@ -1357,7 +1355,6 @@ impl CPU {
                 0x55 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::L))),
                 0x56 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::HL))),
                 0x57 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::A))),
-
                 0x58 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::B))),
                 0x59 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::C))),
                 0x5A => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::D))),
@@ -1366,7 +1363,6 @@ impl CPU {
                 0x5D => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::L))),
                 0x5E => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::HL))),
                 0x5F => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::A))),
-
                 0x60 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::B))),
                 0x61 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::C))),
                 0x62 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::D))),
@@ -1375,7 +1371,6 @@ impl CPU {
                 0x65 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::L))),
                 0x66 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::HL))),
                 0x67 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::A))),
-
                 0x68 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::B))),
                 0x69 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::C))),
                 0x6A => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::D))),
@@ -1384,7 +1379,6 @@ impl CPU {
                 0x6D => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::L))),
                 0x6E => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::HL))),
                 0x6F => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::A))),
-
                 0x70 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::B))),
                 0x71 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::C))),
                 0x72 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::D))),
@@ -1393,7 +1387,6 @@ impl CPU {
                 0x75 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::L))),
                 0x76 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::HL))),
                 0x77 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::A))),
-
                 0x78 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::B))),
                 0x79 => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::C))),
                 0x7A => Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::D))),
@@ -1411,7 +1404,6 @@ impl CPU {
                 0x85 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::L))),
                 0x86 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::HL))),
                 0x87 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::A))),
-
                 0x88 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::B))),
                 0x89 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::C))),
                 0x8A => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::D))),
@@ -1420,7 +1412,6 @@ impl CPU {
                 0x8D => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::L))),
                 0x8E => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::HL))),
                 0x8F => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::A))),
-
                 0x90 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::B))),
                 0x91 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::C))),
                 0x92 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::D))),
@@ -1429,7 +1420,6 @@ impl CPU {
                 0x95 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::L))),
                 0x96 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::HL))),
                 0x97 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::A))),
-
                 0x98 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::B))),
                 0x99 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::C))),
                 0x9A => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::D))),
@@ -1438,7 +1428,6 @@ impl CPU {
                 0x9D => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::L))),
                 0x9E => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::HL))),
                 0x9F => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::A))),
-
                 0xA0 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::B))),
                 0xA1 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::C))),
                 0xA2 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::D))),
@@ -1447,7 +1436,6 @@ impl CPU {
                 0xA5 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::L))),
                 0xA6 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::HL))),
                 0xA7 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::A))),
-
                 0xA8 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::B))),
                 0xA9 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::C))),
                 0xAA => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::D))),
@@ -1456,7 +1444,6 @@ impl CPU {
                 0xAD => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::L))),
                 0xAE => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::HL))),
                 0xAF => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::A))),
-
                 0xB0 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::B))),
                 0xB1 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::C))),
                 0xB2 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::D))),
@@ -1465,7 +1452,6 @@ impl CPU {
                 0xB5 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::L))),
                 0xB6 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::HL))),
                 0xB7 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::A))),
-
                 0xB8 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::B))),
                 0xB9 => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::C))),
                 0xBA => Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::D))),
@@ -1483,7 +1469,6 @@ impl CPU {
                 0xC5 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::L))),
                 0xC6 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::HL))),
                 0xC7 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::A))),
-
                 0xC8 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::B))),
                 0xC9 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::C))),
                 0xCA => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::D))),
@@ -1492,7 +1477,6 @@ impl CPU {
                 0xCD => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::L))),
                 0xCE => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::HL))),
                 0xCF => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::A))),
-
                 0xD0 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::B))),
                 0xD1 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::C))),
                 0xD2 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::D))),
@@ -1501,7 +1485,6 @@ impl CPU {
                 0xD5 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::L))),
                 0xD6 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::HL))),
                 0xD7 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::A))),
-
                 0xD8 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::B))),
                 0xD9 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::C))),
                 0xDA => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::D))),
@@ -1510,7 +1493,6 @@ impl CPU {
                 0xDD => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::L))),
                 0xDE => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::HL))),
                 0xDF => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::A))),
-
                 0xE0 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::B))),
                 0xE1 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::C))),
                 0xE2 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::D))),
@@ -1519,7 +1501,6 @@ impl CPU {
                 0xE5 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::L))),
                 0xE6 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::HL))),
                 0xE7 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::A))),
-
                 0xE8 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::B))),
                 0xE9 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::C))),
                 0xEA => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::D))),
@@ -1528,7 +1509,6 @@ impl CPU {
                 0xED => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::L))),
                 0xEE => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::HL))),
                 0xEF => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::A))),
-
                 0xF0 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::B))),
                 0xF1 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::C))),
                 0xF2 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::D))),
@@ -1537,7 +1517,6 @@ impl CPU {
                 0xF5 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::L))),
                 0xF6 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::HL))),
                 0xF7 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::A))),
-
                 0xF8 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::B))),
                 0xF9 => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::C))),
                 0xFA => Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::D))),
