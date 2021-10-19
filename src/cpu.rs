@@ -222,7 +222,7 @@ pub enum Opcode {
     LD(OpcodeParameter),
     LDD(OpcodeParameter),
     LDI(OpcodeParameter),
-    LDHL(OpcodeParameter),
+    // LDHL(OpcodeParameter),
     PUSH(Register),
     POP(Register),
     ADD(OpcodeParameter),
@@ -1024,6 +1024,12 @@ impl CPU {
                     },
                     _ => {},
                 };
+            },
+            Opcode::CPL => {
+                self.registers.increment(Register::PC, 1);
+                self.registers.set(Register::A, !self.registers.get(Register::A));
+                self.registers.set_flag(FlagRegister::Substract, true);
+                self.registers.set_flag(FlagRegister::HalfCarry, true);
             },
             // Disable interrupts
             Opcode::DI => {
@@ -2985,6 +2991,18 @@ mod tests {
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
+    }
+
+    #[test]
+    fn test_cpl_instructions() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set(Register::A, 0b11110000);
+        cpu.exec(Opcode::CPL, &mut bus);
+        assert_eq!(cpu.registers.get(Register::A), 0b00001111);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), true);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
     }
 
     #[test]
