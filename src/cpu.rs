@@ -222,7 +222,7 @@ pub enum Opcode {
     LD(OpcodeParameter),
     LDD(OpcodeParameter),
     LDI(OpcodeParameter),
-    // LDHL(OpcodeParameter),
+    LDHL(OpcodeParameter),
     PUSH(Register),
     POP(Register),
     ADD(OpcodeParameter),
@@ -1045,10 +1045,27 @@ impl CPU {
                 self.registers.set_flag(FlagRegister::Substract, false);
                 self.registers.set_flag(FlagRegister::HalfCarry, false);
             },
+            // Enable interrupts
+            Opcode::EI => {
+                self.registers.increment(Register::PC, 1);
+                bus.write(0xFFFF, 0xFF); // Disable all interrupts
+            },
             // Disable interrupts
             Opcode::DI => {
                 self.registers.increment(Register::PC, 1);
                 bus.write(0xFFFF, 0x00); // Disable all interrupts
+            },
+            // Same as enabling interrupts and then executing RET
+            Opcode::RETI => {
+                self.exec(Opcode::EI, bus);
+                self.exec(Opcode::RET(OpcodeParameter::NoParam), bus);
+            },
+            // WIP
+            Opcode::HALT => {
+                self.registers.increment(Register::PC, 1);
+            },
+            Opcode::STOP => {
+                self.registers.increment(Register::PC, 2);
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
             // _ => println!("Illegal instruction"),
