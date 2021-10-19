@@ -1010,6 +1010,18 @@ impl CPU {
                             false => bus.write(self.registers.get(register), val),
                         };
                     },
+                    Opcode::SET(index, register) => {
+                        let mut val = 0;
+                        match register.is_8bit() {
+                            true => val = self.registers.get_8bit(register),
+                            false => val = bus.read(self.registers.get(register)),
+                        };
+                        let val = set_bit(val, true, index);
+                        match register.is_8bit() {
+                            true => self.registers.set(register, val as u16),
+                            false => bus.write(self.registers.get(register), val),
+                        };
+                    },
                     _ => {},
                 };
             },
@@ -2936,6 +2948,24 @@ mod tests {
         bus.write(addr, 0b11110101);
         cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0 ,Register::HL))), &mut bus);
         assert_eq!(bus.read(addr), 0b11110100);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+    }
+
+    #[test]
+    fn test_prefix_cb_set_instruction() {
+        let mut bus = Bus::new();
+        let mut cpu = CPU::new();
+        cpu.registers.set(Register::A, 0b11110101);
+        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::A))), &mut bus);
+        assert_eq!(cpu.registers.get_8bit(Register::A), 0b11110111);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+
+        let mut cpu = CPU::new();
+        let addr = 0xC000;
+        cpu.registers.set(Register::HL, addr);
+        bus.write(addr, 0b11110101);
+        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3 ,Register::HL))), &mut bus);
+        assert_eq!(bus.read(addr), 0b11111101);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
     }
 
