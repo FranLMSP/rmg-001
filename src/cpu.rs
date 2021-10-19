@@ -1038,6 +1038,13 @@ impl CPU {
                 self.registers.set_flag(FlagRegister::Substract, false);
                 self.registers.set_flag(FlagRegister::HalfCarry, false);
             },
+            // Set the carry flag
+            Opcode::SCF => {
+                self.registers.increment(Register::PC, 1);
+                self.registers.set_flag(FlagRegister::Carry, true);
+                self.registers.set_flag(FlagRegister::Substract, false);
+                self.registers.set_flag(FlagRegister::HalfCarry, false);
+            },
             // Disable interrupts
             Opcode::DI => {
                 self.registers.increment(Register::PC, 1);
@@ -3020,6 +3027,31 @@ mod tests {
         cpu.registers.set_flag(FlagRegister::HalfCarry, true);
         cpu.registers.set_flag(FlagRegister::Carry, false);
         cpu.exec(Opcode::CCF, &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), true);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set_flag(FlagRegister::Substract, true);
+        cpu.registers.set_flag(FlagRegister::HalfCarry, true);
+        cpu.registers.set_flag(FlagRegister::Carry, true);
+        cpu.exec(Opcode::CCF, &mut bus);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
+        assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
+    }
+
+    #[test]
+    fn test_scf_instructions() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set_flag(FlagRegister::Substract, true);
+        cpu.registers.set_flag(FlagRegister::HalfCarry, true);
+        cpu.registers.set_flag(FlagRegister::Carry, false);
+        cpu.exec(Opcode::SCF, &mut bus);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
