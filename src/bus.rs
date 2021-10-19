@@ -92,8 +92,8 @@ impl Bus {
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {
-        let bytes = data.to_be_bytes();
-        self.write(address, bytes[1]);
-        self.write(address + 1, bytes[0]);
+        let bytes = data.to_le_bytes();
+        self.write(address, bytes[0]);
+        self.write(address + 1, bytes[1]);
     }
 }
