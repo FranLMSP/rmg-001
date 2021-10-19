@@ -1,5 +1,5 @@
-# Rust Boy
-Yet another Gameboy emulator written in Rust.
+# YARGBE
+Yet Another Rust Gameboy Emulator.
 
 This is just a fun project I'm making for learning and practice purposes. If you want a fully-featured Gameboy emulator, this is not probably the best one :P
 
@@ -7,7 +7,9 @@ Any help or suggestion is welcome!
 
 ## TODO
 - [x] CPU Registers implementation
-- [ ] CPU Instructions implementations
+- [x] CPU Instructions implementations
+- [ ] Interrupts
+- [ ] Timing
 - [ ] PPU implementations
 - [ ] Gameboy boot ROM
 - [ ] Render the pixels
