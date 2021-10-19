@@ -546,7 +546,6 @@ impl CPU {
                             let res = (val1 as usize) + (val2 as usize);
                             let carry = ((val1 & 0x00FF) + (val2 & 0x00FF) > 0x00FF) || (res > 0xFFFF);
                             self.registers.set_flag(FlagRegister::Carry, carry);
-                            println!("Carry: {}", carry);
                         } else if reg1.is_8bit() && reg2.is_16bit() {
                             let val1 = self.registers.get(reg1);
                             let val2 = bus.read(self.registers.get(reg2)) as u16;
@@ -569,7 +568,7 @@ impl CPU {
                         self.registers.increment(Register::PC, 1);
                         let val1 = self.registers.get(reg1) as i16;
                         let val2 = value as i16;
-                        let res = (val1) + (val2);
+                        let res = (val1 as isize) + (val2 as isize);
                         self.registers.increment(reg1, val2 as u16);
                         self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
