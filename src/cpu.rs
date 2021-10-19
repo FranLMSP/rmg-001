@@ -197,7 +197,7 @@ pub enum OpcodeParameter {
     Register_FF00plusU8(Register, u8),
     FF00plusU8_Register(u8, Register),
 
-    Register_RegisterPlusI8(Register, Register, u8),
+    Register_RegisterPlusI8(Register, Register, i8),
 
     U8(u8),
     I8(i8),
@@ -363,6 +363,11 @@ impl CPU {
                         true => bus.write(0xFF00 + (val as u16), self.registers.get(register).to_be_bytes()[1]),
                         false => bus.write_16bit(0xFF00 + (val as u16), self.registers.get(register)),
                     }
+                },
+                OpcodeParameter::Register_RegisterPlusI8(reg1, reg2, val) => {
+                    self.registers.increment(Register::PC, 2);
+                    let res = (self.registers.get(reg2) as i16) + (val as i16);
+                    self.registers.set(reg1, res as u16);
                 },
                 _ => {},
             },
@@ -1176,7 +1181,7 @@ impl CPU {
             0x21 => Opcode::LD(OpcodeParameter::Register_U16(Register::HL, two_byte_param)),
             0x31 => Opcode::LD(OpcodeParameter::Register_U16(Register::SP, two_byte_param)),
             0xF9 => Opcode::LD(OpcodeParameter::Register_Register(Register::SP, Register::HL)),
-            0xF8 => Opcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL, Register::SP, params.1)),
+            0xF8 => Opcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL, Register::SP, params.1 as i8)),
             0x08 => Opcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::SP)),
             0xC5 => Opcode::PUSH(Register::BC),
             0xD5 => Opcode::PUSH(Register::DE),
@@ -1734,6 +1739,17 @@ mod tests {
         bus.write(addr + 4, 0xF1);
         cpu.exec(Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, 4)), &mut bus);
         assert_eq!(cpu.registers.get(Register::A), 0xF1);
+        assert_eq!(cpu.registers.get(Register::PC), 0x102);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.registers.set(Register::PC, 100);
+
+        let mut cpu = CPU::new();
+        let val = 100;
+        cpu.registers.set(Register::SP, val);
+        cpu.exec(Opcode::LD(OpcodeParameter::Register_RegisterPlusI8(Register::HL, Register::SP, -5)), &mut bus);
+        assert_eq!(cpu.registers.get(Register::HL), val - 5);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
     }
 
