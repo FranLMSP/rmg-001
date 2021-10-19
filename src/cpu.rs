@@ -698,26 +698,25 @@ impl CPU {
             Opcode::DAA => {
                 self.registers.increment(Register::PC, 1);
                 let mut val = self.registers.get_8bit(Register::A);
-                // self.registers.set_flag(FlagRegister::Carry, false);
-                self.registers.set_flag(FlagRegister::HalfCarry, false);
-                if self.registers.get_flag(FlagRegister::Substract) {
-                    if self.registers.get_flag(FlagRegister::Carry) {
-                        val = val.wrapping_add(0x60);
-                    }
-                    if self.registers.get_flag(FlagRegister::HalfCarry) {
-                        val = val.wrapping_add(0x06);
-                    }
-                } else {
+
+                if !self.registers.get_flag(FlagRegister::Substract) {
                     if self.registers.get_flag(FlagRegister::Carry) || val > 0x99 {
                         val = val.wrapping_add(0x60);
                         self.registers.set_flag(FlagRegister::Carry, true);
                     }
-                    if self.registers.get_flag(FlagRegister::HalfCarry) || (val & 0x0F) > 0x09  {
-                        val = val.wrapping_add(0x06);
+                    if self.registers.get_flag(FlagRegister::HalfCarry) || ((val & 0x0F) > 0x09) {
+                        val = val.wrapping_add(0x6);
+                    }
+                } else {
+                    if self.registers.get_flag(FlagRegister::Carry) {
+                        val = val.wrapping_sub(0x60);
+                    }
+                    if self.registers.get_flag(FlagRegister::HalfCarry) {
+                        val = val.wrapping_sub(0x6);
                     }
                 }
-                // println!("{:02X} {:02X}", self.registers.get_8bit(Register::A), val);
                 self.registers.set(Register::A, val as u16);
+                self.registers.set_flag(FlagRegister::HalfCarry, false);
                 self.registers.set_flag(FlagRegister::Zero, val == 0);
             },
             // Jump to address
@@ -2846,11 +2845,11 @@ mod tests {
         cpu.registers.set_flag(FlagRegister::HalfCarry, true);
         cpu.registers.set_flag(FlagRegister::Carry, false);
         cpu.exec(Opcode::DAA, &mut bus);
+        assert_eq!(cpu.registers.get(Register::A), 0x06);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Carry), false);
-        assert_eq!(cpu.registers.get(Register::A), 0x06);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
     }
 
