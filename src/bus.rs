@@ -48,7 +48,9 @@ impl Bus {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/06-ld r,r.gb".to_string()) {
-        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/07-jr,jp,call,ret,rst.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/07-jr,jp,call,ret,rst.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/08-misc instrs.gb".to_string()) {
+        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/09-op r,r.gb".to_string()) {
             Ok(rom) => rom,
             _ => ROM::from_bytes(&[0; 0xFFFF])
         };
@@ -78,10 +80,7 @@ impl Bus {
 
     pub fn write(&mut self, address: u16, data: u8) {
         if address == 0xFF01 {
-            print!("{}", data as char); 
-        }
-        if address == 0xDF7C {
-            // aaa
+            // print!("{}", data as char); 
         }
         match MemoryMap::get_map(address) {
             MemoryMap::BankZero | MemoryMap::BankSwitchable => {
