@@ -27,7 +27,11 @@ impl Console {
             // thread::sleep(time::Duration::from_millis(100));
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
             // exit = self.cpu.get_exec_calls_count() >= 1068422; // log 3
-            exit = self.cpu.get_exec_calls_count() >= 1262766; // log 4
+            // exit = self.cpu.get_exec_calls_count() >= 1262766; // log 4
+            // exit = self.cpu.get_exec_calls_count() >= 1763388; // log 5
+            // exit = self.cpu.get_exec_calls_count() >= 1763388; // log 5
+            // exit = self.cpu.get_exec_calls_count() >= 243272; // log 6
+            exit = self.cpu.get_exec_calls_count() >= 287416; // log 7
         }
     }
 }

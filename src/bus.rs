@@ -45,7 +45,10 @@ impl Bus {
     pub fn new() -> Self {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
-        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/06-ld r,r.gb".to_string()) {
+        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/07-jr,jp,call,ret,rst.gb".to_string()) {
             Ok(rom) => rom,
             _ => ROM::from_bytes(&[0; 0xFFFF])
         };
