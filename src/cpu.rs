@@ -871,7 +871,7 @@ impl CPU {
         let program_counter = self.registers.get(Register::PC);
         let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
         let (opcode, cycles) = parameter_bytes.parse_opcode();
-        self.log(parameter_bytes);
+        // self.log(parameter_bytes);
         self.increment_cycles(cycles);
         self.exec(opcode, bus);
         self.increment_exec_calls_count();
@@ -1008,78 +1008,75 @@ impl CPU {
                 },
                 _ => {},
             },
-            Opcode::AND(params) => match params {
-                OpcodeParameter::Register_Register(reg1, reg2) => {
-                    self.registers.increment(Register::PC, 1);
-                    if reg2.is_8bit() {
-                        self.registers.set(reg1, self.registers.get(reg1) & self.registers.get(reg2));
-                    } else {
-                        let val = bus.read(self.registers.get(reg2)) as u16;
-                        self.registers.set(reg1, self.registers.get(reg1) & val);
-                    }
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, true);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                OpcodeParameter::Register_U8(reg, val) => {
-                    self.registers.increment(Register::PC, 2);
-                    self.registers.set(reg, self.registers.get(reg) & (val as u16));
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, true);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                _ => {},
+            Opcode::AND(params) => {
+                match params {
+                    OpcodeParameter::Register_Register(reg1, reg2) => {
+                        self.registers.increment(Register::PC, 1);
+                        if reg2.is_8bit() {
+                            self.registers.set(reg1, self.registers.get(reg1) & self.registers.get(reg2));
+                        } else {
+                            let val = bus.read(self.registers.get(reg2)) as u16;
+                            self.registers.set(reg1, self.registers.get(reg1) & val);
+                        }
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
+                    },
+                    OpcodeParameter::Register_U8(reg, val) => {
+                        self.registers.increment(Register::PC, 2);
+                        self.registers.set(reg, self.registers.get(reg) & (val as u16));
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
+                    },
+                    _ => {},
+                };
+                self.registers.set_flag(FlagRegister::Substract, false);
+                self.registers.set_flag(FlagRegister::HalfCarry, true);
+                self.registers.set_flag(FlagRegister::Carry, false);
             },
-            Opcode::OR(params) => match params {
-                OpcodeParameter::Register_Register(reg1, reg2) => {
-                    self.registers.increment(Register::PC, 1);
-                    if reg2.is_8bit() {
-                        self.registers.set(reg1, self.registers.get(reg1) | self.registers.get(reg2));
-                    } else {
-                        let val = bus.read(self.registers.get(reg2)) as u16;
-                        self.registers.set(reg1, self.registers.get(reg1) | val);
-                    }
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, false);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                OpcodeParameter::Register_U8(reg, val) => {
-                    self.registers.increment(Register::PC, 2);
-                    self.registers.set(reg, self.registers.get(reg) | (val as u16));
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, false);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                _ => {},
+            Opcode::OR(params) => {
+                match params {
+                    OpcodeParameter::Register_Register(reg1, reg2) => {
+                        self.registers.increment(Register::PC, 1);
+                        if reg2.is_8bit() {
+                            self.registers.set(reg1, self.registers.get(reg1) | self.registers.get(reg2));
+                        } else {
+                            let val = bus.read(self.registers.get(reg2)) as u16;
+                            self.registers.set(reg1, self.registers.get(reg1) | val);
+                        }
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
+                    },
+                    OpcodeParameter::Register_U8(reg, val) => {
+                        self.registers.increment(Register::PC, 2);
+                        self.registers.set(reg, self.registers.get(reg) | (val as u16));
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
+                    },
+                    _ => {},
+                };
+                self.registers.set_flag(FlagRegister::Substract, false);
+                self.registers.set_flag(FlagRegister::HalfCarry, false);
+                self.registers.set_flag(FlagRegister::Carry, false);
             },
-            Opcode::XOR(params) => match params {
-                OpcodeParameter::Register_Register(reg1, reg2) => {
-                    self.registers.increment(Register::PC, 1);
-                    if reg2.is_8bit() {
-                        self.registers.set(reg1, self.registers.get(reg1) ^ self.registers.get(reg2));
-                    } else {
-                        let val = bus.read(self.registers.get(reg2)) as u16;
-                        self.registers.set(reg1, self.registers.get(reg1) ^ val);
-                    }
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, false);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                OpcodeParameter::Register_U8(reg, val) => {
-                    self.registers.increment(Register::PC, 2);
-                    self.registers.set(reg, self.registers.get(reg) ^ (val as u16));
-                    self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
-                    self.registers.set_flag(FlagRegister::Substract, false);
-                    self.registers.set_flag(FlagRegister::HalfCarry, false);
-                    self.registers.set_flag(FlagRegister::Carry, false);
-                },
-                _ => {},
-            }
+            Opcode::XOR(params) => {
+                match params {
+                    OpcodeParameter::Register_Register(reg1, reg2) => {
+                        self.registers.increment(Register::PC, 1);
+                        if reg2.is_8bit() {
+                            self.registers.set(reg1, self.registers.get(reg1) ^ self.registers.get(reg2));
+                        } else {
+                            let val = bus.read(self.registers.get(reg2)) as u16;
+                            self.registers.set(reg1, self.registers.get(reg1) ^ val);
+                        }
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg1) == 0);
+                    },
+                    OpcodeParameter::Register_U8(reg, val) => {
+                        self.registers.increment(Register::PC, 2);
+                        self.registers.set(reg, self.registers.get(reg) ^ (val as u16));
+                        self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
+                    },
+                    _ => {},
+                };
+                self.registers.set_flag(FlagRegister::Substract, false);
+                self.registers.set_flag(FlagRegister::HalfCarry, false);
+                self.registers.set_flag(FlagRegister::Carry, false);
+            },
             // Substract without storing the value
             Opcode::CP(params) => {
                 let mut val1: i16 = 0;
@@ -1339,7 +1336,6 @@ impl CPU {
             Opcode::DAA => {
                 self.registers.increment(Register::PC, 1);
                 let mut val = self.registers.get_8bit(Register::A);
-
                 if !self.registers.get_flag(FlagRegister::Substract) {
                     if self.registers.get_flag(FlagRegister::Carry) || val > 0x99 {
                         val = val.wrapping_add(0x60);
