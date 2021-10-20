@@ -31,7 +31,7 @@ impl Console {
             // exit = self.cpu.get_exec_calls_count() >= 1763388; // log 5
             // exit = self.cpu.get_exec_calls_count() >= 1763388; // log 5
             // exit = self.cpu.get_exec_calls_count() >= 243272; // log 6
-            exit = self.cpu.get_exec_calls_count() >= 287416; // log 7
+            // exit = self.cpu.get_exec_calls_count() >= 287416; // log 7
         }
     }
 }

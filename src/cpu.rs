@@ -298,7 +298,7 @@ impl CPU {
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
         let opcode = CPU::parse_opcode(parameter_bytes);
         // println!("Opcode: {:02X?} | PC: {:04X?} | Params: {:02X?}", opcode, self.registers.get(Register::PC), &parameter_bytes);
-        println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
+        /* println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
             self.registers.get(Register::A),
             self.registers.get(Register::F),
             self.registers.get(Register::B),
@@ -313,7 +313,7 @@ impl CPU {
             parameter_bytes.1,
             parameter_bytes.2,
             parameter_bytes.3,
-         );
+         ); */
         self.exec(opcode, bus);
         self.increment_exec_calls_count();
     }
@@ -356,7 +356,7 @@ impl CPU {
                     match register.is_8bit() {
                         true => bus.write(address, bytes[1]),
                         false => bus.write_16bit(address, value),
-                    }
+                    };
                 },
                 OpcodeParameter::Register_FF00plusU8(register, val) => {
                     self.registers.increment(Register::PC, 2);
@@ -837,7 +837,10 @@ impl CPU {
                 }
             },
             // RST, same as Call
-            Opcode::RST(address) => self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus),
+            Opcode::RST(address) => {
+                self.registers.decrement(Register::PC, 2);
+                self.exec(Opcode::CALL(OpcodeParameter::U16(address as u16)), bus);
+            },
             // PUSH onto the stack
             Opcode::PUSH(register) => {
                 self.registers.increment(Register::PC, 1);
@@ -1140,7 +1143,8 @@ impl CPU {
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
             // _ => println!("Illegal instruction"),
-            _ => {},
+            Opcode::IllegalInstruction => {panic!("Illegal instruction");},
+            _ => {panic!("Illegal instruction");},
         };
     }
 
@@ -1231,7 +1235,7 @@ impl CPU {
             0x36 => Opcode::LD(OpcodeParameter::Register_U8(Register::HL, params.1)),
             0x0A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::BC)),
             0x1A => Opcode::LD(OpcodeParameter::Register_Register(Register::A, Register::DE)),
-            0xFA => Opcode::LD(OpcodeParameter::Register_U16(Register::A, two_byte_param)), // Receives 16 bit value, but lower bit is ignored
+            0xFA => Opcode::LD(OpcodeParameter::Register_U16(Register::A, two_byte_param)),
             0x3E => Opcode::LD(OpcodeParameter::Register_U8(Register::A, params.1)),
             0xEA => Opcode::LD(OpcodeParameter::U16_Register(two_byte_param, Register::A)),
             0xF2 => Opcode::LD(OpcodeParameter::Register_FF00plusRegister(Register::A, Register::C)),
@@ -1773,6 +1777,14 @@ mod tests {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         let addr = 0xC000;
+        cpu.registers.set(Register::A, 0x12);
+        cpu.exec(Opcode::LD(OpcodeParameter::U16_Register(addr, Register::A)), &mut bus);
+        assert_eq!(bus.read(addr), 0x12);
+        assert_eq!(cpu.registers.get(Register::PC), 0x103);
+
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        let addr = 0xC000;
         cpu.registers.set(Register::A, 0xFF);
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0x00);
@@ -2068,7 +2080,7 @@ mod tests {
         cpu.registers.set(Register::SP, sp);
         cpu.registers.set(Register::PC, 0x1234);
         cpu.exec(Opcode::RST(0xF0), &mut bus);
-        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 3);
+        assert_eq!(bus.read_16bit(sp - 2), 0x1234 + 1);
         assert_eq!(cpu.registers.get(Register::SP), sp - 2);
         assert_eq!(cpu.registers.get(Register::PC), 0x00F0);
     }

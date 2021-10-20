@@ -77,6 +77,12 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
+        if address == 0xFF01 {
+            print!("{}", data as char); 
+        }
+        if address == 0xDF7C {
+            // aaa
+        }
         match MemoryMap::get_map(address) {
             MemoryMap::BankZero | MemoryMap::BankSwitchable => {
                 // println!("WRITING TO ROM");
@@ -85,12 +91,12 @@ impl Bus {
                 self.data[address as usize] = data;
                 // Copy to the ECHO RAM
                 if address <= 0xDDFF {
-                    self.data[(0xE000 + (address - 0xC000)) as usize] = data;
+                    // self.data[(0xE000 + (address - 0xC000)) as usize] = data;
                 }
             },
             MemoryMap::EchoRAM => {
                 self.data[address as usize] = data;
-                self.data[(0xC000 + (address - 0xE000)) as usize] = data; // Copy to the working RAM
+                // self.data[(0xC000 + (address - 0xE000)) as usize] = data; // Copy to the working RAM
             },
             _ => self.data[address as usize] = data,
         };
