@@ -51,8 +51,11 @@ pub fn sub_half_carry(byte1: u8, byte2: u8) -> bool {
 }
 
 pub fn add_half_carry_16bit(byte1: u16, byte2: u16) -> bool {
-    let byte1 = byte1 & 0b0000111111111111;
-    let byte2 = byte2 & 0b0000111111111111;
+    /* if byte1 <= 0x00FF && byte2 <= 0x00FF && ((byte1 & 0x00FF) + (byte2 & 0x00FF) < 0x00FF) {
+        return add_half_carry(byte1.to_be_bytes()[1], byte2.to_be_bytes()[1]);
+    } */
+    let byte1 = byte1 & 0x0FFF;
+    let byte2 = byte2 & 0x0FFF;
     let result = byte1 + byte2;
     get_bit(result.to_be_bytes()[0], BitIndex::I4)
 }
@@ -134,6 +137,8 @@ mod tests {
         assert_eq!(add_half_carry_16bit(0b0000010000000000, 0b0000010000000000), false);
         assert_eq!(add_half_carry_16bit(0b0000010000000000, 0b0000100000000000), false);
         assert_eq!(add_half_carry_16bit(0b0000111100000000, 0b0000000100000000), true);
+
+        // assert_eq!(add_half_carry_16bit(0b00000000_00001000, 0b00000000_00001000), true);
 
         assert_eq!(sub_half_carry(0b00010000, 0b00001000), true);
         assert_eq!(sub_half_carry(0b00000000, 0b00000001), true);
