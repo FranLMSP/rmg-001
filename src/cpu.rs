@@ -298,7 +298,7 @@ impl CPU {
         let parameter_bytes = CPU::read_parameter_bytes(program_counter, bus);
         let opcode = CPU::parse_opcode(parameter_bytes);
         // println!("Opcode: {:02X?} | PC: {:04X?} | Params: {:02X?}", opcode, self.registers.get(Register::PC), &parameter_bytes);
-        println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
+        /* println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
             self.registers.get(Register::A),
             self.registers.get(Register::F),
             self.registers.get(Register::B),
@@ -313,7 +313,7 @@ impl CPU {
             parameter_bytes.1,
             parameter_bytes.2,
             parameter_bytes.3,
-        );
+        ); */
         self.exec(opcode, bus);
         self.increment_exec_calls_count();
     }

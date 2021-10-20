@@ -1,5 +1,5 @@
-# YARGBE
-Yet Another Rust Gameboy Emulator.
+# RMG-001
+Rust Matrix Game - 001: Yet Another Rust Gameboy Emulator.
 
 This is just a fun project I'm making for learning and practice purposes. If you want a fully-featured Gameboy emulator, this is not probably the best one :P
 
