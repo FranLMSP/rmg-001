@@ -31,7 +31,6 @@ impl MemoryMap {
             0xFF00..=0xFF7F => Self::IORegisters,
             0xFF80..=0xFFFE => Self::HighRAM,
             0xFFFF => Self::InterruptEnableRegister,
-            _  => Self::BankZero,
         }
     }
 }

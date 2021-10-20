@@ -6,7 +6,6 @@ use crate::utils::{
     add_half_carry,
     sub_half_carry,
     add_half_carry_16bit,
-    sub_half_carry_16bit,
 };
 use crate::bus::Bus;
 
@@ -175,6 +174,7 @@ impl Registers {
 }
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub enum OpcodeParameter {
     Register(Register),
     Register_U8(Register, u8),
@@ -713,8 +713,6 @@ impl OpcodeParameterBytes {
                 0xFD => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::L))), Cycles(2)),
                 0xFE => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::HL))), Cycles(4)),
                 0xFF => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::A))), Cycles(2)),
-
-                _ => (Opcode::IllegalInstruction, Cycles(2)),
             },
             0xC3 => (Opcode::JP(OpcodeParameter::U16(two_byte_param)), Cycles(4)),
             0xC2 => (Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, two_byte_param)), Cycles(3)),
