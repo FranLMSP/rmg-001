@@ -1716,7 +1716,6 @@ impl CPU {
                 self.registers.increment(Register::PC, 2);
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
-            // _ => println!("Illegal instruction"),
             Opcode::IllegalInstruction => {panic!("Illegal instruction");},
             _ => {panic!("Illegal instruction");},
         };
