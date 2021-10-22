@@ -1,39 +1,37 @@
 use crate::utils::{join_bytes};
 use crate::rom::ROM;
 
-pub enum MemoryMap {
-    BankZero,
-    BankSwitchable,
-    VideoRAM,
-    ExternalRAM,
-    WorkRAM1,
-    WorkRAM2,
-    EchoRAM,
-    SpriteAttributeTable,
-    NotUsable,
-    IORegisters,
-    HighRAM,
-    InterruptEnableRegister,
+pub struct AddressRange {
+    begin: u16,
+    end: u16,
 }
 
-impl MemoryMap {
-    pub fn get_map(address: u16) -> Self {
-        match address {
-            0x0000..=0x3FFF => Self::BankZero,
-            0x4000..=0x7FFF => Self::BankSwitchable,
-            0x8000..=0x9FFF => Self::VideoRAM,
-            0xA000..=0xBFFF => Self::ExternalRAM,
-            0xC000..=0xCFFF => Self::WorkRAM1,
-            0xD000..=0xDFFF => Self::WorkRAM2,
-            0xE000..=0xFDFF => Self::EchoRAM, // Mirror of C000~DDFF
-            0xFE00..=0xFE9F => Self::SpriteAttributeTable,
-            0xFEA0..=0xFEFF => Self::NotUsable,
-            0xFF00..=0xFF7F => Self::IORegisters,
-            0xFF80..=0xFFFE => Self::HighRAM,
-            0xFFFF => Self::InterruptEnableRegister,
-        }
+impl AddressRange {
+    pub fn begin(&self) -> u16 {
+        self.begin
+    }
+
+    pub fn end(&self) -> u16 {
+        self.end
+    }
+
+    pub fn in_range(&self, address: u16) -> bool {
+        address >= self.begin && address <= self.end
     }
 }
+
+pub const BANK_ZERO: AddressRange                 = AddressRange{begin: 0x0000, end: 0x3FFF};
+pub const BANK_SWITCHABLE: AddressRange           = AddressRange{begin: 0x4000, end: 0x7FFF};
+pub const VIDEO_RAM: AddressRange                 = AddressRange{begin: 0x8000, end: 0x9FFF};
+pub const EXTERNAL_RAM: AddressRange              = AddressRange{begin: 0xA000, end: 0xBFFF};
+pub const WORK_RAM_1: AddressRange                = AddressRange{begin: 0xC000, end: 0xCFFF};
+pub const WORK_RAM_2: AddressRange                = AddressRange{begin: 0xD000, end: 0xDFFF};
+pub const ECHO_RAM: AddressRange                  = AddressRange{begin: 0xE000, end: 0xFDFF};
+pub const SPRITE_ATTRIBUTE_TABLE: AddressRange    = AddressRange{begin: 0xFE00, end: 0xFE9F};
+pub const NOT_USABLE: AddressRange                = AddressRange{begin: 0xFEA0, end: 0xFEFF};
+pub const IO_REGISTERS: AddressRange              = AddressRange{begin: 0xFF00, end: 0xFF7F};
+pub const HIGH_RAM: AddressRange                  = AddressRange{begin: 0xFF80, end: 0xFFFE};
+pub const INTERRUPT_ENABLE_REGISTER: AddressRange = AddressRange{begin: 0xFFFF, end: 0xFFFF};
 
 pub struct Bus {
     game_rom: ROM,
@@ -62,17 +60,16 @@ impl Bus {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        match MemoryMap::get_map(address) {
-            MemoryMap::BankZero => self.game_rom.read(address),
-            MemoryMap::BankSwitchable => self.game_rom.read(address),
-            MemoryMap::WorkRAM1 | MemoryMap::WorkRAM2 | MemoryMap::InterruptEnableRegister => self.data[address as usize],
-            MemoryMap::IORegisters => match address {
+        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
+            return self.game_rom.read(address);
+        } else if IO_REGISTERS.in_range(address) {
+            return match address {
                 0xFF44 => 0x90,
                 0xFF4D => 0xFF,
                 _ => self.data[address as usize],
             }
-            _ => self.data[address as usize],
         }
+        self.data[address as usize]
     }
 
     pub fn read_16bit(&self, address: u16) -> u16 {
@@ -83,23 +80,20 @@ impl Bus {
         if address == 0xFF01 {
             print!("{}", data as char); 
         }
-        match MemoryMap::get_map(address) {
-            MemoryMap::BankZero | MemoryMap::BankSwitchable => {
-                // println!("WRITING TO ROM");
-            },
-            MemoryMap::WorkRAM1 | MemoryMap::WorkRAM2 => {
-                self.data[address as usize] = data;
-                // Copy to the ECHO RAM
-                if address <= 0xDDFF {
-                    // self.data[(0xE000 + (address - 0xC000)) as usize] = data;
-                }
-            },
-            MemoryMap::EchoRAM => {
-                self.data[address as usize] = data;
-                // self.data[(0xC000 + (address - 0xE000)) as usize] = data; // Copy to the working RAM
-            },
-            _ => self.data[address as usize] = data,
-        };
+
+        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
+            println!("WRITING TO ROM");
+        } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
+            self.data[address as usize] = data;
+            // Copy to the ECHO RAM
+            if address <= 0xDDFF {
+                self.data[(ECHO_RAM.begin() + (address - WORK_RAM_1.begin())) as usize] = data;
+            }
+        } else if ECHO_RAM.in_range(address) {
+            self.data[address as usize] = data;
+            self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
+        }
+        self.data[address as usize] = data;
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {

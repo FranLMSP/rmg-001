@@ -3,7 +3,7 @@ use crate::utils::{
     get_bit,
     set_bit,
 };
-use crate::bus::Bus;
+use crate::bus::{Bus, BANK_ZERO};
 
 struct ColorPalette(u8, u8, u8, u8);
 
@@ -89,6 +89,10 @@ impl PPU {
         Self {
             window: Window::new(),
         }
+    }
+
+    fn get_sprite(address: u16) {
+
     }
 
     fn get_scroll_x(bus: &Bus) -> u8 {
