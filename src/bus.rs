@@ -76,7 +76,7 @@ impl Bus {
     }
 
     pub fn read_16bit(&self, address: u16) -> u16 {
-        join_bytes(self.read(address + 1), self.read(address))
+        join_bytes(self.read(address.wrapping_add(1)), self.read(address))
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
@@ -105,6 +105,6 @@ impl Bus {
     pub fn write_16bit(&mut self, address: u16, data: u16) {
         let bytes = data.to_le_bytes();
         self.write(address, bytes[0]);
-        self.write(address + 1, bytes[1]);
+        self.write(address.wrapping_add(1), bytes[1]);
     }
 }

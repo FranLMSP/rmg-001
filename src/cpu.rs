@@ -227,9 +227,9 @@ impl OpcodeParameterBytes {
     pub fn from_address(address: u16, bus: &Bus)-> OpcodeParameterBytes {
         OpcodeParameterBytes(
             bus.read(address),
-            bus.read(address + 1),
-            bus.read(address + 2),
-            bus.read(address + 3),
+            bus.read(address.wrapping_add(1)),
+            bus.read(address.wrapping_add(2)),
+            bus.read(address.wrapping_add(3)),
         )
     }
 
@@ -872,7 +872,7 @@ impl CPU {
         // self.log(parameter_bytes);
         self.increment_cycles(cycles);
         self.exec(opcode, bus);
-        self.increment_exec_calls_count();
+        // self.increment_exec_calls_count();
     }
 
     pub fn exec(&mut self, opcode: Opcode, bus: &mut Bus) {
