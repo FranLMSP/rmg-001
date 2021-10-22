@@ -42,36 +42,69 @@ pub enum LCDStatus {
     ModeFlag(LCDStatusModeFlag),
 }
 
-pub struct Window {
-    x: u8,
-    y: u8,
-}
+const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
+const LCD_STATUS_ADDRESS: u16 = 0xFF41;
+
+const SCROLL_X_ADDRESS: u16 = 0xFF42;
+const SCROLL_Y_ADDRESS: u16 = 0xFF43;
+const LCD_Y_ADDRESS: u16 = 0xFF44;
+const LCD_Y_COMPARE_ADDRESS: u16 = 0xFF45;
+const DMA_ADDRESS: u16 = 0xFF46;
+const BACKGROUND_PALETTE_ADDRESS: u16 = 0xFF47;
+const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
+const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
+const WINDOW_X_ADDRESS: u16 = 0xFF4A;
+const WINDOW_Y_ADDRESS: u16 = 0xFF4B;
+
+pub struct Window {}
 
 impl Window {
     pub fn new() -> Self {
-        Self {
-            x: 0,
-            y: 0,
-        }
+        Self {}
+    }
+
+    fn get_x(bus: &Bus) -> u8 {
+        bus.read(WINDOW_X_ADDRESS)
+    }
+
+    fn set_x(bus: &mut Bus, val: u8) {
+        bus.write(WINDOW_X_ADDRESS, val);
+    }
+
+    fn get_y(bus: &Bus) -> u8 {
+        bus.read(WINDOW_Y_ADDRESS)
+    }
+
+    fn set_y(bus: &mut Bus, val: u8) {
+        bus.write(WINDOW_Y_ADDRESS, val);
     }
 }
 
 pub struct PPU {
-    scroll_y: u8,
-    scroll_x: u8,
     window: Window,
 }
-
-const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
-const LCD_STATUS_ADDRESS: u16 = 0xFF41;
 
 impl PPU {
     pub fn new() -> Self {
         Self {
-            scroll_x: 0,
-            scroll_y: 0,
             window: Window::new(),
         }
+    }
+
+    fn get_scroll_x(bus: &Bus) -> u8 {
+        bus.read(SCROLL_X_ADDRESS)
+    }
+
+    fn set_scroll_x(bus: &mut Bus, val: u8) {
+        bus.write(SCROLL_X_ADDRESS, val);
+    }
+
+    fn get_scroll_y(bus: &Bus) -> u8 {
+        bus.read(SCROLL_Y_ADDRESS)
+    }
+
+    fn set_scroll_y(bus: &mut Bus, val: u8) {
+        bus.write(SCROLL_Y_ADDRESS, val);
     }
 
     fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
@@ -90,15 +123,15 @@ impl PPU {
 
     fn set_lcd_control(bus: &mut Bus, control: LCDControl, val: bool) {
         let mut byte = bus.read(LCD_CONTROL_ADDRESS);
-        match control {
-            LCDControl::DisplayEnable => byte = set_bit(byte, val, BitIndex::I7),
-            LCDControl::WindowTileMapAddress => byte = set_bit(byte, val, BitIndex::I6),
-            LCDControl::WindowEnable => byte = set_bit(byte, val, BitIndex::I5),
-            LCDControl::BackgroundWindowTileAddress => byte = set_bit(byte, val, BitIndex::I4),
-            LCDControl::BackgroundTileMapAddress => byte = set_bit(byte, val, BitIndex::I3),
-            LCDControl::ObjectSize => byte = set_bit(byte, val, BitIndex::I2),
-            LCDControl::ObjectEnable => byte = set_bit(byte, val, BitIndex::I1),
-            LCDControl::BackgroundPriority => byte = set_bit(byte, val, BitIndex::I0),
+        byte = match control {
+            LCDControl::DisplayEnable => set_bit(byte, val, BitIndex::I7),
+            LCDControl::WindowTileMapAddress => set_bit(byte, val, BitIndex::I6),
+            LCDControl::WindowEnable => set_bit(byte, val, BitIndex::I5),
+            LCDControl::BackgroundWindowTileAddress => set_bit(byte, val, BitIndex::I4),
+            LCDControl::BackgroundTileMapAddress => set_bit(byte, val, BitIndex::I3),
+            LCDControl::ObjectSize => set_bit(byte, val, BitIndex::I2),
+            LCDControl::ObjectEnable => set_bit(byte, val, BitIndex::I1),
+            LCDControl::BackgroundPriority => set_bit(byte, val, BitIndex::I0),
         };
         bus.write(LCD_CONTROL_ADDRESS, byte);
     }
@@ -118,5 +151,23 @@ impl PPU {
                 LCDStatusModeFlag::TransferringToLCD => (byte & 0b00000011) == 3,
             },
         }
+    }
+
+    fn set_lcd_status(bus: &mut Bus, status: LCDStatus, val: bool) {
+        let mut byte = bus.read(LCD_STATUS_ADDRESS);
+        byte = match status {
+            LCDStatus::LYCInterrupt => set_bit(byte, val, BitIndex::I6),
+            LCDStatus::Mode2OAMInterrupt => set_bit(byte, val, BitIndex::I5),
+            LCDStatus::Mode1VBlankInterrupt => set_bit(byte, val, BitIndex::I4),
+            LCDStatus::Mode0HBlankInterrupt => set_bit(byte, val, BitIndex::I3),
+            LCDStatus::LYCFlag => set_bit(byte, val, BitIndex::I2),
+            LCDStatus::ModeFlag(mode) => match mode {
+                LCDStatusModeFlag::HBlank => (byte & 0b11111100) | 0,
+                LCDStatusModeFlag::VBlank => (byte & 0b11111100) | 1,
+                LCDStatusModeFlag::SearchingOAM => (byte & 0b11111100) | 2,
+                LCDStatusModeFlag::TransferringToLCD => (byte & 0b11111100) | 3,
+            },
+        };
+        bus.write(LCD_STATUS_ADDRESS, byte);
     }
 }
