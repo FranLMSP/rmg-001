@@ -1,3 +1,4 @@
+use std::env;
 use crate::utils::{
     BitIndex,
     get_bit,
@@ -805,14 +806,17 @@ pub enum Opcode {
     PrefixCB(Box<Opcode>),
     IllegalInstruction,
 }
+// Frequency un Hz
+const FREQUENCY: f64 = 4194.304;
 
 // Store cycles in M
 #[derive(Debug, Copy, Clone)]
-pub struct Cycles(usize); 
+pub struct Cycles(pub usize); 
 
 pub struct CPU {
     registers: Registers,
     cycles: Cycles,
+    last_op_cycles: Cycles,
     exec_calls_count: usize,
 }
 
@@ -821,6 +825,7 @@ impl CPU {
         Self {
             registers: Registers::new(),
             cycles: Cycles(0),
+            last_op_cycles: Cycles(0),
             exec_calls_count: 0,
         }
     }
@@ -846,6 +851,14 @@ impl CPU {
         self.cycles
     }
 
+    pub fn set_last_op_cycles(&mut self, cycles_start: Cycles, cycles_end: Cycles) {
+        self.last_op_cycles = Cycles(cycles_end.0 - cycles_start.0);
+    }
+
+    pub fn get_last_op_cycles(&self) -> Cycles {
+        self.last_op_cycles
+    }
+
     fn log(&self, parameter_bytes: OpcodeParameterBytes) {
         println!("A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
             self.registers.get(Register::A),
@@ -866,12 +879,18 @@ impl CPU {
     }
 
     pub fn run(&mut self, bus: &mut Bus) {
+        let cycles_start = self.get_cycles();
         let program_counter = self.registers.get(Register::PC);
         let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
         let (opcode, cycles) = parameter_bytes.parse_opcode();
-        // self.log(parameter_bytes);
+        if !env::var("CPU_LOG").is_err() {
+            self.log(parameter_bytes);
+        }
         self.increment_cycles(cycles);
         self.exec(opcode, bus);
+        let cycles_end = self.get_cycles();
+
+        self.set_last_op_cycles(cycles_start, cycles_end);
         // self.increment_exec_calls_count();
     }
 

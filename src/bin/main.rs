@@ -1,8 +1,6 @@
-use rmg_001::rom::ROM;
-use rmg_001::console::Console;
+use rmg_001::render::start_eventloop;
 
 fn main() -> std::io::Result<()> {
-    let mut console = Console::new();
-    console.cpu_run();
+    start_eventloop();
     Ok(())
 }

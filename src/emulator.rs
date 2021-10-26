@@ -1,16 +1,16 @@
 use std::{thread, time};
 
-use crate::cpu::CPU;
+use crate::cpu::{CPU, Cycles};
 use crate::ppu::PPU;
 use crate::bus::Bus;
 
-pub struct Console {
+pub struct Emulator {
     cpu: CPU,
     ppu: PPU,
     bus: Bus,
 }
 
-impl Console {
+impl Emulator {
     pub fn new() -> Self {
         Self {
             cpu: CPU::new(),
@@ -19,7 +19,23 @@ impl Console {
         }
     }
 
-    pub fn cpu_run(&mut self) {
+    pub fn draw(&mut self, frame: &mut [u8]) {
+        self.ppu.draw_background(&self.bus);
+        let ppu_frame = self.ppu.get_rgba_frame(&self.bus);
+        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let rgba = [0x5e, 0x48, 0xe8, 0xff];
+            pixel.copy_from_slice(&ppu_frame[i]);
+        }
+    }
+
+    pub fn run(&mut self, cpu_cycles: Cycles) {
+        self.cpu.reset_cycles();
+        while self.cpu.get_cycles().0 <= cpu_cycles.0 {
+            self.cpu.run(&mut self.bus);
+        }
+    }
+
+    pub fn cpu_loop(&mut self) {
         let mut exit = false;
         while !exit {
             self.cpu.run(&mut self.bus);
