@@ -10,6 +10,20 @@ pub enum BitIndex {
     I7,
 }
 
+pub fn to_bit_index(index: u8) -> BitIndex {
+    match index {
+        0 => BitIndex::I0,
+        1 => BitIndex::I1,
+        2 => BitIndex::I2,
+        3 => BitIndex::I3,
+        4 => BitIndex::I4,
+        5 => BitIndex::I5,
+        6 => BitIndex::I6,
+        7 => BitIndex::I7,
+        _ => BitIndex::I7,
+    }
+}
+
 pub fn get_bit_index(index: BitIndex) -> u8 {
     match index {
         BitIndex::I0 => 0,

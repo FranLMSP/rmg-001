@@ -2,6 +2,8 @@ use crate::emulator::Emulator;
 use crate::cpu::{CPU, Cycles};
 use crate::ppu::{WIDTH, HEIGHT};
 
+use std::{thread, time};
+
 use log::error;
 use pixels::{Error, Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -62,10 +64,12 @@ pub fn start_eventloop() {
             },
             Event::MainEventsCleared => {
                 emulator.run(Cycles(70224));
+                emulator.draw(pixels.get_frame());
+
+                thread::sleep(time::Duration::from_millis(14));
                 window.request_redraw();
             },
             Event::RedrawRequested(_) => {
-                emulator.draw(pixels.get_frame());
                 if pixels
                     .render()
                     .map_err(|e| error!("pixels.render() failed: {}", e))

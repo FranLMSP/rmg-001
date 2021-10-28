@@ -40,6 +40,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
+        // let game_rom = match ROM::load_file("ignore/pokemon-yellow.gbc".to_string()) {
         let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {

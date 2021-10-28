@@ -23,7 +23,6 @@ impl Emulator {
         self.ppu.draw_background(&self.bus);
         let ppu_frame = self.ppu.get_rgba_frame(&self.bus);
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let rgba = [0x5e, 0x48, 0xe8, 0xff];
             pixel.copy_from_slice(&ppu_frame[i]);
         }
     }

@@ -2,19 +2,22 @@ use crate::utils::{
     BitIndex,
     get_bit,
     set_bit,
+    to_bit_index,
 };
-use crate::bus::{Bus, BANK_ZERO, VIDEO_RAM};
+use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
+use crate::cpu::{Cycles};
 use rand::Rng;
 
+#[derive(Debug, Copy, Clone)]
+enum Pixel {
+    White,
+    Light,
+    Dark,
+    Black,
+}
+
+#[derive(Debug, Copy, Clone)]
 struct ColorPalette(u8, u8, u8, u8);
-
-struct Tile {
-
-}
-
-struct Sprite {
-}
-
 
 pub enum LCDControl {
     DisplayEnable,
@@ -60,47 +63,19 @@ const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
 const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
 const WINDOW_X_ADDRESS: u16 = 0xFF4A;
 const WINDOW_Y_ADDRESS: u16 = 0xFF4B;
-
-pub struct Window {}
-
-impl Window {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    fn get_x(bus: &Bus) -> u8 {
-        bus.read(WINDOW_X_ADDRESS)
-    }
-
-    fn set_x(bus: &mut Bus, val: u8) {
-        bus.write(WINDOW_X_ADDRESS, val);
-    }
-
-    fn get_y(bus: &Bus) -> u8 {
-        bus.read(WINDOW_Y_ADDRESS)
-    }
-
-    fn set_y(bus: &mut Bus, val: u8) {
-        bus.write(WINDOW_Y_ADDRESS, val);
-    }
-}
+const TILE_MAP_ADDRESS: u16 = 0x9800;
 
 pub struct PPU {
-    window: Window,
-
+    cycles: Cycles,
     rgba_frame: [[u8; 4]; FRAME_BUFFER_LENGTH as usize],
 }
 
 impl PPU {
     pub fn new() -> Self {
         Self {
+            cycles: Cycles(0),
             rgba_frame: [[0, 0, 0xFF, 0]; FRAME_BUFFER_LENGTH as usize],
-            window: Window::new(),
         }
-    }
-
-    fn get_sprite(address: u16) {
-
     }
 
     fn get_scroll_x(bus: &Bus) -> u8 {
@@ -183,46 +158,66 @@ impl PPU {
         bus.write(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_rgba_pixel(two_bit_pixel: u8) -> [u8; 4] {
+    fn get_pixel(two_bit_pixel: u8) -> Pixel {
         match two_bit_pixel {
-            0x00 => [255, 255, 255, 255],
-            0x01 => [192, 192, 192, 0],
-            0x10 => [128, 128, 128, 0],
-            0x11 => [0, 0, 0, 0],
-            _ => [0, 0, 0, 0],
+            0x00 => Pixel::White,
+            0x01 => Pixel::Light,
+            0x10 => Pixel::Dark,
+            0x11 => Pixel::Black,
+            _ => Pixel::Black,
         }
     }
 
+    fn get_rgba(pixel: Pixel) -> [u8; 4] {
+        match pixel {
+            Pixel::White => [255, 255, 255, 0],
+            Pixel::Light => [192, 192, 192, 0],
+            Pixel::Dark  => [81, 81, 81, 0],
+            Pixel::Black => [0, 0, 0, 0],
+        }
+    }
+    
     pub fn draw_background(&mut self, bus: &Bus) {
-        let mut pointer = VIDEO_RAM.begin();
-        let mut pixels_drawn: usize = 0;
-        while pixels_drawn < FRAME_BUFFER_LENGTH as usize {
-            let byte1 = bus.read(pointer);
-            let byte2 = bus.read(pointer + 1);
-            let pixels = PPU::get_byte_pixels(byte1, byte2);
-            self.rgba_frame[pixels_drawn]     = PPU::get_rgba_pixel(pixels[0]);
-            self.rgba_frame[pixels_drawn + 1] = PPU::get_rgba_pixel(pixels[1]);
-            self.rgba_frame[pixels_drawn + 2] = PPU::get_rgba_pixel(pixels[2]);
-            self.rgba_frame[pixels_drawn + 3] = PPU::get_rgba_pixel(pixels[3]);
-            self.rgba_frame[pixels_drawn + 4] = PPU::get_rgba_pixel(pixels[4]);
-            self.rgba_frame[pixels_drawn + 5] = PPU::get_rgba_pixel(pixels[5]);
-            self.rgba_frame[pixels_drawn + 6] = PPU::get_rgba_pixel(pixels[6]);
-            self.rgba_frame[pixels_drawn + 7] = PPU::get_rgba_pixel(pixels[7]);
-            pixels_drawn += 8;
-            pointer += 2;
+        let mut idx = 0;
+        // let mut tile_line: u16 = 0;
+        let mut lcd_y: u16 = 0;
+        while lcd_y < 144 {
+            let mut lcd_x: u16 = 0;
+            while lcd_x < 160 {
+                let index_x = (lcd_x / 8);
+                let index_y = (lcd_y / 8) * 32;
+                let index = index_x + index_y;
+                let tile_line = (lcd_y + PPU::get_scroll_y(bus) as u16).rem_euclid(8) * 2;
+                let index_byte = (bus.read(0x9800 + index as u16) as u16) * 16;
+
+                let tile_byte_1 = bus.read(0x8000 + tile_line + index_byte as u16);
+                let tile_byte_2 = bus.read(0x8000 + tile_line + index_byte as u16 + 1);
+                println!("{} {}", tile_byte_1, tile_byte_2);
+
+                let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+
+                for pixel in pixels {
+                    self.rgba_frame[idx] = PPU::get_rgba(pixel);
+                    idx += 1;
+                }
+
+                lcd_x += 8;
+            }
+            lcd_y += 1;
+            // tile_line += 2;
         }
     }
 
-    fn get_byte_pixels(byte1: u8, byte2: u8) -> [u8; 8] {
-        let mut pixels: [u8; 8] = [0; 8];
-        pixels[0] = ((get_bit(byte1, BitIndex::I7) as u8) << 1) | (get_bit(byte2, BitIndex::I7) as u8);
-        pixels[1] = ((get_bit(byte1, BitIndex::I6) as u8) << 1) | (get_bit(byte2, BitIndex::I6) as u8);
-        pixels[2] = ((get_bit(byte1, BitIndex::I5) as u8) << 1) | (get_bit(byte2, BitIndex::I5) as u8);
-        pixels[3] = ((get_bit(byte1, BitIndex::I4) as u8) << 1) | (get_bit(byte2, BitIndex::I4) as u8);
-        pixels[4] = ((get_bit(byte1, BitIndex::I3) as u8) << 1) | (get_bit(byte2, BitIndex::I3) as u8);
-        pixels[5] = ((get_bit(byte1, BitIndex::I2) as u8) << 1) | (get_bit(byte2, BitIndex::I2) as u8);
-        pixels[6] = ((get_bit(byte1, BitIndex::I1) as u8) << 1) | (get_bit(byte2, BitIndex::I1) as u8);
-        pixels[7] = ((get_bit(byte1, BitIndex::I0) as u8) << 1) | (get_bit(byte2, BitIndex::I0) as u8);
+    fn get_byte_pixels(byte1: u8, byte2: u8) -> [Pixel; 8] {
+        let mut pixels: [Pixel; 8] = [Pixel::White; 8];
+        pixels[0] = PPU::get_pixel(((get_bit(byte1, BitIndex::I7) as u8) << 1) | (get_bit(byte2, BitIndex::I7) as u8));
+        pixels[1] = PPU::get_pixel(((get_bit(byte1, BitIndex::I6) as u8) << 1) | (get_bit(byte2, BitIndex::I6) as u8));
+        pixels[2] = PPU::get_pixel(((get_bit(byte1, BitIndex::I5) as u8) << 1) | (get_bit(byte2, BitIndex::I5) as u8));
+        pixels[3] = PPU::get_pixel(((get_bit(byte1, BitIndex::I4) as u8) << 1) | (get_bit(byte2, BitIndex::I4) as u8));
+        pixels[4] = PPU::get_pixel(((get_bit(byte1, BitIndex::I3) as u8) << 1) | (get_bit(byte2, BitIndex::I3) as u8));
+        pixels[5] = PPU::get_pixel(((get_bit(byte1, BitIndex::I2) as u8) << 1) | (get_bit(byte2, BitIndex::I2) as u8));
+        pixels[6] = PPU::get_pixel(((get_bit(byte1, BitIndex::I1) as u8) << 1) | (get_bit(byte2, BitIndex::I1) as u8));
+        pixels[7] = PPU::get_pixel(((get_bit(byte1, BitIndex::I0) as u8) << 1) | (get_bit(byte2, BitIndex::I0) as u8));
         pixels
     }
 
