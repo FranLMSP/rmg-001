@@ -40,8 +40,8 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        // let game_rom = match ROM::load_file("ignore/pokemon-yellow.gbc".to_string()) {
-        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
@@ -52,7 +52,8 @@ impl Bus {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/10-bit ops.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/11-op a,(hl).gb".to_string()) {
             Ok(rom) => rom,
-            _ => ROM::from_bytes(&[0; 0xFFFF])
+            // _ => ROM::from_bytes(&[0; 0xFFFF])
+            _ => panic!("Could not read ROM"),
         };
         Self {
             data: [0x00; 0x10000],

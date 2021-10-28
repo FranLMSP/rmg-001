@@ -53,8 +53,8 @@ pub const FRAME_BUFFER_LENGTH: u32 = WIDTH * HEIGHT;
 const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
 const LCD_STATUS_ADDRESS: u16 = 0xFF41;
 
-const SCROLL_X_ADDRESS: u16 = 0xFF42;
-const SCROLL_Y_ADDRESS: u16 = 0xFF43;
+const SCROLL_Y_ADDRESS: u16 = 0xFF42;
+const SCROLL_X_ADDRESS: u16 = 0xFF43;
 const LCD_Y_ADDRESS: u16 = 0xFF44;
 const LCD_Y_COMPARE_ADDRESS: u16 = 0xFF45;
 const DMA_ADDRESS: u16 = 0xFF46;
@@ -180,19 +180,20 @@ impl PPU {
     pub fn draw_background(&mut self, bus: &Bus) {
         let mut idx = 0;
         // let mut tile_line: u16 = 0;
-        let mut lcd_y: u16 = 0;
+        let mut lcd_y: u8 = 0;
         while lcd_y < 144 {
-            let mut lcd_x: u16 = 0;
+            let mut lcd_x: u8 = 0;
             while lcd_x < 160 {
-                let index_x = (lcd_x / 8);
-                let index_y = (lcd_y / 8) * 32;
+                let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
+                let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
+                let index_x = (x as u16 / 8);
+                let index_y = (y as u16 / 8) * 32;
                 let index = index_x + index_y;
-                let tile_line = (lcd_y + PPU::get_scroll_y(bus) as u16).rem_euclid(8) * 2;
+                let tile_line = (y).rem_euclid(8) * 2;
                 let index_byte = (bus.read(0x9800 + index as u16) as u16) * 16;
 
-                let tile_byte_1 = bus.read(0x8000 + tile_line + index_byte as u16);
-                let tile_byte_2 = bus.read(0x8000 + tile_line + index_byte as u16 + 1);
-                println!("{} {}", tile_byte_1, tile_byte_2);
+                let tile_byte_1 = bus.read(0x8000 + tile_line as u16 + index_byte);
+                let tile_byte_2 = bus.read(0x8000 + tile_line as u16 + index_byte + 1);
 
                 let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
 
