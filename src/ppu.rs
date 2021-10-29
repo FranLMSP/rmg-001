@@ -98,8 +98,10 @@ impl PPU {
     pub fn cycle(&mut self, bus: &mut Bus) {
         // Mode 1 Vertical blank
         if PPU::get_lcd_y(bus) >= 144 {
-            bus.set_interrupt(Interrupt::VBlank, true);
-            PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            if PPU::get_lcd_y(bus) == 144 {
+                bus.set_interrupt(Interrupt::VBlank, true);
+                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            }
         } else {
             if self.cycles.0 == 0 {
                 // Mode 2 OAM scan

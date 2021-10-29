@@ -873,39 +873,37 @@ impl CPU {
         bus.set_interrupt(interrupt, false);
         let vector = Bus::get_interrupt_vector(interrupt);
         self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
-        self.decrement_cycles(Cycles(1));
+        self.increment_cycles(Cycles(5));
+        println!("Interrupt: {:?}", interrupt);
     }
 
-    pub fn check_interrupt(&mut self, bus: &mut Bus) -> bool {
+    pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
         if bus.get_interrupt(Interrupt::VBlank) {
-            self.handle_interrupt(bus, Interrupt::VBlank);
-            return true;
+            return Some(Interrupt::VBlank);
         } else if bus.get_interrupt(Interrupt::LCDSTAT) {
-            self.handle_interrupt(bus, Interrupt::LCDSTAT);
-            return true;
+            return Some(Interrupt::LCDSTAT);
         } else if bus.get_interrupt(Interrupt::Timer) {
-            self.handle_interrupt(bus, Interrupt::Timer);
-            return true;
+            return Some(Interrupt::Timer);
         } else if bus.get_interrupt(Interrupt::Serial) {
-            self.handle_interrupt(bus, Interrupt::Serial);
-            return true;
+            return Some(Interrupt::Serial);
         } else if bus.get_interrupt(Interrupt::Joypad) {
-            self.handle_interrupt(bus, Interrupt::Joypad);
-            return true;
+            return Some(Interrupt::Joypad);
         }
-        return false;
+        None
     }
 
     pub fn run(&mut self, bus: &mut Bus) {
         let cycles_start = self.get_cycles();
-        let program_counter = self.registers.get(Register::PC);
-        let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
-        let (opcode, cycles) = parameter_bytes.parse_opcode();
-        if !env::var("CPU_LOG").is_err() {
-            self.log(parameter_bytes);
-        }
-        self.increment_cycles(cycles);
-        if !self.check_interrupt(bus) {
+        if let Some(interrupt) = self.check_interrupts(bus) {
+            self.handle_interrupt(bus, interrupt);
+        } else {
+            let program_counter = self.registers.get(Register::PC);
+            let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
+            let (opcode, cycles) = parameter_bytes.parse_opcode();
+            if !env::var("CPU_LOG").is_err() {
+                self.log(parameter_bytes);
+            }
+            self.increment_cycles(cycles);
             self.exec(opcode, bus);
         }
         let cycles_end = self.get_cycles();

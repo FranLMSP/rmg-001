@@ -91,11 +91,11 @@ impl Bus {
 
     pub fn write(&mut self, address: u16, data: u8) {
         if address == 0xFF01 {
-            print!("{}", data as char); 
+            // print!("{}", data as char); 
         }
 
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
-            println!("WRITING TO ROM");
+            // println!("WRITING TO ROM");
         } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
             self.data[address as usize] = data;
             // Copy to the ECHO RAM
