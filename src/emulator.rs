@@ -20,7 +20,6 @@ impl Emulator {
     }
 
     pub fn draw(&mut self, frame: &mut [u8]) {
-        // self.ppu.draw_background(&mut self.bus);
         let ppu_frame = self.ppu.get_rgba_frame();
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
             pixel.copy_from_slice(&ppu_frame[i]);
@@ -40,7 +39,6 @@ impl Emulator {
         while !exit {
             self.cpu.run(&mut self.bus);
 
-            // thread::sleep(time::Duration::from_millis(100));
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
             // exit = self.cpu.get_exec_calls_count() >= 1068422; // log 3
             // exit = self.cpu.get_exec_calls_count() >= 1262766; // log 4

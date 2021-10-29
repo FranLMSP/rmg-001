@@ -62,6 +62,36 @@ pub enum Interrupt {
     Joypad,
 }
 
+impl Interrupt {
+    fn get_bit_index(&self) -> BitIndex {
+        match self {
+           Interrupt::VBlank  => BitIndex::I0,
+           Interrupt::LCDSTAT => BitIndex::I1,
+           Interrupt::Timer   => BitIndex::I2,
+           Interrupt::Serial  => BitIndex::I3,
+           Interrupt::Joypad  => BitIndex::I4,
+        }
+    }
+
+    pub fn get(&self, byte: u8) -> bool {
+        get_bit(byte, self.get_bit_index())
+    }
+
+    pub fn set(&self, byte: u8, val: bool) -> u8 {
+        set_bit(byte, val, self.get_bit_index())
+    }
+    
+    pub fn get_vector(&self) -> u16 {
+        match self {
+           Interrupt::VBlank  => 0x40,
+           Interrupt::LCDSTAT => 0x48,
+           Interrupt::Timer   => 0x50,
+           Interrupt::Serial  => 0x58,
+           Interrupt::Joypad  => 0x60,
+        }
+    }
+}
+
 pub struct Registers {
     a: u8,
     f: u8,
@@ -871,7 +901,7 @@ impl CPU {
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
         bus.set_interrupt_master(interrupt, false);
         bus.set_interrupt(interrupt, false);
-        let vector = Bus::get_interrupt_vector(interrupt);
+        let vector = interrupt.get_vector();
         self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
         self.increment_cycles(Cycles(5));
         println!("Interrupt: {:?}", interrupt);
