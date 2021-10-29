@@ -20,8 +20,8 @@ impl Emulator {
     }
 
     pub fn draw(&mut self, frame: &mut [u8]) {
-        self.ppu.draw_background(&self.bus);
-        let ppu_frame = self.ppu.get_rgba_frame(&self.bus);
+        // self.ppu.draw_background(&mut self.bus);
+        let ppu_frame = self.ppu.get_rgba_frame();
         for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
             pixel.copy_from_slice(&ppu_frame[i]);
         }
@@ -30,6 +30,7 @@ impl Emulator {
     pub fn run(&mut self, cpu_cycles: Cycles) {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
+            self.ppu.do_cycle(&mut self.bus);
             self.cpu.run(&mut self.bus);
         }
     }

@@ -38,7 +38,6 @@ pub fn start_eventloop() {
 
     let mut emulator = Emulator::new();
 
-    let mut count: usize = 0;
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
@@ -66,7 +65,7 @@ pub fn start_eventloop() {
                 emulator.run(Cycles(70224));
                 emulator.draw(pixels.get_frame());
 
-                thread::sleep(time::Duration::from_millis(14));
+                // thread::sleep(time::Duration::from_millis(14));
                 window.request_redraw();
             },
             Event::RedrawRequested(_) => {

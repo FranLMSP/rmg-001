@@ -806,8 +806,6 @@ pub enum Opcode {
     PrefixCB(Box<Opcode>),
     IllegalInstruction,
 }
-// Frequency un Hz
-const FREQUENCY: f64 = 4194.304;
 
 // Store cycles in M
 #[derive(Debug, Copy, Clone)]

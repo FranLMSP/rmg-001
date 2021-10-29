@@ -40,7 +40,8 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
@@ -65,11 +66,7 @@ impl Bus {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
         } else if IO_REGISTERS.in_range(address) {
-            return match address {
-                0xFF44 => 0x90,
-                0xFF4D => 0xFF,
-                _ => self.data[address as usize],
-            }
+            return self.data[address as usize];
         }
         self.data[address as usize]
     }

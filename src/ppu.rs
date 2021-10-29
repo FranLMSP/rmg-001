@@ -6,7 +6,6 @@ use crate::utils::{
 };
 use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
 use crate::cpu::{Cycles};
-use rand::Rng;
 
 #[derive(Debug, Copy, Clone)]
 enum Pixel {
@@ -46,8 +45,10 @@ pub enum LCDStatus {
     ModeFlag(LCDStatusModeFlag),
 }
 
-pub const WIDTH: u32 = 160;
-pub const HEIGHT: u32 = 144;
+pub const LCD_WIDTH: u32 = 160;
+pub const LCD_HEIGHT: u32 = 144;
+pub const WIDTH: u32 = LCD_WIDTH;
+pub const HEIGHT: u32 = LCD_HEIGHT;
 pub const FRAME_BUFFER_LENGTH: u32 = WIDTH * HEIGHT;
 
 const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
@@ -74,8 +75,58 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             cycles: Cycles(0),
-            rgba_frame: [[0, 0, 0xFF, 0]; FRAME_BUFFER_LENGTH as usize],
+            rgba_frame: [[0xFF, 0xFF, 0xFF, 0]; FRAME_BUFFER_LENGTH as usize],
         }
+    }
+
+    pub fn reset_cycles(&mut self) {
+        self.cycles.0 = 0;
+    }
+
+    pub fn increment_cycles(&mut self, cycles: Cycles) {
+        self.cycles.0 += cycles.0;
+    }
+
+    pub fn do_cycle(&mut self, bus: &mut Bus) {
+        // Mode 1 Vertical blank
+        if PPU::get_lcd_y(bus) >= 144 {
+            PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+        } else {
+            if self.cycles.0 <= 80 {
+                // Mode 2 OAM scan
+                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
+            } else if self.cycles.0 <= 80 + 172 {
+                // Mode 3 drawing pixel line. This could also last 289 cycles
+                if !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                    self.draw_line(bus);
+                    PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
+                }
+            } else if self.cycles.0 <= 80 + 172 + 204 {
+                // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
+                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
+            }
+        }
+
+        self.increment_cycles(Cycles(1));
+
+        // Horizontal scan completed
+        if self.cycles.0 > 456 {
+            self.reset_cycles();
+            PPU::set_lcd_y(bus, PPU::get_lcd_y(bus) + 1);
+
+            // Frame completed
+            if PPU::get_lcd_y(bus) > 153 {
+                PPU::set_lcd_y(bus, 0);
+            }
+        }
+    }
+
+    fn get_lcd_y(bus: &Bus) -> u8 {
+        bus.read(LCD_Y_ADDRESS)
+    }
+
+    fn set_lcd_y(bus: &mut Bus, val: u8) {
+        bus.write(LCD_Y_ADDRESS, val);
     }
 
     fn get_scroll_x(bus: &Bus) -> u8 {
@@ -158,26 +209,46 @@ impl PPU {
         bus.write(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_pixel(two_bit_pixel: u8) -> Pixel {
-        match two_bit_pixel {
-            0x00 => Pixel::White,
-            0x01 => Pixel::Light,
-            0x10 => Pixel::Dark,
-            0x11 => Pixel::Black,
-            _ => Pixel::Black,
+    pub fn draw_line(&mut self, bus: &Bus) {
+        let lcd_y = PPU::get_lcd_y(bus);
+        if lcd_y as u32 >= LCD_HEIGHT {
+            return;
         }
-    }
+        let mut lcd_x: u8 = 0;
+        while (lcd_x as u32) < LCD_WIDTH {
+            let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
+            let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
+            let index_x = x as u16 / 8;
+            let index_y = (y as u16 / 8) * 32;
+            let index = index_x + index_y;
+            let tile_line = (y).rem_euclid(8) * 2;
+            let tile_number = bus.read(0x9800 + index as u16) as u16;
+            let addr = 0x8000 + tile_line as u16 + (tile_number * 16);
 
-    fn get_rgba(pixel: Pixel) -> [u8; 4] {
-        match pixel {
-            Pixel::White => [255, 255, 255, 0],
-            Pixel::Light => [192, 192, 192, 0],
-            Pixel::Dark  => [81, 81, 81, 0],
-            Pixel::Black => [0, 0, 0, 0],
+            let tile_byte_1 = bus.read(addr);
+            let tile_byte_2 = bus.read(addr + 1);
+
+            let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+
+            for pixel in pixels {
+                let idx = lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize);
+                self.rgba_frame[idx] = PPU::get_rgba(pixel);
+                lcd_x += 1;
+            }
         }
     }
     
-    pub fn draw_background(&mut self, bus: &Bus) {
+    pub fn draw_background(&mut self, bus: &mut Bus) {
+        let mut lcd_y: u8 = 0;
+        PPU::set_lcd_y(bus, lcd_y);
+        while lcd_y < 144 {
+            self.draw_line(bus);
+            lcd_y += 1;
+            PPU::set_lcd_y(bus, lcd_y);
+        }
+    }
+    
+    /* pub fn draw_background_old(&mut self, bus: &Bus) {
         let mut idx = 0;
         // let mut tile_line: u16 = 0;
         let mut lcd_y: u8 = 0;
@@ -207,6 +278,25 @@ impl PPU {
             lcd_y += 1;
             // tile_line += 2;
         }
+    } */
+
+    fn get_pixel(two_bit_pixel: u8) -> Pixel {
+        match two_bit_pixel {
+            0x00 => Pixel::White,
+            0x01 => Pixel::Light,
+            0x10 => Pixel::Dark,
+            0x11 => Pixel::Black,
+            _ => Pixel::Black,
+        }
+    }
+
+    fn get_rgba(pixel: Pixel) -> [u8; 4] {
+        match pixel {
+            Pixel::White => [255, 255, 255, 0],
+            Pixel::Light => [192, 192, 192, 0],
+            Pixel::Dark  => [81, 81, 81, 0],
+            Pixel::Black => [0, 0, 0, 0],
+        }
     }
 
     fn get_byte_pixels(byte1: u8, byte2: u8) -> [Pixel; 8] {
@@ -222,7 +312,7 @@ impl PPU {
         pixels
     }
 
-    pub fn get_rgba_frame(&self, bus: &Bus) -> &[[u8; 4]; FRAME_BUFFER_LENGTH as usize] {
+    pub fn get_rgba_frame(&self) -> &[[u8; 4]; FRAME_BUFFER_LENGTH as usize] {
         &self.rgba_frame
     }
 }
