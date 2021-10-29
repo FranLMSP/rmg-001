@@ -5,7 +5,7 @@ use crate::utils::{
     to_bit_index,
 };
 use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
-use crate::cpu::{Cycles};
+use crate::cpu::{Cycles, InterruptFlag};
 
 #[derive(Debug, Copy, Clone)]
 enum Pixel {
@@ -90,28 +90,37 @@ impl PPU {
     pub fn do_cycle(&mut self, bus: &mut Bus) {
         // Mode 1 Vertical blank
         if PPU::get_lcd_y(bus) >= 144 {
-            PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            if PPU::get_lcd_y(bus) == 144 {
+                bus.set_flag(InterruptFlag::VBlank, true);
+                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            }
         } else {
-            if self.cycles.0 <= 80 {
+            if self.cycles.0 == 0 {
                 // Mode 2 OAM scan
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
-            } else if self.cycles.0 <= 80 + 172 {
+            } else if self.cycles.0 == 80 + 1 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                if !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
-                    self.draw_line(bus);
-                    PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
-                }
-            } else if self.cycles.0 <= 80 + 172 + 204 {
+                bus.set_flag(InterruptFlag::LCDSTAT, true);
+                self.draw_line(bus);
+                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
+            } else if self.cycles.0 == 80 + 172 + 1 {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
+                bus.set_flag(InterruptFlag::LCDSTAT, true);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
             }
         }
 
+        let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
+        PPU::set_lcd_status(bus, LCDStatus::LYCInterrupt, lyc_compare);
+        if lyc_compare {
+            bus.set_flag(InterruptFlag::LCDSTAT, true);
+        }
         self.increment_cycles(Cycles(1));
 
         // Horizontal scan completed
         if self.cycles.0 > 456 {
             self.reset_cycles();
+
             PPU::set_lcd_y(bus, PPU::get_lcd_y(bus) + 1);
 
             // Frame completed
@@ -145,36 +154,36 @@ impl PPU {
         bus.write(SCROLL_Y_ADDRESS, val);
     }
 
-    fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
+    pub fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
         let byte = bus.read(LCD_CONTROL_ADDRESS);
         match control {
-            LCDControl::DisplayEnable => get_bit(byte, BitIndex::I7),
-            LCDControl::WindowTileMapAddress => get_bit(byte, BitIndex::I6),
-            LCDControl::WindowEnable =>  get_bit(byte, BitIndex::I5),
-            LCDControl::BackgroundWindowTileAddress =>  get_bit(byte, BitIndex::I4),
-            LCDControl::BackgroundTileMapAddress =>  get_bit(byte, BitIndex::I3),
-            LCDControl::ObjectSize =>  get_bit(byte, BitIndex::I2),
-            LCDControl::ObjectEnable =>  get_bit(byte, BitIndex::I1),
-            LCDControl::BackgroundPriority =>  get_bit(byte, BitIndex::I0),
+            LCDControl::DisplayEnable               => get_bit(byte, BitIndex::I7),
+            LCDControl::WindowTileMapAddress        => get_bit(byte, BitIndex::I6),
+            LCDControl::WindowEnable                => get_bit(byte, BitIndex::I5),
+            LCDControl::BackgroundWindowTileAddress => get_bit(byte, BitIndex::I4),
+            LCDControl::BackgroundTileMapAddress    => get_bit(byte, BitIndex::I3),
+            LCDControl::ObjectSize                  => get_bit(byte, BitIndex::I2),
+            LCDControl::ObjectEnable                => get_bit(byte, BitIndex::I1),
+            LCDControl::BackgroundPriority          => get_bit(byte, BitIndex::I0),
         }
     }
 
     fn set_lcd_control(bus: &mut Bus, control: LCDControl, val: bool) {
         let mut byte = bus.read(LCD_CONTROL_ADDRESS);
         byte = match control {
-            LCDControl::DisplayEnable => set_bit(byte, val, BitIndex::I7),
-            LCDControl::WindowTileMapAddress => set_bit(byte, val, BitIndex::I6),
-            LCDControl::WindowEnable => set_bit(byte, val, BitIndex::I5),
+            LCDControl::DisplayEnable               => set_bit(byte, val, BitIndex::I7),
+            LCDControl::WindowTileMapAddress        => set_bit(byte, val, BitIndex::I6),
+            LCDControl::WindowEnable                => set_bit(byte, val, BitIndex::I5),
             LCDControl::BackgroundWindowTileAddress => set_bit(byte, val, BitIndex::I4),
-            LCDControl::BackgroundTileMapAddress => set_bit(byte, val, BitIndex::I3),
-            LCDControl::ObjectSize => set_bit(byte, val, BitIndex::I2),
-            LCDControl::ObjectEnable => set_bit(byte, val, BitIndex::I1),
-            LCDControl::BackgroundPriority => set_bit(byte, val, BitIndex::I0),
+            LCDControl::BackgroundTileMapAddress    => set_bit(byte, val, BitIndex::I3),
+            LCDControl::ObjectSize                  => set_bit(byte, val, BitIndex::I2),
+            LCDControl::ObjectEnable                => set_bit(byte, val, BitIndex::I1),
+            LCDControl::BackgroundPriority          => set_bit(byte, val, BitIndex::I0),
         };
         bus.write(LCD_CONTROL_ADDRESS, byte);
     }
 
-    fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
+    pub fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
         let byte = bus.read(LCD_STATUS_ADDRESS);
         match status {
             LCDStatus::LYCInterrupt => get_bit(byte, BitIndex::I6),
@@ -237,48 +246,6 @@ impl PPU {
             }
         }
     }
-    
-    pub fn draw_background(&mut self, bus: &mut Bus) {
-        let mut lcd_y: u8 = 0;
-        PPU::set_lcd_y(bus, lcd_y);
-        while lcd_y < 144 {
-            self.draw_line(bus);
-            lcd_y += 1;
-            PPU::set_lcd_y(bus, lcd_y);
-        }
-    }
-    
-    /* pub fn draw_background_old(&mut self, bus: &Bus) {
-        let mut idx = 0;
-        // let mut tile_line: u16 = 0;
-        let mut lcd_y: u8 = 0;
-        while lcd_y < 144 {
-            let mut lcd_x: u8 = 0;
-            while lcd_x < 160 {
-                let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
-                let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
-                let index_x = (x as u16 / 8);
-                let index_y = (y as u16 / 8) * 32;
-                let index = index_x + index_y;
-                let tile_line = (y).rem_euclid(8) * 2;
-                let index_byte = (bus.read(0x9800 + index as u16) as u16) * 16;
-
-                let tile_byte_1 = bus.read(0x8000 + tile_line as u16 + index_byte);
-                let tile_byte_2 = bus.read(0x8000 + tile_line as u16 + index_byte + 1);
-
-                let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
-
-                for pixel in pixels {
-                    self.rgba_frame[idx] = PPU::get_rgba(pixel);
-                    idx += 1;
-                }
-
-                lcd_x += 8;
-            }
-            lcd_y += 1;
-            // tile_line += 2;
-        }
-    } */
 
     fn get_pixel(two_bit_pixel: u8) -> Pixel {
         match two_bit_pixel {

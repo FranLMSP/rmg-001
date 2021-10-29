@@ -1,5 +1,12 @@
-use crate::utils::{join_bytes};
+use crate::utils::{
+    get_bit,
+    set_bit,
+    BitIndex,
+    join_bytes
+};
 use crate::rom::ROM;
+use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag};
+use crate::cpu::{InterruptFlag};
 
 pub struct AddressRange {
     begin: u16,
@@ -32,6 +39,7 @@ pub const NOT_USABLE: AddressRange                = AddressRange{begin: 0xFEA0, 
 pub const IO_REGISTERS: AddressRange              = AddressRange{begin: 0xFF00, end: 0xFF7F};
 pub const HIGH_RAM: AddressRange                  = AddressRange{begin: 0xFF80, end: 0xFFFE};
 pub const INTERRUPT_ENABLE_REGISTER: AddressRange = AddressRange{begin: 0xFFFF, end: 0xFFFF};
+pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
 pub struct Bus {
     game_rom: ROM,
@@ -65,6 +73,10 @@ impl Bus {
     pub fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
+        } else if VIDEO_RAM.in_range(address) {
+            if PPU::get_lcd_status(self, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                return 0xFF
+            }
         } else if IO_REGISTERS.in_range(address) {
             return self.data[address as usize];
         }
@@ -91,13 +103,29 @@ impl Bus {
         } else if ECHO_RAM.in_range(address) {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
+        } else if VIDEO_RAM.in_range(address) {
+            //if !PPU::get_lcd_status(self, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                self.data[address as usize] = data;
+            // }
+        } else {
+            self.data[address as usize] = data;
         }
-        self.data[address as usize] = data;
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {
         let bytes = data.to_le_bytes();
         self.write(address, bytes[0]);
         self.write(address.wrapping_add(1), bytes[1]);
+    }
+
+    pub fn set_flag(&mut self, flag: InterruptFlag, val: bool) {
+        let byte = self.read(INTERRUPT_FLAG_ADDRESS);
+        self.write(INTERRUPT_FLAG_ADDRESS, match flag {
+           InterruptFlag::VBlank => set_bit(byte, val, BitIndex::I0),
+           InterruptFlag::LCDSTAT => set_bit(byte, val, BitIndex::I1),
+           InterruptFlag::Timer => set_bit(byte, val, BitIndex::I2),
+           InterruptFlag::Serial => set_bit(byte, val, BitIndex::I3),
+           InterruptFlag::Joypad => set_bit(byte, val, BitIndex::I4),
+        });
     }
 }
