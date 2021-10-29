@@ -8,7 +8,7 @@ use crate::utils::{
     sub_half_carry,
     add_half_carry_16bit,
 };
-use crate::bus::Bus;
+use crate::bus::{Bus, INTERRUPT_ENABLE_ADDRESS, INTERRUPT_FLAG_ADDRESS};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Register {
@@ -53,24 +53,13 @@ pub enum FlagRegister {
     Carry, // Set if a carry was ocurrend from the last math operation or if register A is the smaller value when executing the CP instruction
 }
 
-pub enum InterruptFlag {
+#[derive(Debug, Copy, Clone)]
+pub enum Interrupt {
     VBlank,
     LCDSTAT,
     Timer,
     Serial,
     Joypad,
-}
-
-impl InterruptFlag {
-    pub fn get_bit_index(interrupt: InterruptFlag) -> BitIndex {
-        match interrupt {
-            InterruptFlag::VBlank  => BitIndex::I0,
-            InterruptFlag::LCDSTAT => BitIndex::I1,
-            InterruptFlag::Timer   => BitIndex::I2,
-            InterruptFlag::Serial  => BitIndex::I3,
-            InterruptFlag::Joypad  => BitIndex::I4,
-        }
-    }
 }
 
 pub struct Registers {
@@ -837,8 +826,11 @@ impl CPU {
     }
 
     fn increment_cycles(&mut self, cycles: Cycles) {
-        let Cycles(c) = cycles;
-        self.cycles.0 += c;
+        self.cycles.0 += cycles.0;
+    }
+
+    fn decrement_cycles(&mut self, cycles: Cycles) {
+        self.cycles.0 -= cycles.0;
     }
 
     pub fn reset_cycles(&mut self) {
@@ -876,6 +868,34 @@ impl CPU {
         );
     }
 
+    pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
+        bus.set_interrupt_master(interrupt, false);
+        bus.set_interrupt(interrupt, false);
+        let vector = Bus::get_interrupt_vector(interrupt);
+        self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
+        self.decrement_cycles(Cycles(1));
+    }
+
+    pub fn check_interrupt(&mut self, bus: &mut Bus) -> bool {
+        if bus.get_interrupt(Interrupt::VBlank) {
+            self.handle_interrupt(bus, Interrupt::VBlank);
+            return true;
+        } else if bus.get_interrupt(Interrupt::LCDSTAT) {
+            self.handle_interrupt(bus, Interrupt::LCDSTAT);
+            return true;
+        } else if bus.get_interrupt(Interrupt::Timer) {
+            self.handle_interrupt(bus, Interrupt::Timer);
+            return true;
+        } else if bus.get_interrupt(Interrupt::Serial) {
+            self.handle_interrupt(bus, Interrupt::Serial);
+            return true;
+        } else if bus.get_interrupt(Interrupt::Joypad) {
+            self.handle_interrupt(bus, Interrupt::Joypad);
+            return true;
+        }
+        return false;
+    }
+
     pub fn run(&mut self, bus: &mut Bus) {
         let cycles_start = self.get_cycles();
         let program_counter = self.registers.get(Register::PC);
@@ -885,11 +905,11 @@ impl CPU {
             self.log(parameter_bytes);
         }
         self.increment_cycles(cycles);
-        self.exec(opcode, bus);
+        if !self.check_interrupt(bus) {
+            self.exec(opcode, bus);
+        }
         let cycles_end = self.get_cycles();
-
         self.set_last_op_cycles(cycles_start, cycles_end);
-        // self.increment_exec_calls_count();
     }
 
     pub fn exec(&mut self, opcode: Opcode, bus: &mut Bus) {
@@ -1713,12 +1733,12 @@ impl CPU {
             // Enable interrupts
             Opcode::EI => {
                 self.registers.increment(Register::PC, 1);
-                bus.write(0xFFFF, 0xFF); // Disable all interrupts
+                bus.write(INTERRUPT_ENABLE_ADDRESS, 0xFF); // Disable all interrupts
             },
             // Disable interrupts
             Opcode::DI => {
                 self.registers.increment(Register::PC, 1);
-                bus.write(0xFFFF, 0x00); // Disable all interrupts
+                bus.write(INTERRUPT_ENABLE_ADDRESS, 0x00); // Disable all interrupts
             },
             // Same as enabling interrupts and then executing RET
             Opcode::RETI => {

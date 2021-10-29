@@ -30,8 +30,8 @@ impl Emulator {
     pub fn run(&mut self, cpu_cycles: Cycles) {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
-            self.ppu.do_cycle(&mut self.bus);
             self.cpu.run(&mut self.bus);
+            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
         }
     }
 

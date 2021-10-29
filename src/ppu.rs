@@ -5,7 +5,7 @@ use crate::utils::{
     to_bit_index,
 };
 use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
-use crate::cpu::{Cycles, InterruptFlag};
+use crate::cpu::{Cycles, Interrupt};
 
 #[derive(Debug, Copy, Clone)]
 enum Pixel {
@@ -87,25 +87,31 @@ impl PPU {
         self.cycles.0 += cycles.0;
     }
 
-    pub fn do_cycle(&mut self, bus: &mut Bus) {
+    pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
+        let mut count = 0;
+        while count < cycles.0 {
+            self.cycle(bus);
+            count += 1;
+        }
+    }
+
+    pub fn cycle(&mut self, bus: &mut Bus) {
         // Mode 1 Vertical blank
         if PPU::get_lcd_y(bus) >= 144 {
-            if PPU::get_lcd_y(bus) == 144 {
-                bus.set_flag(InterruptFlag::VBlank, true);
-                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
-            }
+            bus.set_interrupt(Interrupt::VBlank, true);
+            PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
         } else {
             if self.cycles.0 == 0 {
                 // Mode 2 OAM scan
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
             } else if self.cycles.0 == 80 + 1 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                bus.set_flag(InterruptFlag::LCDSTAT, true);
+                bus.set_interrupt(Interrupt::LCDSTAT, true);
                 self.draw_line(bus);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
             } else if self.cycles.0 == 80 + 172 + 1 {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
-                bus.set_flag(InterruptFlag::LCDSTAT, true);
+                bus.set_interrupt(Interrupt::LCDSTAT, true);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
             }
         }
@@ -113,7 +119,7 @@ impl PPU {
         let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
         PPU::set_lcd_status(bus, LCDStatus::LYCInterrupt, lyc_compare);
         if lyc_compare {
-            bus.set_flag(InterruptFlag::LCDSTAT, true);
+            bus.set_interrupt(Interrupt::LCDSTAT, true);
         }
         self.increment_cycles(Cycles(1));
 
@@ -186,15 +192,15 @@ impl PPU {
     pub fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
         let byte = bus.read(LCD_STATUS_ADDRESS);
         match status {
-            LCDStatus::LYCInterrupt => get_bit(byte, BitIndex::I6),
-            LCDStatus::Mode2OAMInterrupt => get_bit(byte, BitIndex::I5),
+            LCDStatus::LYCInterrupt         => get_bit(byte, BitIndex::I6),
+            LCDStatus::Mode2OAMInterrupt    => get_bit(byte, BitIndex::I5),
             LCDStatus::Mode1VBlankInterrupt => get_bit(byte, BitIndex::I4),
             LCDStatus::Mode0HBlankInterrupt => get_bit(byte, BitIndex::I3),
-            LCDStatus::LYCFlag => get_bit(byte, BitIndex::I2),
+            LCDStatus::LYCFlag              => get_bit(byte, BitIndex::I2),
             LCDStatus::ModeFlag(mode) => match mode {
-                LCDStatusModeFlag::HBlank => (byte & 0b00000011) == 0,
-                LCDStatusModeFlag::VBlank => (byte & 0b00000011) == 1,
-                LCDStatusModeFlag::SearchingOAM => (byte & 0b00000011) == 2,
+                LCDStatusModeFlag::HBlank            => (byte & 0b00000011) == 0,
+                LCDStatusModeFlag::VBlank            => (byte & 0b00000011) == 1,
+                LCDStatusModeFlag::SearchingOAM      => (byte & 0b00000011) == 2,
                 LCDStatusModeFlag::TransferringToLCD => (byte & 0b00000011) == 3,
             },
         }
@@ -203,15 +209,15 @@ impl PPU {
     fn set_lcd_status(bus: &mut Bus, status: LCDStatus, val: bool) {
         let mut byte = bus.read(LCD_STATUS_ADDRESS);
         byte = match status {
-            LCDStatus::LYCInterrupt => set_bit(byte, val, BitIndex::I6),
-            LCDStatus::Mode2OAMInterrupt => set_bit(byte, val, BitIndex::I5),
+            LCDStatus::LYCInterrupt         => set_bit(byte, val, BitIndex::I6),
+            LCDStatus::Mode2OAMInterrupt    => set_bit(byte, val, BitIndex::I5),
             LCDStatus::Mode1VBlankInterrupt => set_bit(byte, val, BitIndex::I4),
             LCDStatus::Mode0HBlankInterrupt => set_bit(byte, val, BitIndex::I3),
-            LCDStatus::LYCFlag => set_bit(byte, val, BitIndex::I2),
+            LCDStatus::LYCFlag              => set_bit(byte, val, BitIndex::I2),
             LCDStatus::ModeFlag(mode) => match mode {
-                LCDStatusModeFlag::HBlank => (byte & 0b11111100) | 0,
-                LCDStatusModeFlag::VBlank => (byte & 0b11111100) | 1,
-                LCDStatusModeFlag::SearchingOAM => (byte & 0b11111100) | 2,
+                LCDStatusModeFlag::HBlank            => (byte & 0b11111100) | 0,
+                LCDStatusModeFlag::VBlank            => (byte & 0b11111100) | 1,
+                LCDStatusModeFlag::SearchingOAM      => (byte & 0b11111100) | 2,
                 LCDStatusModeFlag::TransferringToLCD => (byte & 0b11111100) | 3,
             },
         };

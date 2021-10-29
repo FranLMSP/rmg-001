@@ -6,7 +6,7 @@ use crate::utils::{
 };
 use crate::rom::ROM;
 use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag};
-use crate::cpu::{InterruptFlag};
+use crate::cpu::{Interrupt};
 
 pub struct AddressRange {
     begin: u16,
@@ -39,6 +39,7 @@ pub const NOT_USABLE: AddressRange                = AddressRange{begin: 0xFEA0, 
 pub const IO_REGISTERS: AddressRange              = AddressRange{begin: 0xFF00, end: 0xFF7F};
 pub const HIGH_RAM: AddressRange                  = AddressRange{begin: 0xFF80, end: 0xFFFE};
 pub const INTERRUPT_ENABLE_REGISTER: AddressRange = AddressRange{begin: 0xFFFF, end: 0xFFFF};
+pub const INTERRUPT_ENABLE_ADDRESS: u16 = 0xFFFF;
 pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
 pub struct Bus {
@@ -51,6 +52,7 @@ impl Bus {
         let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
@@ -75,7 +77,7 @@ impl Bus {
             return self.game_rom.read(address);
         } else if VIDEO_RAM.in_range(address) {
             if PPU::get_lcd_status(self, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
-                return 0xFF
+                return 0xFF;
             }
         } else if IO_REGISTERS.in_range(address) {
             return self.data[address as usize];
@@ -104,7 +106,7 @@ impl Bus {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if VIDEO_RAM.in_range(address) {
-            //if !PPU::get_lcd_status(self, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+            // if !PPU::get_lcd_status(self, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
                 self.data[address as usize] = data;
             // }
         } else {
@@ -118,14 +120,46 @@ impl Bus {
         self.write(address.wrapping_add(1), bytes[1]);
     }
 
-    pub fn set_flag(&mut self, flag: InterruptFlag, val: bool) {
+    pub fn set_interrupt_master(&mut self, flag: Interrupt, val: bool) {
+        let byte = self.read(INTERRUPT_ENABLE_ADDRESS);
+        self.write(INTERRUPT_ENABLE_ADDRESS, match flag {
+           Interrupt::VBlank  => set_bit(byte, val, BitIndex::I0),
+           Interrupt::LCDSTAT => set_bit(byte, val, BitIndex::I1),
+           Interrupt::Timer   => set_bit(byte, val, BitIndex::I2),
+           Interrupt::Serial  => set_bit(byte, val, BitIndex::I3),
+           Interrupt::Joypad  => set_bit(byte, val, BitIndex::I4),
+        });
+    }
+
+    pub fn set_interrupt(&mut self, flag: Interrupt, val: bool) {
         let byte = self.read(INTERRUPT_FLAG_ADDRESS);
         self.write(INTERRUPT_FLAG_ADDRESS, match flag {
-           InterruptFlag::VBlank => set_bit(byte, val, BitIndex::I0),
-           InterruptFlag::LCDSTAT => set_bit(byte, val, BitIndex::I1),
-           InterruptFlag::Timer => set_bit(byte, val, BitIndex::I2),
-           InterruptFlag::Serial => set_bit(byte, val, BitIndex::I3),
-           InterruptFlag::Joypad => set_bit(byte, val, BitIndex::I4),
+           Interrupt::VBlank  => set_bit(byte, val, BitIndex::I0),
+           Interrupt::LCDSTAT => set_bit(byte, val, BitIndex::I1),
+           Interrupt::Timer   => set_bit(byte, val, BitIndex::I2),
+           Interrupt::Serial  => set_bit(byte, val, BitIndex::I3),
+           Interrupt::Joypad  => set_bit(byte, val, BitIndex::I4),
         });
+    }
+
+    pub fn get_interrupt(&mut self, flag: Interrupt) -> bool {
+        let byte = self.read(INTERRUPT_ENABLE_ADDRESS) & self.read(INTERRUPT_FLAG_ADDRESS);
+        match flag {
+           Interrupt::VBlank  => get_bit(byte, BitIndex::I0),
+           Interrupt::LCDSTAT => get_bit(byte, BitIndex::I1),
+           Interrupt::Timer   => get_bit(byte, BitIndex::I2),
+           Interrupt::Serial  => get_bit(byte, BitIndex::I3),
+           Interrupt::Joypad  => get_bit(byte, BitIndex::I4),
+        }
+    }
+
+    pub fn get_interrupt_vector(flag: Interrupt) -> u16 {
+        match flag {
+           Interrupt::VBlank  => 0x40,
+           Interrupt::LCDSTAT => 0x48,
+           Interrupt::Timer   => 0x50,
+           Interrupt::Serial  => 0x58,
+           Interrupt::Joypad  => 0x60,
+        }
     }
 }
