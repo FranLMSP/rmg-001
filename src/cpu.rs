@@ -830,6 +830,12 @@ pub enum Opcode {
 #[derive(Debug, Copy, Clone)]
 pub struct Cycles(pub usize); 
 
+impl Cycles {
+    pub fn to_t(&self) -> usize {
+        self.0 * 4
+    }
+}
+
 pub struct CPU {
     registers: Registers,
     cycles: Cycles,

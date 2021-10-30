@@ -7,6 +7,7 @@ use crate::utils::{
 use crate::rom::ROM;
 use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag};
 use crate::cpu::{Interrupt};
+use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
 
 pub struct AddressRange {
     begin: u16,
@@ -107,6 +108,8 @@ impl Bus {
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if VIDEO_RAM.in_range(address) {
             self.data[address as usize] = data;
+        } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
+            self.data[address as usize] = 0x00;
         } else {
             self.data[address as usize] = data;
         }

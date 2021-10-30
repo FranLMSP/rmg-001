@@ -3,6 +3,7 @@ use std::{thread, time};
 use crate::cpu::{CPU, Cycles};
 use crate::ppu::PPU;
 use crate::bus::Bus;
+use crate::timer::Timer;
 
 pub struct Emulator {
     cpu: CPU,
@@ -31,6 +32,7 @@ impl Emulator {
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            Timer::do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
         }
     }
 

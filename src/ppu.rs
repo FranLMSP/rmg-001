@@ -118,11 +118,6 @@ impl PPU {
             }
         }
 
-        let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
-        PPU::set_lcd_status(bus, LCDStatus::LYCInterrupt, lyc_compare);
-        if lyc_compare {
-            bus.set_interrupt(Interrupt::LCDSTAT, true);
-        }
         self.increment_cycles(Cycles(1));
 
         // Horizontal scan completed
@@ -130,6 +125,12 @@ impl PPU {
             self.reset_cycles();
 
             PPU::set_lcd_y(bus, PPU::get_lcd_y(bus) + 1);
+
+            let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
+            if lyc_compare {
+                PPU::set_lcd_status(bus, LCDStatus::LYCInterrupt, lyc_compare);
+                bus.set_interrupt(Interrupt::LCDSTAT, true);
+            }
 
             // Frame completed
             if PPU::get_lcd_y(bus) > 153 {
