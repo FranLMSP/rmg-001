@@ -18,6 +18,7 @@ enum Pixel {
 #[derive(Debug, Copy, Clone)]
 struct ColorPalette(u8, u8, u8, u8);
 
+#[derive(Debug, Copy, Clone)]
 pub enum LCDControl {
     LCDEnable,
     WindowTileMapAddress,
@@ -27,6 +28,29 @@ pub enum LCDControl {
     ObjectSize,
     ObjectEnable,
     BackgroundPriority,
+}
+
+impl LCDControl {
+    fn get_bit_index(&self) -> BitIndex {
+        match self {
+            LCDControl::LCDEnable                   => BitIndex::I7,
+            LCDControl::WindowTileMapAddress        => BitIndex::I6,
+            LCDControl::WindowEnable                => BitIndex::I5,
+            LCDControl::BackgroundWindowTileAddress => BitIndex::I4,
+            LCDControl::BackgroundTileMapAddress    => BitIndex::I3,
+            LCDControl::ObjectSize                  => BitIndex::I2,
+            LCDControl::ObjectEnable                => BitIndex::I1,
+            LCDControl::BackgroundPriority          => BitIndex::I0,
+        }
+    }
+
+    pub fn get(&self, byte: u8) -> bool {
+        get_bit(byte, self.get_bit_index())
+    }
+
+    pub fn set(&self, byte: u8, val: bool) -> u8 {
+        set_bit(byte, val, self.get_bit_index())
+    }
 }
 
 pub enum LCDStatusModeFlag {
@@ -175,31 +199,12 @@ impl PPU {
 
     pub fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
         let byte = bus.read(LCD_CONTROL_ADDRESS);
-        match control {
-            LCDControl::LCDEnable                   => get_bit(byte, BitIndex::I7),
-            LCDControl::WindowTileMapAddress        => get_bit(byte, BitIndex::I6),
-            LCDControl::WindowEnable                => get_bit(byte, BitIndex::I5),
-            LCDControl::BackgroundWindowTileAddress => get_bit(byte, BitIndex::I4),
-            LCDControl::BackgroundTileMapAddress    => get_bit(byte, BitIndex::I3),
-            LCDControl::ObjectSize                  => get_bit(byte, BitIndex::I2),
-            LCDControl::ObjectEnable                => get_bit(byte, BitIndex::I1),
-            LCDControl::BackgroundPriority          => get_bit(byte, BitIndex::I0),
-        }
+        control.get(byte)
     }
 
     fn set_lcd_control(bus: &mut Bus, control: LCDControl, val: bool) {
         let mut byte = bus.read(LCD_CONTROL_ADDRESS);
-        byte = match control {
-            LCDControl::LCDEnable                   => set_bit(byte, val, BitIndex::I7),
-            LCDControl::WindowTileMapAddress        => set_bit(byte, val, BitIndex::I6),
-            LCDControl::WindowEnable                => set_bit(byte, val, BitIndex::I5),
-            LCDControl::BackgroundWindowTileAddress => set_bit(byte, val, BitIndex::I4),
-            LCDControl::BackgroundTileMapAddress    => set_bit(byte, val, BitIndex::I3),
-            LCDControl::ObjectSize                  => set_bit(byte, val, BitIndex::I2),
-            LCDControl::ObjectEnable                => set_bit(byte, val, BitIndex::I1),
-            LCDControl::BackgroundPriority          => set_bit(byte, val, BitIndex::I0),
-        };
-        bus.write(LCD_CONTROL_ADDRESS, byte);
+        bus.write(LCD_CONTROL_ADDRESS, control.set(byte, val));
     }
 
     pub fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
