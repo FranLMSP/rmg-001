@@ -5,7 +5,7 @@ use crate::utils::{
     join_bytes
 };
 use crate::rom::ROM;
-use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag, LCD_CONTROL_ADDRESS, LCD_Y_ADDRESS};
+use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag, LCD_STATUS_ADDRESS, LCD_CONTROL_ADDRESS, LCD_Y_ADDRESS};
 use crate::cpu::{Interrupt};
 use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
 
@@ -50,7 +50,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/mario-land.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -105,6 +105,10 @@ impl Bus {
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.data[address as usize] = 0x00;
+        } else if address == LCD_STATUS_ADDRESS {
+            // Prevent user from modifying LCD Status mode
+            let byte = self.data[address as usize];
+            self.data[address as usize] = (data & 0b1111_1100) | (byte & 0b0000_0011);
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;
             self.data[LCD_Y_ADDRESS as usize] = 0x00;

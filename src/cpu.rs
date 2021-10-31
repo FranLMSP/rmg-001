@@ -913,16 +913,15 @@ impl CPU {
         bus.set_interrupt_flag(interrupt, false);
         let vector = interrupt.get_vector();
         self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
-        self.increment_cycles(Cycles(5));
         println!("Interrupt: {:?}", interrupt);
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
+        if !self.ime && !self.is_halted {
+            return None;
+        }
         if bus.read(INTERRUPT_ENABLE_ADDRESS) & bus.read(INTERRUPT_FLAG_ADDRESS) != 0 {
             self.is_halted = false;
-        }
-        if !self.ime {
-            return None;
         }
         if bus.get_interrupt(Interrupt::VBlank) {
             return Some(Interrupt::VBlank);
@@ -942,6 +941,7 @@ impl CPU {
         let cycles_start = self.get_cycles();
         if let Some(interrupt) = self.check_interrupts(bus) {
             self.handle_interrupt(bus, interrupt);
+            self.increment_cycles(Cycles(5));
         } else if !self.is_halted {
             let program_counter = self.registers.get(Register::PC);
             let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
@@ -1780,13 +1780,11 @@ impl CPU {
             Opcode::EI => {
                 self.registers.increment(Register::PC, 1);
                 self.ime = true;
-                // bus.write(INTERRUPT_MASTER_ENABLE_ADDRESS, 0xFF); // Enable all interrupts
             },
             // Disable interrupts
             Opcode::DI => {
                 self.registers.increment(Register::PC, 1);
                 self.ime = false;
-                // bus.write(INTERRUPT_MASTER_ENABLE_ADDRESS, 0x00); // Disable all interrupts
             },
             // Same as enabling interrupts and then executing RET
             Opcode::RETI => {

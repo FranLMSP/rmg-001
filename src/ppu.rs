@@ -23,7 +23,7 @@ pub enum LCDControl {
     LCDEnable,
     WindowTileMapAddress,
     WindowEnable,
-    BackgroundWindowTileAddress,
+    TileAddressMode,
     BackgroundTileMapAddress,
     ObjectSize,
     ObjectEnable,
@@ -36,7 +36,7 @@ impl LCDControl {
             LCDControl::LCDEnable                   => BitIndex::I7,
             LCDControl::WindowTileMapAddress        => BitIndex::I6,
             LCDControl::WindowEnable                => BitIndex::I5,
-            LCDControl::BackgroundWindowTileAddress => BitIndex::I4,
+            LCDControl::TileAddressMode             => BitIndex::I4,
             LCDControl::BackgroundTileMapAddress    => BitIndex::I3,
             LCDControl::ObjectSize                  => BitIndex::I2,
             LCDControl::ObjectEnable                => BitIndex::I1,
@@ -95,6 +95,11 @@ pub struct PPU {
     rgba_frame: [[u8; 4]; FRAME_BUFFER_LENGTH as usize],
 }
 
+enum TileNumber {
+    Base(u16),
+    Absolute(u8),
+}
+
 impl PPU {
     pub fn new() -> Self {
         Self {
@@ -128,22 +133,27 @@ impl PPU {
         if PPU::get_lcd_y(bus) < 144 {
             if self.cycles.0 == 0 {
                 // Mode 2 OAM scan
-                PPU::request_interrupt(bus, Interrupt::LCDSTAT);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
+                if PPU::get_lcd_status(bus, LCDStatus::Mode2OAMInterrupt) {
+                    PPU::request_interrupt(bus, Interrupt::LCDSTAT);
+                }
             } else if self.cycles.0 == 80 + 1 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                // PPU::request_interrupt(bus, Interrupt::LCDSTAT);
                 self.draw_line(bus);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
             } else if self.cycles.0 == 80 + 172 + 1 {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
-                PPU::request_interrupt(bus, Interrupt::LCDSTAT);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
+                if PPU::get_lcd_status(bus, LCDStatus::Mode0HBlankInterrupt) {
+                    PPU::request_interrupt(bus, Interrupt::LCDSTAT);
+                }
             }
         } else if PPU::get_lcd_y(bus) == 144 && self.cycles.0 == 0 {
             // Mode 1 Vertical blank
-            PPU::request_interrupt(bus, Interrupt::VBlank);
             PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            if PPU::get_lcd_status(bus, LCDStatus::Mode1VBlankInterrupt) {
+                PPU::request_interrupt(bus, Interrupt::VBlank);
+            }
         }
 
         // Horizontal scan completed
@@ -153,11 +163,10 @@ impl PPU {
             PPU::set_lcd_y(bus, PPU::get_lcd_y(bus) + 1);
 
             let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
-            if lyc_compare {
-                PPU::set_lcd_status(bus, LCDStatus::LYCInterrupt, lyc_compare);
+            PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
+            if PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) && lyc_compare {
                 PPU::request_interrupt(bus, Interrupt::LCDSTAT);
             }
-
             // Frame completed
             if PPU::get_lcd_y(bus) > 153 {
                 PPU::set_lcd_y(bus, 0);
@@ -168,8 +177,6 @@ impl PPU {
     fn request_interrupt(bus: &mut Bus, interrupt: Interrupt) {
         if PPU::get_lcd_control(bus, LCDControl::LCDEnable) {
             bus.set_interrupt_flag(interrupt, true);
-        } else {
-            println!("lcd off");
         }
     }
 
@@ -185,16 +192,16 @@ impl PPU {
         bus.read(SCROLL_X_ADDRESS)
     }
 
-    fn set_scroll_x(bus: &mut Bus, val: u8) {
-        bus.write(SCROLL_X_ADDRESS, val);
-    }
-
     fn get_scroll_y(bus: &Bus) -> u8 {
         bus.read(SCROLL_Y_ADDRESS)
     }
 
-    fn set_scroll_y(bus: &mut Bus, val: u8) {
-        bus.write(SCROLL_Y_ADDRESS, val);
+    fn get_window_x(bus: &Bus) -> u8 {
+        bus.read(WINDOW_X_ADDRESS)
+    }
+
+    fn get_window_y(bus: &Bus) -> u8 {
+        bus.read(WINDOW_Y_ADDRESS)
     }
 
     pub fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
@@ -242,7 +249,55 @@ impl PPU {
         bus.write(LCD_STATUS_ADDRESS, byte);
     }
 
-    pub fn draw_line(&mut self, bus: &Bus) {
+    fn get_tile_bytes(x: u8, y: u8, tile_number: TileNumber, default_method: bool, bus: &Bus) -> (u8, u8) {
+        let index_x = x as u16 / 8;
+        let index_y = (y as u16 / 8) * 32;
+        let index = index_x + index_y;
+        let tile_line = (y).rem_euclid(8) * 2;
+        let tile_number =  match tile_number {
+            TileNumber::Base(base) => bus.read(base + index as u16),
+            TileNumber::Absolute(num) => bus.read(0x8000 + num as u16),
+
+        } as u16;
+        let addr = if default_method {
+            0x8000 + tile_line as u16 + (tile_number * 16)
+        } else {
+            let tile_number = (tile_number as i8) as i16;
+            let tile_line = tile_line as i16;
+            let base = (0x9000 as u16) as i16;
+            (base + tile_line + (tile_number * 16)) as u16
+        };
+
+        (bus.read(addr), bus.read(addr + 1))
+    }
+
+    fn get_window_pixel(lcd_x: u8, bus: &Bus) -> Option<Pixel> {
+        let lcd_y = PPU::get_lcd_y(bus);
+        let window_x = (PPU::get_window_x(bus) as i8 - 7) as u8;
+        let window_y = PPU::get_window_y(bus);
+
+        if window_x != lcd_x || window_y != lcd_y {
+            return None;
+        }
+
+        let x = lcd_x - window_x;
+        let y = lcd_y - window_x;
+
+        let default_mode = PPU::get_lcd_control(bus, LCDControl::TileAddressMode);
+        let tilemap_area = match PPU::get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
+            true  => 0x9C00,
+            false => 0x9800,
+        };
+        let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, TileNumber::Base(tilemap_area), default_mode, bus);
+
+        let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
+        let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
+
+        Some(pixels[(x as usize).rem_euclid(8)])
+    }
+
+    fn draw_line(&mut self, bus: &Bus) {
+        let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
         let lcd_y = PPU::get_lcd_y(bus);
         if lcd_y as u32 >= LCD_HEIGHT {
             return;
@@ -251,23 +306,37 @@ impl PPU {
         while (lcd_x as u32) < LCD_WIDTH {
             let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
             let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
-            let index_x = x as u16 / 8;
-            let index_y = (y as u16 / 8) * 32;
-            let index = index_x + index_y;
-            let tile_line = (y).rem_euclid(8) * 2;
-            let tile_number = bus.read(0x9800 + index as u16) as u16;
-            let addr = 0x8000 + tile_line as u16 + (tile_number * 16);
 
-            let tile_byte_1 = bus.read(addr);
-            let tile_byte_2 = bus.read(addr + 1);
+            let default_mode = PPU::get_lcd_control(bus, LCDControl::TileAddressMode);
+            let tilemap_area = match PPU::get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
+                true  => 0x9C00,
+                false => 0x9800,
+            };
+            let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, TileNumber::Base(tilemap_area), default_mode, bus);
 
-            let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+            let bg_pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
 
-            for pixel in pixels {
+            for pixel in bg_pixels {
                 let idx = lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize);
                 self.rgba_frame[idx] = PPU::get_rgba(pixel);
+                if PPU::get_lcd_control(bus, LCDControl::WindowEnable) {
+                    if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
+                        self.rgba_frame[idx] = PPU::get_rgba(window_pixel);
+                    }
+                }
+
                 lcd_x += 1;
             }
+        }
+    }
+
+    fn get_palette(index: u8, palette_byte: u8) -> u8 {
+        match index {
+            0b00 => palette_byte & 0b11,
+            0b01 => (palette_byte >> 2) & 0b11,
+            0b10 => (palette_byte >> 4) & 0b11,
+            0b11 => (palette_byte >> 6) & 0b11,
+            _ => 0b00,
         }
     }
 
@@ -290,17 +359,17 @@ impl PPU {
         }
     }
 
-    fn get_byte_pixels(byte1: u8, byte2: u8) -> [Pixel; 8] {
-        let mut pixels: [Pixel; 8] = [Pixel::White; 8];
-        pixels[0] = PPU::get_pixel(((get_bit(byte1, BitIndex::I7) as u8) << 1) | (get_bit(byte2, BitIndex::I7) as u8));
-        pixels[1] = PPU::get_pixel(((get_bit(byte1, BitIndex::I6) as u8) << 1) | (get_bit(byte2, BitIndex::I6) as u8));
-        pixels[2] = PPU::get_pixel(((get_bit(byte1, BitIndex::I5) as u8) << 1) | (get_bit(byte2, BitIndex::I5) as u8));
-        pixels[3] = PPU::get_pixel(((get_bit(byte1, BitIndex::I4) as u8) << 1) | (get_bit(byte2, BitIndex::I4) as u8));
-        pixels[4] = PPU::get_pixel(((get_bit(byte1, BitIndex::I3) as u8) << 1) | (get_bit(byte2, BitIndex::I3) as u8));
-        pixels[5] = PPU::get_pixel(((get_bit(byte1, BitIndex::I2) as u8) << 1) | (get_bit(byte2, BitIndex::I2) as u8));
-        pixels[6] = PPU::get_pixel(((get_bit(byte1, BitIndex::I1) as u8) << 1) | (get_bit(byte2, BitIndex::I1) as u8));
-        pixels[7] = PPU::get_pixel(((get_bit(byte1, BitIndex::I0) as u8) << 1) | (get_bit(byte2, BitIndex::I0) as u8));
-        pixels
+    fn get_byte_pixels(byte1: u8, byte2: u8, palette: u8) -> [Pixel; 8] {
+        [
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 7) & 0b01) | ((byte2 >> 6) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 6) & 0b01) | ((byte2 >> 5) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 5) & 0b01) | ((byte2 >> 4) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 4) & 0b01) | ((byte2 >> 3) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 3) & 0b01) | ((byte2 >> 2) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 2) & 0b01) | ((byte2 >> 1) & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette(((byte1 >> 1) & 0b01) | (byte2        & 0b10), palette)),
+            PPU::get_pixel(PPU::get_palette((byte1        & 0b01) | ((byte2 << 1) & 0b10), palette)),
+        ]
     }
 
     pub fn get_rgba_frame(&self) -> &[[u8; 4]; FRAME_BUFFER_LENGTH as usize] {
