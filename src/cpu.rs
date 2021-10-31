@@ -841,6 +841,8 @@ pub struct CPU {
     cycles: Cycles,
     last_op_cycles: Cycles,
     exec_calls_count: usize,
+    is_halted: bool,
+    ime: bool, // Interrupt Master Enable
 }
 
 impl CPU {
@@ -850,6 +852,8 @@ impl CPU {
             cycles: Cycles(0),
             last_op_cycles: Cycles(0),
             exec_calls_count: 0,
+            is_halted: false,
+            ime: true,
         }
     }
 
@@ -905,8 +909,8 @@ impl CPU {
     }
 
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
-        bus.set_interrupt_master(interrupt, false);
-        bus.set_interrupt(interrupt, false);
+        bus.set_interrupt_enable(interrupt, false);
+        bus.set_interrupt_flag(interrupt, false);
         let vector = interrupt.get_vector();
         self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
         self.increment_cycles(Cycles(5));
@@ -914,6 +918,12 @@ impl CPU {
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
+        if bus.read(INTERRUPT_ENABLE_ADDRESS) & bus.read(INTERRUPT_FLAG_ADDRESS) != 0 {
+            self.is_halted = false;
+        }
+        if !self.ime {
+            return None;
+        }
         if bus.get_interrupt(Interrupt::VBlank) {
             return Some(Interrupt::VBlank);
         } else if bus.get_interrupt(Interrupt::LCDSTAT) {
@@ -932,7 +942,7 @@ impl CPU {
         let cycles_start = self.get_cycles();
         if let Some(interrupt) = self.check_interrupts(bus) {
             self.handle_interrupt(bus, interrupt);
-        } else {
+        } else if !self.is_halted {
             let program_counter = self.registers.get(Register::PC);
             let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
             let (opcode, cycles) = parameter_bytes.parse_opcode();
@@ -941,6 +951,8 @@ impl CPU {
             }
             self.increment_cycles(cycles);
             self.exec(opcode, bus);
+        } else if self.is_halted {
+            self.increment_cycles(Cycles(1));
         }
         let cycles_end = self.get_cycles();
         self.set_last_op_cycles(cycles_start, cycles_end);
@@ -1767,21 +1779,24 @@ impl CPU {
             // Enable interrupts
             Opcode::EI => {
                 self.registers.increment(Register::PC, 1);
-                bus.write(INTERRUPT_ENABLE_ADDRESS, 0xFF); // Disable all interrupts
+                self.ime = true;
+                // bus.write(INTERRUPT_MASTER_ENABLE_ADDRESS, 0xFF); // Enable all interrupts
             },
             // Disable interrupts
             Opcode::DI => {
                 self.registers.increment(Register::PC, 1);
-                bus.write(INTERRUPT_ENABLE_ADDRESS, 0x00); // Disable all interrupts
+                self.ime = false;
+                // bus.write(INTERRUPT_MASTER_ENABLE_ADDRESS, 0x00); // Disable all interrupts
             },
             // Same as enabling interrupts and then executing RET
             Opcode::RETI => {
                 self.exec(Opcode::EI, bus);
                 self.exec(Opcode::RET(OpcodeParameter::NoParam), bus);
             },
-            // WIP
+            // Don't execute instructions until an interrupt is requested
             Opcode::HALT => {
                 self.registers.increment(Register::PC, 1);
+                self.is_halted = true;
             },
             Opcode::STOP => {
                 self.registers.increment(Register::PC, 2);
@@ -1919,16 +1934,16 @@ mod tests {
         let mut bus = Bus::new();
         let addr = 0xFF00;
         cpu.registers.set(Register::A, 0xF1);
-        cpu.exec(Opcode::LD(OpcodeParameter::FF00plusU8_Register(4, Register::A)), &mut bus);
-        assert_eq!(bus.read(addr + 4), 0xF1);
+        cpu.exec(Opcode::LD(OpcodeParameter::FF00plusU8_Register(0x42, Register::A)), &mut bus);
+        assert_eq!(bus.read(addr + 0x42), 0xF1);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
 
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         let addr = 0xFF00;
         cpu.registers.set(Register::A, 0x00);
-        bus.write(addr + 4, 0xF1);
-        cpu.exec(Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, 4)), &mut bus);
+        bus.write(addr + 0x42, 0xF1);
+        cpu.exec(Opcode::LD(OpcodeParameter::Register_FF00plusU8(Register::A, 0x42)), &mut bus);
         assert_eq!(cpu.registers.get(Register::A), 0xF1);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
 

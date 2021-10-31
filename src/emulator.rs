@@ -9,6 +9,7 @@ pub struct Emulator {
     cpu: CPU,
     ppu: PPU,
     bus: Bus,
+    timer: Timer,
 }
 
 impl Emulator {
@@ -17,6 +18,7 @@ impl Emulator {
             cpu: CPU::new(),
             ppu: PPU::new(),
             bus: Bus::new(),
+            timer: Timer::new(),
         }
     }
 
@@ -32,7 +34,7 @@ impl Emulator {
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
-            Timer::do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
         }
     }
 
