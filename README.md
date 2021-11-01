@@ -7,8 +7,9 @@ Any help or suggestion is welcome!
 
 ## TODO
 - [x] CPU implementation
-- [ ] Interrupts
-- [ ] Timing
+- [x] Interrupts (interrupts test not passing yet)
+- [x] Timer
+- [x] Joypad (not configurable yet)
 - [ ] PPU implementations
 - [ ] Gameboy boot ROM
 - [x] Render the pixels
