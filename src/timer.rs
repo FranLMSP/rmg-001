@@ -48,7 +48,7 @@ impl Timer {
             if self.cycles.0 >= tima_rate {
                 if tima.checked_add(1) == None {
                     bus.write(TIMER_COUNTER_ADDRESS, bus.read(TIMER_MODULO_ADDRESS));
-                    bus.set_interrupt_flag(Interrupt::Timer, false);
+                    bus.set_interrupt_flag(Interrupt::Timer, true);
                 } else {
                     bus.write(TIMER_COUNTER_ADDRESS, tima.wrapping_add(1));
                 }

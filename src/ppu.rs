@@ -163,16 +163,20 @@ impl PPU {
             self.reset_cycles();
 
             PPU::set_lcd_y(bus, PPU::get_lcd_y(bus).wrapping_add(1));
-
-            let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
-            PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
-            if PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) && lyc_compare {
-                PPU::request_interrupt(bus, Interrupt::LCDSTAT);
-            }
             // Frame completed
             if PPU::get_lcd_y(bus) > 153 {
                 PPU::set_lcd_y(bus, 0);
             }
+            PPU::check_lyc(bus);
+        }
+    }
+
+    fn check_lyc(bus: &mut Bus) {
+        let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
+        if PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) && lyc_compare {
+            println!("lyc");
+            PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
+            PPU::request_interrupt(bus, Interrupt::LCDSTAT);
         }
     }
 
@@ -330,6 +334,7 @@ impl PPU {
     }
 
     fn get_palette(index: u8, palette_byte: u8) -> u8 {
+        let index = index & 0b11;
         match index {
             0b00 => palette_byte & 0b11,
             0b01 => (palette_byte >> 2) & 0b11,
@@ -340,12 +345,13 @@ impl PPU {
     }
 
     fn get_pixel(two_bit_pixel: u8) -> Pixel {
+        let two_bit_pixel = two_bit_pixel & 0b11;
         match two_bit_pixel {
-            0x00 => Pixel::White,
-            0x01 => Pixel::Light,
-            0x10 => Pixel::Dark,
-            0x11 => Pixel::Black,
-            _ => Pixel::Black,
+            0b00 => Pixel::White,
+            0b01 => Pixel::Light,
+            0b10 => Pixel::Dark,
+            0b11 => Pixel::Black,
+            _ => Pixel::White,
         }
     }
 

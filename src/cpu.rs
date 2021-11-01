@@ -843,6 +843,7 @@ pub struct CPU {
     exec_calls_count: usize,
     is_halted: bool,
     ime: bool, // Interrupt Master Enable
+    ei_delay: bool,
 }
 
 impl CPU {
@@ -853,6 +854,7 @@ impl CPU {
             last_op_cycles: Cycles(0),
             exec_calls_count: 0,
             is_halted: false,
+            ei_delay: false,
             ime: true,
         }
     }
@@ -913,7 +915,6 @@ impl CPU {
         bus.set_interrupt_flag(interrupt, false);
         let vector = interrupt.get_vector();
         self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
-        println!("Interrupt: {:?}", interrupt);
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
@@ -952,6 +953,12 @@ impl CPU {
             }
             self.increment_cycles(cycles);
             self.exec(opcode, bus);
+            if self.ei_delay && !self.ime {
+                println!("EI delay");
+                self.ei_delay = false;
+                self.run(bus);
+                self.ime = true;
+            }
         } else if self.is_halted {
             self.increment_cycles(Cycles(1));
         }
@@ -1781,25 +1788,20 @@ impl CPU {
             Opcode::EI => {
                 println!("EI");
                 self.registers.increment(Register::PC, 1);
-                self.ime = true;
+                self.ei_delay = true;
             },
             // Disable interrupts
             Opcode::DI => {
-                println!("DI");
                 self.registers.increment(Register::PC, 1);
                 self.ime = false;
             },
             // Same as enabling interrupts and then executing RET
             Opcode::RETI => {
-                println!("RETI");
-                let prev_pc = self.registers.get(Register::PC);
-                self.exec(Opcode::EI, bus);
                 self.exec(Opcode::RET(OpcodeParameter::NoParam), bus);
-                self.registers.set(Register::PC, prev_pc.wrapping_add(1));
+                self.ime = true;
             },
             // Don't execute instructions until an interrupt is requested
             Opcode::HALT => {
-                println!("HALT");
                 self.registers.increment(Register::PC, 1);
                 self.is_halted = true;
             },
@@ -1807,8 +1809,9 @@ impl CPU {
                 self.registers.increment(Register::PC, 2);
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
-            Opcode::IllegalInstruction => {panic!("Illegal instruction");},
-            _ => {panic!("Illegal instruction");},
+            /* Opcode::IllegalInstruction => {panic!("Illegal instruction");},
+            _ => {panic!("Illegal instruction");}, */
+            _ => self.registers.increment(Register::PC, 1),
         };
     }
 }

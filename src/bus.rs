@@ -58,7 +58,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -76,6 +76,7 @@ impl Bus {
             _ => panic!("Could not read ROM"),
         };
         let mut data = [0x00; 0x10000];
+        data[0xFF00] = 0b11001111;
         data[0xFF01] = 0x00;
         data[0xFF02] = 0x7E;
         data[0xFF04] = 0x18;
@@ -95,6 +96,7 @@ impl Bus {
 
         data[0xFF4A] = 0x00;
         data[0xFF4B] = 0x00;
+        data[0xFFFF] = 0x00;
 
         Self {
             data,
