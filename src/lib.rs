@@ -4,5 +4,6 @@ pub mod ppu;
 pub mod timer;
 pub mod rom;
 pub mod bus;
+pub mod joypad;
 pub mod emulator;
 pub mod render;

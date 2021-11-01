@@ -8,6 +8,7 @@ use crate::rom::ROM;
 use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag, LCD_STATUS_ADDRESS, LCD_CONTROL_ADDRESS, LCD_Y_ADDRESS};
 use crate::cpu::{Interrupt};
 use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
+use crate::joypad::{Joypad, JOYPAD_ADDRESS};
 
 pub struct AddressRange {
     begin: u16,
@@ -50,7 +51,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -67,18 +68,20 @@ impl Bus {
             // _ => ROM::from_bytes(&[0; 0xFFFF])
             _ => panic!("Could not read ROM"),
         };
+        let mut data = [0x00; 0x10000];
+        data[JOYPAD_ADDRESS as usize] = 0b11001111;
         Self {
-            data: [0x00; 0x10000],
+            data,
             game_rom,
         }
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        if address == 0xFF00 {
-            return 0xFF;
-        }
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
+        }
+        if address == JOYPAD_ADDRESS {
+            println!("Joypad read {:08b}", self.data[address as usize]);
         }
         self.data[address as usize]
     }
@@ -112,9 +115,17 @@ impl Bus {
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;
             self.data[LCD_Y_ADDRESS as usize] = 0x00;
+        } else if address == JOYPAD_ADDRESS {
+            println!("Joypad write: {:08b}", data);
+            let byte = self.data[JOYPAD_ADDRESS as usize];
+            self.data[JOYPAD_ADDRESS as usize] = (data & 0b00110000) | 0b11000000 | (byte & 0b00001111);
         } else {
             self.data[address as usize] = data;
         }
+    }
+
+    pub fn force_write(&mut self, address: u16, data: u8) {
+        self.data[address as usize] = data;
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {

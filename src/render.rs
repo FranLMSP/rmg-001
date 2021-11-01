@@ -47,6 +47,8 @@ pub fn start_eventloop() {
                 return;
             }
 
+            emulator.handle_input(&input);
+
             // Resize the window
             if let Some(size) = input.window_resized() {
                 pixels.resize_surface(size.width, size.height);
