@@ -7,6 +7,27 @@ use crate::utils::{
 use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
 use crate::cpu::{Cycles, Interrupt};
 
+pub const LCD_WIDTH: u32 = 160;
+pub const LCD_HEIGHT: u32 = 144;
+pub const WIDTH: u32 = LCD_WIDTH;
+pub const HEIGHT: u32 = LCD_HEIGHT;
+pub const FRAME_BUFFER_LENGTH: u32 = WIDTH * HEIGHT;
+
+pub const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
+pub const LCD_STATUS_ADDRESS: u16 = 0xFF41;
+
+pub const SCROLL_Y_ADDRESS: u16 = 0xFF42;
+pub const SCROLL_X_ADDRESS: u16 = 0xFF43;
+pub const LCD_Y_ADDRESS: u16 = 0xFF44;
+pub const LCD_Y_COMPARE_ADDRESS: u16 = 0xFF45;
+pub const DMA_ADDRESS: u16 = 0xFF46;
+pub const BACKGROUND_PALETTE_ADDRESS: u16 = 0xFF47;
+pub const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
+pub const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
+pub const WINDOW_X_ADDRESS: u16 = 0xFF4A;
+pub const WINDOW_Y_ADDRESS: u16 = 0xFF4B;
+pub const TILE_MAP_ADDRESS: u16 = 0x9800;
+
 #[derive(Debug, Copy, Clone)]
 enum Pixel {
     White,
@@ -31,7 +52,7 @@ pub enum LCDControl {
 }
 
 impl LCDControl {
-    fn get_bit_index(&self) -> BitIndex {
+    fn index(&self) -> BitIndex {
         match self {
             LCDControl::LCDEnable                   => BitIndex::I7,
             LCDControl::WindowTileMapAddress        => BitIndex::I6,
@@ -45,11 +66,11 @@ impl LCDControl {
     }
 
     pub fn get(&self, byte: u8) -> bool {
-        get_bit(byte, self.get_bit_index())
+        get_bit(byte, self.index())
     }
 
     pub fn set(&self, byte: u8, val: bool) -> u8 {
-        set_bit(byte, val, self.get_bit_index())
+        set_bit(byte, val, self.index())
     }
 }
 
@@ -68,27 +89,6 @@ pub enum LCDStatus {
     LYCFlag,
     ModeFlag(LCDStatusModeFlag),
 }
-
-pub const LCD_WIDTH: u32 = 160;
-pub const LCD_HEIGHT: u32 = 144;
-pub const WIDTH: u32 = LCD_WIDTH;
-pub const HEIGHT: u32 = LCD_HEIGHT;
-pub const FRAME_BUFFER_LENGTH: u32 = WIDTH * HEIGHT;
-
-pub const LCD_CONTROL_ADDRESS: u16 = 0xFF40;
-pub const LCD_STATUS_ADDRESS: u16 = 0xFF41;
-
-pub const SCROLL_Y_ADDRESS: u16 = 0xFF42;
-pub const SCROLL_X_ADDRESS: u16 = 0xFF43;
-pub const LCD_Y_ADDRESS: u16 = 0xFF44;
-pub const LCD_Y_COMPARE_ADDRESS: u16 = 0xFF45;
-pub const DMA_ADDRESS: u16 = 0xFF46;
-pub const BACKGROUND_PALETTE_ADDRESS: u16 = 0xFF47;
-pub const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
-pub const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
-pub const WINDOW_X_ADDRESS: u16 = 0xFF4A;
-pub const WINDOW_Y_ADDRESS: u16 = 0xFF4B;
-pub const TILE_MAP_ADDRESS: u16 = 0x9800;
 
 pub struct PPU {
     cycles: Cycles,
@@ -125,8 +125,8 @@ impl PPU {
     }
 
     pub fn cycle(&mut self, bus: &mut Bus) {
-        self.increment_cycles(Cycles(1));
         if !PPU::get_lcd_control(bus, LCDControl::LCDEnable) {
+            self.increment_cycles(Cycles(1));
             return;
         }
 
@@ -156,11 +156,13 @@ impl PPU {
             }
         }
 
+        self.increment_cycles(Cycles(1));
+
         // Horizontal scan completed
         if self.cycles.0 > 456 {
             self.reset_cycles();
 
-            PPU::set_lcd_y(bus, PPU::get_lcd_y(bus) + 1);
+            PPU::set_lcd_y(bus, PPU::get_lcd_y(bus).wrapping_add(1));
 
             let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
             PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
@@ -249,15 +251,14 @@ impl PPU {
         bus.write(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_tile_bytes(x: u8, y: u8, tile_number: TileNumber, default_method: bool, bus: &Bus) -> (u8, u8) {
+    fn get_tile_bytes(x: u8, y: u8, tile_number_type: TileNumber, default_method: bool, bus: &Bus) -> (u8, u8) {
         let index_x = x as u16 / 8;
         let index_y = (y as u16 / 8) * 32;
         let index = index_x + index_y;
         let tile_line = (y).rem_euclid(8) * 2;
-        let tile_number =  match tile_number {
+        let tile_number =  match tile_number_type {
             TileNumber::Base(base) => bus.read(base + index as u16),
             TileNumber::Absolute(num) => bus.read(0x8000 + num as u16),
-
         } as u16;
         let addr = if default_method {
             0x8000 + tile_line as u16 + (tile_number * 16)
@@ -276,7 +277,7 @@ impl PPU {
         let window_x = (PPU::get_window_x(bus) as i8 - 7) as u8;
         let window_y = PPU::get_window_y(bus);
 
-        if window_x != lcd_x || window_y != lcd_y {
+        if !PPU::get_lcd_control(bus, LCDControl::WindowEnable) || window_x != lcd_x || window_y != lcd_y {
             return None;
         }
 
@@ -319,10 +320,8 @@ impl PPU {
             for pixel in bg_pixels {
                 let idx = lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize);
                 self.rgba_frame[idx] = PPU::get_rgba(pixel);
-                if PPU::get_lcd_control(bus, LCDControl::WindowEnable) {
-                    if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
-                        self.rgba_frame[idx] = PPU::get_rgba(window_pixel);
-                    }
+                if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
+                    self.rgba_frame[idx] = PPU::get_rgba(window_pixel);
                 }
 
                 lcd_x += 1;

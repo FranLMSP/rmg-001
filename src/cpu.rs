@@ -923,6 +923,7 @@ impl CPU {
         if bus.read(INTERRUPT_ENABLE_ADDRESS) & bus.read(INTERRUPT_FLAG_ADDRESS) != 0 {
             self.is_halted = false;
         }
+
         if bus.get_interrupt(Interrupt::VBlank) {
             return Some(Interrupt::VBlank);
         } else if bus.get_interrupt(Interrupt::LCDSTAT) {
@@ -1778,21 +1779,27 @@ impl CPU {
             },
             // Enable interrupts
             Opcode::EI => {
+                println!("EI");
                 self.registers.increment(Register::PC, 1);
                 self.ime = true;
             },
             // Disable interrupts
             Opcode::DI => {
+                println!("DI");
                 self.registers.increment(Register::PC, 1);
                 self.ime = false;
             },
             // Same as enabling interrupts and then executing RET
             Opcode::RETI => {
+                println!("RETI");
+                let prev_pc = self.registers.get(Register::PC);
                 self.exec(Opcode::EI, bus);
                 self.exec(Opcode::RET(OpcodeParameter::NoParam), bus);
+                self.registers.set(Register::PC, prev_pc.wrapping_add(1));
             },
             // Don't execute instructions until an interrupt is requested
             Opcode::HALT => {
+                println!("HALT");
                 self.registers.increment(Register::PC, 1);
                 self.is_halted = true;
             },

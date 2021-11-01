@@ -5,7 +5,14 @@ use crate::utils::{
     join_bytes
 };
 use crate::rom::ROM;
-use crate::ppu::{PPU, LCDStatus, LCDStatusModeFlag, LCD_STATUS_ADDRESS, LCD_CONTROL_ADDRESS, LCD_Y_ADDRESS};
+use crate::ppu::{
+    PPU,
+    LCDStatus,
+    LCDStatusModeFlag,
+    LCD_STATUS_ADDRESS,
+    LCD_CONTROL_ADDRESS,
+    LCD_Y_ADDRESS
+};
 use crate::cpu::{Interrupt};
 use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
@@ -69,7 +76,26 @@ impl Bus {
             _ => panic!("Could not read ROM"),
         };
         let mut data = [0x00; 0x10000];
-        data[JOYPAD_ADDRESS as usize] = 0b11001111;
+        data[0xFF01] = 0x00;
+        data[0xFF02] = 0x7E;
+        data[0xFF04] = 0x18;
+        data[0xFF05] = 0x00;
+        data[0xFF06] = 0x00;
+        data[0xFF07] = 0xF8;
+        data[0xFF0F] = 0xE1;
+
+        data[0xFF40] = 0x91;
+        data[0xFF41] = 0x81;
+        data[0xFF42] = 0x00;
+        data[0xFF43] = 0x00;
+        data[0xFF44] = 0x91;
+        data[0xFF45] = 0x00;
+        data[0xFF46] = 0xFF;
+        data[0xFF47] = 0xFC;
+
+        data[0xFF4A] = 0x00;
+        data[0xFF4B] = 0x00;
+
         Self {
             data,
             game_rom,
@@ -79,9 +105,6 @@ impl Bus {
     pub fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
-        }
-        if address == JOYPAD_ADDRESS {
-            println!("Joypad read {:08b}", self.data[address as usize]);
         }
         self.data[address as usize]
     }
@@ -108,15 +131,10 @@ impl Bus {
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.data[address as usize] = 0x00;
-        } else if address == LCD_STATUS_ADDRESS {
-            // Prevent user from modifying LCD Status mode
-            let byte = self.data[address as usize];
-            self.data[address as usize] = (data & 0b1111_1100) | (byte & 0b0000_0011);
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;
             self.data[LCD_Y_ADDRESS as usize] = 0x00;
         } else if address == JOYPAD_ADDRESS {
-            println!("Joypad write: {:08b}", data);
             let byte = self.data[JOYPAD_ADDRESS as usize];
             self.data[JOYPAD_ADDRESS as usize] = (data & 0b00110000) | 0b11000000 | (byte & 0b00001111);
         } else {
