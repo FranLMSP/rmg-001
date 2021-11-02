@@ -911,13 +911,16 @@ impl CPU {
     }
 
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
-        bus.set_interrupt_enable(interrupt, false);
+        println!("Interrupt: {:?}", interrupt);
         bus.set_interrupt_flag(interrupt, false);
-        let vector = interrupt.get_vector();
-        self.exec(Opcode::CALL(OpcodeParameter::U16(vector)), bus);
+        self.ime = false;
+        self.exec(Opcode::CALL(OpcodeParameter::U16(interrupt.get_vector())), bus);
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
+        /* println!("IE {:08b}", bus.read(INTERRUPT_ENABLE_ADDRESS));
+        println!("IF {:08b}", bus.read(INTERRUPT_FLAG_ADDRESS));
+        println!("---"); */
         if !self.ime && !self.is_halted {
             return None;
         }
@@ -1809,9 +1812,11 @@ impl CPU {
                 self.registers.increment(Register::PC, 2);
             },
             Opcode::NOP => self.registers.increment(Register::PC, 1),
-            /* Opcode::IllegalInstruction => {panic!("Illegal instruction");},
-            _ => {panic!("Illegal instruction");}, */
-            _ => self.registers.increment(Register::PC, 1),
+            Opcode::IllegalInstruction => {
+                println!("Illegal instruction!");
+                self.registers.increment(Register::PC, 1);
+            },
+            _ => unreachable!(),
         };
     }
 }

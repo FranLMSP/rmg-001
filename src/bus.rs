@@ -54,14 +54,15 @@ pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
+    pub reset_timer: bool,
 }
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
+        // let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
+        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
@@ -101,6 +102,7 @@ impl Bus {
         Self {
             data,
             game_rom,
+            reset_timer: false,
         }
     }
 
@@ -120,6 +122,10 @@ impl Bus {
             // print!("{}", data as char); 
         }
 
+        if address == 0xFF06 {
+            println!("Writing {:02X} to modulo", data);
+        }
+
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             // println!("WRITING TO ROM");
         } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
@@ -132,13 +138,14 @@ impl Bus {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
-            self.data[address as usize] = 0x00;
+            println!("bus timer reset");
+            self.reset_timer = true;
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;
             self.data[LCD_Y_ADDRESS as usize] = 0x00;
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[JOYPAD_ADDRESS as usize];
-            self.data[JOYPAD_ADDRESS as usize] = (data & 0b00110000) | 0b11000000 | (byte & 0b00001111);
+            self.data[JOYPAD_ADDRESS as usize] = (data & 0b11110000) | (byte & 0b00001111);
         } else {
             self.data[address as usize] = data;
         }

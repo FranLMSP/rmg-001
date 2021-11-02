@@ -73,8 +73,7 @@ impl Joypad {
         let direction = !get_bit(byte, BitIndex::I4);
         let action = !get_bit(byte, BitIndex::I5);
 
-        let data = 0b11000000 |
-        (byte & 0b00110000) |
+        let data = (byte & 0b11110000) |
         (
             (!((direction && self.down) || (action && self.start)) as u8) << 3
         ) | (

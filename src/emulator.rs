@@ -112,6 +112,10 @@ impl Emulator {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
+            if self.bus.reset_timer {
+                self.bus.reset_timer = false;
+                self.timer.reset(&mut self.bus);
+            }
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
             self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
         }

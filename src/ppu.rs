@@ -54,14 +54,14 @@ pub enum LCDControl {
 impl LCDControl {
     fn index(&self) -> BitIndex {
         match self {
-            LCDControl::LCDEnable                   => BitIndex::I7,
-            LCDControl::WindowTileMapAddress        => BitIndex::I6,
-            LCDControl::WindowEnable                => BitIndex::I5,
-            LCDControl::TileAddressMode             => BitIndex::I4,
-            LCDControl::BackgroundTileMapAddress    => BitIndex::I3,
-            LCDControl::ObjectSize                  => BitIndex::I2,
-            LCDControl::ObjectEnable                => BitIndex::I1,
-            LCDControl::BackgroundPriority          => BitIndex::I0,
+            LCDControl::LCDEnable                => BitIndex::I7,
+            LCDControl::WindowTileMapAddress     => BitIndex::I6,
+            LCDControl::WindowEnable             => BitIndex::I5,
+            LCDControl::TileAddressMode          => BitIndex::I4,
+            LCDControl::BackgroundTileMapAddress => BitIndex::I3,
+            LCDControl::ObjectSize               => BitIndex::I2,
+            LCDControl::ObjectEnable             => BitIndex::I1,
+            LCDControl::BackgroundPriority       => BitIndex::I0,
         }
     }
 
@@ -174,7 +174,6 @@ impl PPU {
     fn check_lyc(bus: &mut Bus) {
         let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
         if PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) && lyc_compare {
-            println!("lyc");
             PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
             PPU::request_interrupt(bus, Interrupt::LCDSTAT);
         }
@@ -334,24 +333,22 @@ impl PPU {
     }
 
     fn get_palette(index: u8, palette_byte: u8) -> u8 {
-        let index = index & 0b11;
         match index {
             0b00 => palette_byte & 0b11,
             0b01 => (palette_byte >> 2) & 0b11,
             0b10 => (palette_byte >> 4) & 0b11,
             0b11 => (palette_byte >> 6) & 0b11,
-            _ => 0b00,
+            _ => unreachable!(),
         }
     }
 
     fn get_pixel(two_bit_pixel: u8) -> Pixel {
-        let two_bit_pixel = two_bit_pixel & 0b11;
         match two_bit_pixel {
             0b00 => Pixel::White,
             0b01 => Pixel::Light,
             0b10 => Pixel::Dark,
             0b11 => Pixel::Black,
-            _ => Pixel::White,
+            _ => unreachable!(),
         }
     }
 
