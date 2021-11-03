@@ -25,7 +25,6 @@ impl Timer {
     }
 
     pub fn reset(&mut self, bus: &mut Bus) {
-        println!("timer reset");
         self.divider = 0;
         bus.force_write(TIMER_DIVIDER_REGISTER_ADDRESS, 0);
     }
@@ -49,7 +48,6 @@ impl Timer {
             if tima == 0 {
                 bus.write(TIMER_COUNTER_ADDRESS, bus.read(TIMER_MODULO_ADDRESS));
                 bus.set_interrupt_flag(Interrupt::Timer, true);
-                println!("Timer interrupt set");
             } else {
                 bus.write(TIMER_COUNTER_ADDRESS, tima);
             }

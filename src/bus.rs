@@ -59,10 +59,10 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        // let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
-        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
@@ -77,6 +77,7 @@ impl Bus {
             _ => panic!("Could not read ROM"),
         };
         let mut data = [0x00; 0x10000];
+        // Hardware registers after the bootrom
         data[0xFF00] = 0b11001111;
         data[0xFF01] = 0x00;
         data[0xFF02] = 0x7E;
@@ -122,10 +123,6 @@ impl Bus {
             // print!("{}", data as char); 
         }
 
-        if address == 0xFF06 {
-            println!("Writing {:02X} to modulo", data);
-        }
-
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             // println!("WRITING TO ROM");
         } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
@@ -138,7 +135,6 @@ impl Bus {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
-            println!("bus timer reset");
             self.reset_timer = true;
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;

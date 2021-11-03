@@ -914,18 +914,16 @@ impl CPU {
         println!("Interrupt: {:?}", interrupt);
         bus.set_interrupt_flag(interrupt, false);
         self.ime = false;
+        self.registers.decrement(Register::PC, 3);
         self.exec(Opcode::CALL(OpcodeParameter::U16(interrupt.get_vector())), bus);
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
-        /* println!("IE {:08b}", bus.read(INTERRUPT_ENABLE_ADDRESS));
-        println!("IF {:08b}", bus.read(INTERRUPT_FLAG_ADDRESS));
-        println!("---"); */
-        if !self.ime && !self.is_halted {
-            return None;
-        }
         if bus.read(INTERRUPT_ENABLE_ADDRESS) & bus.read(INTERRUPT_FLAG_ADDRESS) != 0 {
             self.is_halted = false;
+        }
+        if !self.ime {
+            return None;
         }
 
         if bus.get_interrupt(Interrupt::VBlank) {
@@ -942,6 +940,14 @@ impl CPU {
         None
     }
 
+    pub fn ei_delay(&mut self, bus: &mut Bus) {
+        if self.ei_delay && !self.ime {
+            self.ei_delay = false;
+            self.run(bus);
+            self.ime = true;
+        }
+    }
+
     pub fn run(&mut self, bus: &mut Bus) {
         let cycles_start = self.get_cycles();
         if let Some(interrupt) = self.check_interrupts(bus) {
@@ -953,15 +959,11 @@ impl CPU {
             let (opcode, cycles) = parameter_bytes.parse_opcode();
             if !env::var("CPU_LOG").is_err() {
                 self.log(parameter_bytes);
+                self.increment_exec_calls_count();
             }
             self.increment_cycles(cycles);
             self.exec(opcode, bus);
-            if self.ei_delay && !self.ime {
-                println!("EI delay");
-                self.ei_delay = false;
-                self.run(bus);
-                self.ime = true;
-            }
+            self.ei_delay(bus);
         } else if self.is_halted {
             self.increment_cycles(Cycles(1));
         }
@@ -1789,7 +1791,6 @@ impl CPU {
             },
             // Enable interrupts
             Opcode::EI => {
-                println!("EI");
                 self.registers.increment(Register::PC, 1);
                 self.ei_delay = true;
             },
