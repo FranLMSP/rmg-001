@@ -101,14 +101,7 @@ impl Emulator {
         }
     }
 
-    pub fn draw(&mut self, frame: &mut [u8]) {
-        let ppu_frame = self.ppu.get_rgba_frame();
-        for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            pixel.copy_from_slice(&ppu_frame[i]);
-        }
-    }
-
-    pub fn run(&mut self, cpu_cycles: Cycles) {
+    pub fn run(&mut self, cpu_cycles: Cycles, frame_buffer: &mut [u8]) {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
@@ -116,7 +109,7 @@ impl Emulator {
                 self.bus.reset_timer = false;
                 self.timer.reset(&mut self.bus);
             }
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles(), frame_buffer);
             self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
 
             // 1 CPU cycle = 238.42ns
@@ -127,13 +120,14 @@ impl Emulator {
 
     pub fn cpu_loop(&mut self) {
         let mut exit = false;
+        let mut frame: [u8; 144 * 160] = [0; 144 * 160];
         while !exit {
             self.cpu.run(&mut self.bus);
             if self.bus.reset_timer {
                 self.bus.reset_timer = false;
                 self.timer.reset(&mut self.bus);
             }
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles(), &mut frame);
             self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1

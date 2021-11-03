@@ -78,7 +78,7 @@ impl Bus {
         };
         let mut data = [0x00; 0x10000];
         // Hardware registers after the bootrom
-        data[0xFF00] = 0b11001111;
+        data[0xFF00] = 0xCF;
         data[0xFF01] = 0x00;
         data[0xFF02] = 0x7E;
         data[0xFF04] = 0x18;
@@ -111,6 +111,9 @@ impl Bus {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
         }
+        if address == JOYPAD_ADDRESS {
+            println!("{:08b}", self.data[address as usize]);
+        }
         self.data[address as usize]
     }
 
@@ -142,6 +145,8 @@ impl Bus {
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[JOYPAD_ADDRESS as usize];
             self.data[JOYPAD_ADDRESS as usize] = (data & 0b11110000) | (byte & 0b00001111);
+        } else if address == LCD_Y_ADDRESS {
+            println!("Write to LCD_Y not allowed");
         } else {
             self.data[address as usize] = data;
         }

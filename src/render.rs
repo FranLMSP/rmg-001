@@ -64,8 +64,8 @@ pub fn start_eventloop() {
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {
-                emulator.run(Cycles(70224));
-                emulator.draw(pixels.get_frame());
+                emulator.run(Cycles(70224), pixels.get_frame());
+                // emulator.draw(pixels.get_frame());
 
                 // thread::sleep(time::Duration::from_millis(14));
                 window.request_redraw();

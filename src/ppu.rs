@@ -116,15 +116,15 @@ impl PPU {
         self.cycles.0 += cycles.0;
     }
 
-    pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
+    pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles, frame_buffer: &mut [u8]) {
         let mut count = 0;
         while count < cycles.0 {
-            self.cycle(bus);
+            self.cycle(bus, frame_buffer);
             count += 1;
         }
     }
 
-    pub fn cycle(&mut self, bus: &mut Bus) {
+    pub fn cycle(&mut self, bus: &mut Bus, frame_buffer: &mut [u8]) {
         if !PPU::get_lcd_control(bus, LCDControl::LCDEnable) {
             self.increment_cycles(Cycles(1));
             return;
@@ -139,7 +139,7 @@ impl PPU {
                 }
             } else if self.cycles.0 == 80 + 1 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                self.draw_line(bus);
+                self.draw_line(bus, frame_buffer);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
             } else if self.cycles.0 == 80 + 172 + 1 {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
@@ -190,7 +190,7 @@ impl PPU {
     }
 
     fn set_lcd_y(bus: &mut Bus, val: u8) {
-        bus.write(LCD_Y_ADDRESS, val);
+        bus.force_write(LCD_Y_ADDRESS, val);
     }
 
     fn get_scroll_x(bus: &Bus) -> u8 {
@@ -300,7 +300,7 @@ impl PPU {
         Some(pixels[(x as usize).rem_euclid(8)])
     }
 
-    fn draw_line(&mut self, bus: &Bus) {
+    fn draw_line(&mut self, bus: &Bus, frame_buffer: &mut [u8]) {
         let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
         let lcd_y = PPU::get_lcd_y(bus);
         if lcd_y as u32 >= LCD_HEIGHT {
@@ -321,10 +321,18 @@ impl PPU {
             let bg_pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
 
             for pixel in bg_pixels {
-                let idx = lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize);
-                self.rgba_frame[idx] = PPU::get_rgba(pixel);
+                let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
+                let rgba = PPU::get_rgba(pixel);
+                frame_buffer[idx]     = rgba[0];
+                frame_buffer[idx + 1] = rgba[1];
+                frame_buffer[idx + 2] = rgba[2];
+                frame_buffer[idx + 3] = rgba[3];
                 if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
-                    self.rgba_frame[idx] = PPU::get_rgba(window_pixel);
+                    let rgba = PPU::get_rgba(pixel);
+                    frame_buffer[idx]     = rgba[0];
+                    frame_buffer[idx + 1] = rgba[1];
+                    frame_buffer[idx + 2] = rgba[2];
+                    frame_buffer[idx + 3] = rgba[3];
                 }
 
                 lcd_x += 1;
@@ -372,9 +380,5 @@ impl PPU {
             PPU::get_pixel(PPU::get_palette(((byte1 >> 1) & 0b01) | (byte2        & 0b10), palette)),
             PPU::get_pixel(PPU::get_palette((byte1        & 0b01) | ((byte2 << 1) & 0b10), palette)),
         ]
-    }
-
-    pub fn get_rgba_frame(&self) -> &[[u8; 4]; FRAME_BUFFER_LENGTH as usize] {
-        &self.rgba_frame
     }
 }
