@@ -59,7 +59,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/m3_scy_change.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/mooneye/acceptance/if_ie_registers.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -110,6 +110,9 @@ impl Bus {
     pub fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
+
+        } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
+            return 0b11100000 | self.data[address as usize];
         }
         self.data[address as usize]
     }

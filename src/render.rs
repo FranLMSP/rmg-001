@@ -67,7 +67,7 @@ pub fn start_eventloop() {
                 emulator.run(Cycles(70224), pixels.get_frame());
                 // emulator.draw(pixels.get_frame());
 
-                // thread::sleep(time::Duration::from_millis(1000));
+                // thread::sleep(time::Duration::from_millis(500));
                 window.request_redraw();
             },
             Event::RedrawRequested(_) => {

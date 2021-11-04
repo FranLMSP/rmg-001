@@ -120,7 +120,7 @@ impl PPU {
 
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles, frame_buffer: &mut [u8]) {
         let mut count = 0;
-        while count < cycles.0 {
+        while count < cycles.to_t() {
             self.cycle(bus, frame_buffer);
             count += 1;
         }
