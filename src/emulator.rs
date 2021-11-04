@@ -96,7 +96,6 @@ impl Emulator {
             self.joypad.release(Button::Select);
         }
         if change {
-            self.joypad.update(&mut self.bus);
             self.bus.set_interrupt_flag(Interrupt::Joypad, true);
         }
     }

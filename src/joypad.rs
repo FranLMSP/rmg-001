@@ -68,7 +68,7 @@ impl Joypad {
         };
     }
 
-    pub fn update(&self, bus: &mut Bus) {
+    pub fn read(&self, bus: &mut Bus) -> u8 {
         let byte = bus.read(JOYPAD_ADDRESS);
         let direction = !get_bit(byte, BitIndex::I4);
         let action = !get_bit(byte, BitIndex::I5);
@@ -83,7 +83,6 @@ impl Joypad {
         ) | (
             (!((direction && self.right) || (action && self.a)) as u8)
         );
-        println!("New joypad write: {:08b}", data);
-        bus.force_write(JOYPAD_ADDRESS, data);
+        return data;
     }
 }

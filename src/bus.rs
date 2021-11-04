@@ -59,7 +59,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/m3_scy_change.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -111,9 +111,6 @@ impl Bus {
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
             return self.game_rom.read(address);
         }
-        if address == JOYPAD_ADDRESS {
-            println!("{:08b}", self.data[address as usize]);
-        }
         self.data[address as usize]
     }
 
@@ -142,11 +139,14 @@ impl Bus {
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
             self.data[address as usize] = data;
             self.data[LCD_Y_ADDRESS as usize] = 0x00;
-        } else if address == JOYPAD_ADDRESS {
-            let byte = self.data[JOYPAD_ADDRESS as usize];
-            self.data[JOYPAD_ADDRESS as usize] = (data & 0b11110000) | (byte & 0b00001111);
         } else if address == LCD_Y_ADDRESS {
-            println!("Write to LCD_Y not allowed");
+            // println!("Write to LCD_Y not allowed");
+        } else if address == LCD_STATUS_ADDRESS {
+            let byte = self.data[address as usize];
+            self.data[address as usize] = (data & 0b11111000) | (byte & 0b00000111);
+        } else if address == JOYPAD_ADDRESS {
+            let byte = self.data[address as usize];
+            self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
         } else {
             self.data[address as usize] = data;
         }
