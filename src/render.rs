@@ -1,11 +1,11 @@
 use crate::emulator::Emulator;
-use crate::cpu::{CPU, Cycles};
+use crate::cpu::{Cycles};
 use crate::ppu::{WIDTH, HEIGHT};
 
 use std::{thread, time};
 
 use log::error;
-use pixels::{Error, Pixels, SurfaceTexture};
+use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -67,7 +67,7 @@ pub fn start_eventloop() {
                 emulator.run(Cycles(70224), pixels.get_frame());
                 // emulator.draw(pixels.get_frame());
 
-                thread::sleep(time::Duration::from_millis(10));
+                thread::sleep(time::Duration::from_millis(1));
                 window.request_redraw();
             },
             Event::RedrawRequested(_) => {

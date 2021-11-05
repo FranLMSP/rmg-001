@@ -1,14 +1,10 @@
 use crate::utils::{
     get_bit,
-    set_bit,
     BitIndex,
     join_bytes
 };
 use crate::rom::ROM;
 use crate::ppu::{
-    PPU,
-    LCDStatus,
-    LCDStatusModeFlag,
     LCD_STATUS_ADDRESS,
     LCD_CONTROL_ADDRESS,
     LCD_Y_ADDRESS,
@@ -139,6 +135,8 @@ impl Bus {
             if address <= 0xDDFF {
                 self.data[(ECHO_RAM.begin() + (address - WORK_RAM_1.begin())) as usize] = data;
             }
+        } else if EXTERNAL_RAM.in_range(address) {
+            // self.game_rom.write(address, data);
         } else if ECHO_RAM.in_range(address) {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM

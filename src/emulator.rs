@@ -1,4 +1,4 @@
-use std::{thread, time};
+// use std::{thread, time};
 use winit_input_helper::WinitInputHelper;
 use winit::event::{VirtualKeyCode};
 
@@ -6,7 +6,7 @@ use crate::cpu::{CPU, Cycles, Interrupt};
 use crate::ppu::PPU;
 use crate::bus::Bus;
 use crate::timer::Timer;
-use crate::joypad::{Joypad, Button, JOYPAD_ADDRESS};
+use crate::joypad::{Button};
 
 pub struct Emulator {
     cpu: CPU,

@@ -1,4 +1,3 @@
-use crate::bus::{Bus};
 use crate::utils::{BitIndex, get_bit};
 
 pub const JOYPAD_ADDRESS: u16 = 0xFF00;

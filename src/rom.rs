@@ -1,12 +1,6 @@
 use std::fs::File;
 use std::io::Read;
 
-pub struct ROMInfo {
-}
-
-impl ROMInfo {
-}
-
 pub struct ROM {
     bytes: Vec<u8>,
 }
@@ -26,18 +20,5 @@ impl ROM {
             Some(val) => *val,
             None => 0xFF,
         }
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self {
-            bytes: bytes.to_vec(),
-        }
-    }
-
-    pub fn print_content(&self, address: Option<u16>) {
-        match address {
-            Some(address) => println!("{:02X?}", self.read(address)),
-            None => println!("{:02X?}", self.bytes),
-        };
     }
 }

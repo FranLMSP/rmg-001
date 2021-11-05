@@ -871,10 +871,6 @@ impl CPU {
         self.cycles.0 += cycles.0;
     }
 
-    fn decrement_cycles(&mut self, cycles: Cycles) {
-        self.cycles.0 -= cycles.0;
-    }
-
     pub fn reset_cycles(&mut self) {
         self.cycles = Cycles(0);
     }
@@ -2132,7 +2128,16 @@ mod tests {
         let mut cpu = CPU::new();
         let mut bus = Bus::new();
         cpu.exec(Opcode::DI, &mut bus);
-        assert_eq!(bus.read(0xFFFF), 0x00);
+        assert_eq!(cpu.ime, false);
+        assert_eq!(cpu.registers.get(Register::PC), 0x101);
+    }
+
+    #[test]
+    fn test_ei_instructions() {
+        let mut cpu = CPU::new();
+        let mut bus = Bus::new();
+        cpu.exec(Opcode::EI, &mut bus);
+        assert_eq!(cpu.ime, true);
         assert_eq!(cpu.registers.get(Register::PC), 0x101);
     }
 

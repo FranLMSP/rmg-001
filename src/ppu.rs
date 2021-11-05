@@ -2,9 +2,8 @@ use crate::utils::{
     BitIndex,
     get_bit,
     set_bit,
-    to_bit_index,
 };
-use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM, SPRITE_ATTRIBUTE_TABLE};
+use crate::bus::{Bus, SPRITE_ATTRIBUTE_TABLE};
 use crate::cpu::{Cycles, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;
@@ -93,7 +92,6 @@ pub enum LCDStatus {
 pub struct PPU {
     prev_state: bool,
     cycles: Cycles,
-    rgba_frame: [[u8; 4]; FRAME_BUFFER_LENGTH as usize],
     sprite_buffer: Vec<Sprite>,
 }
 
@@ -116,6 +114,10 @@ impl Sprite {
     pub fn get_pixel(&self, lcd_x: u8, lcd_y: u8, bus: &Bus) -> Option<Pixel> {
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
+        }
+
+        if self.over_bg {
+            // todo!("Implement over_bg sprite property");
         }
 
         let height: u8 = match self.is_long {
@@ -171,7 +173,6 @@ impl PPU {
         Self {
             prev_state: false,
             cycles: Cycles(0),
-            rgba_frame: [[0xFF, 0xFF, 0xFF, 0]; FRAME_BUFFER_LENGTH as usize],
             sprite_buffer: Vec::new(),
         }
     }
@@ -237,11 +238,9 @@ impl PPU {
 
     fn stat_interrupt(&mut self, bus: &mut Bus) {
         let state = self.prev_state;
-        self.prev_state = (
-            (PPU::get_lcd_status(bus, LCDStatus::Mode2OAMInterrupt)    && PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM))) ||
+        self.prev_state = (PPU::get_lcd_status(bus, LCDStatus::Mode2OAMInterrupt)    && PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM))) ||
             (PPU::get_lcd_status(bus, LCDStatus::Mode0HBlankInterrupt) && PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank))) ||
-            (PPU::get_lcd_status(bus, LCDStatus::Mode1VBlankInterrupt) && PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)))
-        );
+            (PPU::get_lcd_status(bus, LCDStatus::Mode1VBlankInterrupt) && PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)));
         if self.prev_state && !state {
             bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
         }
@@ -350,11 +349,6 @@ impl PPU {
         control.get(byte)
     }
 
-    fn set_lcd_control(bus: &mut Bus, control: LCDControl, val: bool) {
-        let mut byte = bus.read(LCD_CONTROL_ADDRESS);
-        bus.force_write(LCD_CONTROL_ADDRESS, control.set(byte, val));
-    }
-
     pub fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
         let byte = bus.read(LCD_STATUS_ADDRESS);
         match status {
@@ -460,7 +454,7 @@ impl PPU {
             frame_buffer[idx + 1] = rgba[1];
             frame_buffer[idx + 2] = rgba[2];
             if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
-                let rgba = PPU::get_rgba(pixel);
+                let rgba = PPU::get_rgba(window_pixel);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
