@@ -911,7 +911,7 @@ impl CPU {
     }
 
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
-        println!("Interrupt: {:?}", interrupt);
+        // println!("Interrupt: {:?}", interrupt);
         bus.set_interrupt_flag(interrupt, false);
         self.ime = false;
         self.registers.decrement(Register::PC, 3);

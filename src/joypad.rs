@@ -41,7 +41,6 @@ impl Joypad {
     }
 
     pub fn press(&mut self, button: Button) {
-        println!("{:?} pressed", button);
         match button {
             Button::A      => self.a = true,
             Button::B      => self.b = true,
@@ -55,7 +54,6 @@ impl Joypad {
     }
 
     pub fn release(&mut self, button: Button) {
-        println!("{:?} released", button);
         match button {
             Button::A      => self.a = false,
             Button::B      => self.b = false,
@@ -68,8 +66,7 @@ impl Joypad {
         };
     }
 
-    pub fn read(&self, bus: &mut Bus) -> u8 {
-        let byte = bus.read(JOYPAD_ADDRESS);
+    pub fn read(&self, byte: u8) -> u8 {
         let direction = !get_bit(byte, BitIndex::I4);
         let action = !get_bit(byte, BitIndex::I5);
 

@@ -4,7 +4,7 @@ use crate::utils::{
     set_bit,
     to_bit_index,
 };
-use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM};
+use crate::bus::{Bus, AddressRange, BANK_ZERO, VIDEO_RAM, SPRITE_ATTRIBUTE_TABLE};
 use crate::cpu::{Cycles, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;
@@ -94,11 +94,60 @@ pub struct PPU {
     prev_state: bool,
     cycles: Cycles,
     rgba_frame: [[u8; 4]; FRAME_BUFFER_LENGTH as usize],
+    sprite_buffer: Vec<Sprite>,
 }
 
-enum TileNumber {
-    Base(u16),
-    Absolute(u8),
+struct Sprite {
+    x: u8,
+    y: u8,
+    tile_number: u8,
+    x_flip: bool,
+    y_flip: bool,
+    over_bg: bool,
+    palette_one: bool,
+    is_long: bool,
+}
+
+impl Sprite {
+    pub fn x(&self) -> u8 {
+        self.x
+    }
+
+    pub fn get_pixel(&self, lcd_x: u8, lcd_y: u8, bus: &Bus) -> Option<Pixel> {
+        todo!("Implement sprite flipping");
+        if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
+            return None;
+        }
+
+        let height: u8 = match self.is_long {
+            true => 16,
+            false => 8,
+        };
+
+        let x = lcd_x.saturating_sub(self.x.saturating_sub(8));
+        let y = lcd_y.saturating_sub(self.y .saturating_sub(16));
+
+        let tile_line = y.rem_euclid(height) * 2;
+        let addr = 0x8000 + (self.tile_number as u16 * 16) + tile_line as u16;
+
+        let tile_byte_1 = bus.read(addr);
+        let tile_byte_2 = bus.read(addr + 1);
+
+        let pixel_index = (x as usize).rem_euclid(8);
+
+        if PPU::get_two_bit_byte_pixels(tile_byte_1, tile_byte_2)[pixel_index] == 0 {
+            return None;
+        }
+
+        let palette = match self.palette_one {
+            true => bus.read(OBJECT_PALETTE_1_ADDRESS),
+            false => bus.read(OBJECT_PALETTE_0_ADDRESS),
+        };
+        let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
+
+        Some(pixels[pixel_index])
+
+    }
 }
 
 impl PPU {
@@ -107,6 +156,7 @@ impl PPU {
             prev_state: false,
             cycles: Cycles(0),
             rgba_frame: [[0xFF, 0xFF, 0xFF, 0]; FRAME_BUFFER_LENGTH as usize],
+            sprite_buffer: Vec::new(),
         }
     }
 
@@ -137,6 +187,7 @@ impl PPU {
                 // Mode 2 OAM scan
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
                 self.stat_interrupt(bus);
+                self.oam_search(bus);
             } else if self.cycles.0 == 80 + 1 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
                 self.draw_line(bus, frame_buffer);
@@ -187,6 +238,71 @@ impl PPU {
             bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
             self.prev_state = true;
         }
+    }
+
+    fn oam_search(&mut self, bus: &Bus) {
+        self.sprite_buffer = Vec::new();
+        if !PPU::get_lcd_control(bus, LCDControl::ObjectEnable) {
+            return;
+        }
+        let long_sprites = PPU::get_lcd_control(bus, LCDControl::ObjectSize);
+        let mut addr = SPRITE_ATTRIBUTE_TABLE.begin();
+        while addr <= SPRITE_ATTRIBUTE_TABLE.end() {
+            // The gameboy only supports 10 sprites per line,
+            // but since we are on an emulator we can avoud that limitation
+            if self.sprite_buffer.len() >= 10 {
+                todo!("Make a setting for the 10 sprites per scanline");
+                // break;
+            }
+            let y = bus.read(addr);
+            let x = bus.read(addr + 1);
+
+            if x == 0 {
+                addr += 4;
+                continue;
+            }
+
+            let sprite_height: u8 = match long_sprites {
+                true => 16,
+                false => 8,
+            };
+
+            let lcd_y = PPU::get_lcd_y(bus).saturating_add(16);
+
+            if lcd_y < y || lcd_y > (y + sprite_height) {
+                addr += 4;
+                continue;
+            }
+
+
+            let tile_number = bus.read(addr + 2);
+            let attributes = bus.read(addr + 3);
+
+            self.sprite_buffer.push(Sprite {
+                x,
+                y,
+                tile_number,
+                is_long: long_sprites,
+                palette_one: get_bit(attributes, BitIndex::I4),
+                x_flip: get_bit(attributes, BitIndex::I5),
+                y_flip: get_bit(attributes, BitIndex::I6),
+                over_bg: get_bit(attributes, BitIndex::I7),
+            });
+
+            addr += 4;
+        }
+        self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
+    }
+
+    fn find_sprite_pixel(&self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
+        let lcd_y = PPU::get_lcd_y(bus);
+        for sprite in &self.sprite_buffer {
+            if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, bus) {
+                return Some(pixel);
+            }
+        }
+
+        return None;
     }
 
     fn get_lcd_y(bus: &Bus) -> u8 {
@@ -258,15 +374,12 @@ impl PPU {
         bus.force_write(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_tile_bytes(x: u8, y: u8, tile_number_type: TileNumber, default_method: bool, bus: &Bus) -> (u8, u8) {
+    fn get_tile_bytes(x: u8, y: u8, tilemap_area: u16, default_method: bool, bus: &Bus) -> (u8, u8) {
         let index_x = x as u16 / 8;
         let index_y = (y as u16 / 8) * 32;
         let index = index_x + index_y;
         let tile_line = (y).rem_euclid(8) * 2;
-        let tile_number =  match tile_number_type {
-            TileNumber::Base(base) => bus.read(base + index as u16),
-            TileNumber::Absolute(num) => bus.read(0x8000 + num as u16),
-        } as u16;
+        let tile_number = bus.read(tilemap_area + index as u16) as u16;
         let addr = if default_method {
             0x8000 + tile_line as u16 + (tile_number * 16)
         } else {
@@ -296,7 +409,7 @@ impl PPU {
             true  => 0x9C00,
             false => 0x9800,
         };
-        let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, TileNumber::Base(tilemap_area), default_mode, bus);
+        let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
 
         let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
         let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
@@ -320,7 +433,7 @@ impl PPU {
                 true  => 0x9C00,
                 false => 0x9800,
             };
-            let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, TileNumber::Base(tilemap_area), default_mode, bus);
+            let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
 
             let bg_pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
 
@@ -332,6 +445,13 @@ impl PPU {
             frame_buffer[idx + 2] = rgba[2];
             if let Some(window_pixel) = PPU::get_window_pixel(lcd_x, bus) {
                 let rgba = PPU::get_rgba(pixel);
+                frame_buffer[idx]     = rgba[0];
+                frame_buffer[idx + 1] = rgba[1];
+                frame_buffer[idx + 2] = rgba[2];
+            }
+
+            if let Some(sprite_pixel) = self.find_sprite_pixel(lcd_x, bus) {
+                let rgba = PPU::get_rgba(sprite_pixel);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
@@ -384,6 +504,19 @@ impl PPU {
             Pixel::Dark  => [81, 81, 81, 0],
             Pixel::Black => [0, 0, 0, 0],
         }
+    }
+
+    fn get_two_bit_byte_pixels(byte1: u8, byte2: u8) -> [u8; 8] {
+        [
+            ((byte1 >> 7) & 0b01) | ((byte2 >> 6) & 0b10),
+            ((byte1 >> 6) & 0b01) | ((byte2 >> 5) & 0b10),
+            ((byte1 >> 5) & 0b01) | ((byte2 >> 4) & 0b10),
+            ((byte1 >> 4) & 0b01) | ((byte2 >> 3) & 0b10),
+            ((byte1 >> 3) & 0b01) | ((byte2 >> 2) & 0b10),
+            ((byte1 >> 2) & 0b01) | ((byte2 >> 1) & 0b10),
+            ((byte1 >> 1) & 0b01) | (byte2        & 0b10),
+            (byte1        & 0b01) | ((byte2 << 1) & 0b10),
+        ]
     }
 
     fn get_byte_pixels(byte1: u8, byte2: u8, palette: u8) -> [Pixel; 8] {

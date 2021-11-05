@@ -11,7 +11,8 @@ use crate::ppu::{
     LCDStatusModeFlag,
     LCD_STATUS_ADDRESS,
     LCD_CONTROL_ADDRESS,
-    LCD_Y_ADDRESS
+    LCD_Y_ADDRESS,
+    DMA_ADDRESS,
 };
 use crate::cpu::{Interrupt};
 use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
@@ -55,11 +56,12 @@ pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
     pub reset_timer: bool,
+    pub joypad: Joypad,
 }
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/mooneye/acceptance/if_ie_registers.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
@@ -104,6 +106,7 @@ impl Bus {
             data,
             game_rom,
             reset_timer: false,
+            joypad: Joypad::new(),
         }
     }
 
@@ -113,6 +116,8 @@ impl Bus {
 
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
+        } else if address == JOYPAD_ADDRESS {
+            return self.joypad.read(self.data[address as usize]);
         }
         self.data[address as usize]
     }
@@ -150,6 +155,16 @@ impl Bus {
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[address as usize];
             self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
+        } else if address == DMA_ADDRESS {
+            // the idea is: when something gets written to $FF46, multiply it by 0x100, then copy 160 bytes starting from that memory location into OAM
+            self.data[address as usize] = data;
+            let source = (data as usize) * 0x100;
+            let mut count = 0;
+            let oam_addr = SPRITE_ATTRIBUTE_TABLE.begin() as usize;
+            while count < 160 {
+                self.data[oam_addr + count] = self.data[source + count];
+                count += 1;
+            }
         } else {
             self.data[address as usize] = data;
         }
