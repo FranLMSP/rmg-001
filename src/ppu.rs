@@ -114,7 +114,6 @@ impl Sprite {
     }
 
     pub fn get_pixel(&self, lcd_x: u8, lcd_y: u8, bus: &Bus) -> Option<Pixel> {
-        // todo!("Implement sprite flipping");
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -127,8 +126,25 @@ impl Sprite {
         let x = lcd_x.saturating_sub(self.x.saturating_sub(8));
         let y = lcd_y.saturating_sub(self.y .saturating_sub(16));
 
+        let x = match self.x_flip {
+            true => 7 - x,
+            false => x,
+        };
+        let y = match self.y_flip {
+            true => height - 1 - y,
+            false => y,
+        };
+
+        let mut tile_number = self.tile_number;
+
+        if self.is_long && x <= 7 {
+            tile_number = tile_number & 0xFE;
+        } else if self.is_long && x > 7 {
+            tile_number = tile_number | 0x01;
+        }
+
         let tile_line = y.rem_euclid(height) * 2;
-        let addr = 0x8000 + (self.tile_number as u16 * 16) + tile_line as u16;
+        let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
         let tile_byte_1 = bus.read(addr);
         let tile_byte_2 = bus.read(addr + 1);
