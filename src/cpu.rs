@@ -915,7 +915,7 @@ impl CPU {
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
-        if bus.read(INTERRUPT_ENABLE_ADDRESS) & bus.read(INTERRUPT_FLAG_ADDRESS) != 0 {
+        if (bus.read(INTERRUPT_ENABLE_ADDRESS) & 0b00011111) & (bus.read(INTERRUPT_FLAG_ADDRESS) & 0b00011111) != 0 {
             self.is_halted = false;
         }
         if !self.ime {

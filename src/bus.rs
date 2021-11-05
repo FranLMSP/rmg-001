@@ -57,7 +57,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        // let game_rom = match ROM::load_file("ignore/m3_scy_change.gb".to_string()) {
+        // let game_rom = match ROM::load_file("ignore/mooneye/acceptance/if_ie_registers.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
         let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
