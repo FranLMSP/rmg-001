@@ -114,7 +114,7 @@ impl Sprite {
     }
 
     pub fn get_pixel(&self, lcd_x: u8, lcd_y: u8, bus: &Bus) -> Option<Pixel> {
-        todo!("Implement sprite flipping");
+        // todo!("Implement sprite flipping");
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -269,7 +269,7 @@ impl PPU {
 
             let lcd_y = PPU::get_lcd_y(bus).saturating_add(16);
 
-            if lcd_y < y || lcd_y > (y + sprite_height) {
+            if lcd_y < y || lcd_y > (y + sprite_height - 1) {
                 addr += 4;
                 continue;
             }
