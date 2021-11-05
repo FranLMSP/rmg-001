@@ -57,10 +57,10 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
+        // let game_rom = match ROM::load_file("ignore/m3_scy_change.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
+        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
@@ -107,9 +107,8 @@ impl Bus {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
+        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address)  || EXTERNAL_RAM.in_range(address) {
             return self.game_rom.read(address);
-
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
         } else if address == JOYPAD_ADDRESS {
@@ -127,7 +126,8 @@ impl Bus {
             // print!("{}", data as char); 
         }
 
-        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) {
+        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) || EXTERNAL_RAM.in_range(address) {
+            self.game_rom.write(address, data);
             // println!("WRITING TO ROM");
         } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
             self.data[address as usize] = data;

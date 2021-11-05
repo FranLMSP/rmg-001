@@ -266,7 +266,7 @@ impl PPU {
             // The gameboy only supports 10 sprites per line,
             // but since we are on an emulator we can avoud that limitation
             if self.sprite_buffer.len() >= 10 {
-                todo!("Make a setting for the 10 sprites per scanline");
+                // todo!("Make a setting for the 10 sprites per scanline");
                 // break;
             }
             let y = bus.read(addr);
