@@ -57,10 +57,11 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        // let game_rom = match ROM::load_file("ignore/mooneye/acceptance/if_ie_registers.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
+        // let game_rom = match ROM::load_file("ignore/mooneye/emulator-only/mbc1/bits_bank1.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
-        let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
+        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {

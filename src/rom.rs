@@ -158,6 +158,7 @@ impl ROM {
         file.read_to_end(&mut data)?;
 
         let info = ROMInfo::from_bytes(&data);
+        println!("has ram {}", info.has_ram);
         let ram = Vec::with_capacity(info.ram_size() as usize);
 
         Ok(Self {
@@ -175,9 +176,13 @@ impl ROM {
         match self.info.mbc {
             MBC::MBC1 => {
                 if BANK_SWITCHABLE.in_range(address) {
-                    return self.data[(address + (BANK_SWITCHABLE.begin() * (self.rom_bank - 1))) as usize]
+                    return self.data[(address + (BANK_SWITCHABLE.begin() * (self.rom_bank - 1))) as usize];
                 } else if EXTERNAL_RAM.in_range(address) {
-                    return self.ram[(address - EXTERNAL_RAM.begin() + (EXTERNAL_RAM.begin() * self.ram_bank as u16)) as usize]
+                    println!("RAM read");
+                    if !self.info.has_ram {
+                        return 0xFF;
+                    }
+                    return self.ram[(address - EXTERNAL_RAM.begin() + (EXTERNAL_RAM.begin() * self.ram_bank as u16)) as usize];
                 }
             },
             _ => {},
@@ -196,20 +201,33 @@ impl ROM {
                     };
                     return;
                 } else if address >= 0x2000 || address <= 0x3FFF { // ROM bank number register
-                    self.rom_bank = data as u16 & 0b00011111;
-                    if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
-                        self.rom_bank = self.info.rom_banks.saturating_sub(1);
-                    }
+                    println!("Switch bank to {:02X}", data);
+                    self.switch_rom_bank(data as u16 & 0b00011111);
                 } else if address >= 0x4000 || address <= 0x5FFF { // ROM and RAM bank number register
+                    println!("RAM bank {:02X}", data);
                     self.ram_bank = data & 0b11;
                 } else if address >= 0x6000 || address <= 0x7FFF { // Banking mode select
+                    println!("Change banking mode");
                 } else if EXTERNAL_RAM.in_range(address) {
-                    if !self.ram_enable {
+                    if !self.ram_enable || !self.info.has_ram {
                         return;
                     }
+                    let address = (address - EXTERNAL_RAM.begin() + (EXTERNAL_RAM.begin() * self.ram_bank as u16)) as usize;
+                    self.ram[address] = data;
+                    self.switch_rom_bank(self.rom_bank + (data as u16 >> 5));
                 }
             },
             _ => {},
+        }
+    }
+
+    pub fn switch_rom_bank(&mut self, bank: u16) {
+        self.rom_bank = bank;
+        if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
+            self.rom_bank = self.info.rom_banks.saturating_sub(1);
+        }
+        if self.rom_bank == 0 {
+            self.rom_bank = 1;
         }
     }
 }
