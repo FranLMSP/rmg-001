@@ -31,7 +31,7 @@ impl Timer {
     
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
         let mut count = 0;
-        while count < cycles.to_t() {
+        while count < cycles.to_t().0 {
             self.cycle(bus);
             count += 1;
         }

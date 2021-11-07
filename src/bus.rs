@@ -57,7 +57,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/dr-mario.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
         // let game_rom = match ROM::load_file("ignore/mooneye/emulator-only/mbc1/bits_bank1.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {

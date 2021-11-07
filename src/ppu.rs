@@ -186,42 +186,34 @@ impl PPU {
     }
 
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles, frame_buffer: &mut [u8]) {
-        let mut count = 0;
-        while count < cycles.to_t() {
-            self.cycle(bus, frame_buffer);
-            count += 1;
-        }
-    }
-
-    pub fn cycle(&mut self, bus: &mut Bus, frame_buffer: &mut [u8]) {
         if !PPU::get_lcd_control(bus, LCDControl::LCDEnable) {
-            self.increment_cycles(Cycles(1));
+            self.increment_cycles(cycles);
             return;
         }
 
         if PPU::get_lcd_y(bus) < 144 {
-            if self.cycles.0 == 0 {
+            if self.cycles.0 <= 80 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
                 // Mode 2 OAM scan
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
                 self.stat_interrupt(bus);
                 self.oam_search(bus);
-            } else if self.cycles.0 == 80 + 1 {
+            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
                 self.draw_line(bus, frame_buffer);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
-            } else if self.cycles.0 == 80 + 172 + 1 {
+            } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
                 self.stat_interrupt(bus);
             }
-        } else if PPU::get_lcd_y(bus) == 144 && self.cycles.0 == 0 {
+        } else if PPU::get_lcd_y(bus) >= 144 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
             bus.set_interrupt_flag(Interrupt::VBlank, true);
             PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
             self.stat_interrupt(bus);
         }
 
-        self.increment_cycles(Cycles(1));
+        self.increment_cycles(cycles);
 
         // Horizontal scan completed
         if self.cycles.0 > 456 {

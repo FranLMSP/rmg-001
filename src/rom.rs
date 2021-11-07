@@ -18,6 +18,7 @@ enum Region {
     NonJapanese,
 }
 
+#[derive(Debug, Copy, Clone)]
 enum MBC {
     NoMBC,
     MBC1,
@@ -159,6 +160,7 @@ impl ROM {
 
         let info = ROMInfo::from_bytes(&data);
         println!("has ram {}", info.has_ram);
+        println!("mbc {:?}", info.mbc);
         let ram = Vec::with_capacity(info.ram_size() as usize);
 
         Ok(Self {

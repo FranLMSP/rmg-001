@@ -831,8 +831,8 @@ pub enum Opcode {
 pub struct Cycles(pub usize); 
 
 impl Cycles {
-    pub fn to_t(&self) -> usize {
-        self.0 * 4
+    pub fn to_t(&self) -> Self {
+        Self(self.0 * 4)
     }
 }
 

@@ -99,13 +99,13 @@ impl Emulator {
 
     pub fn run(&mut self, cpu_cycles: Cycles, frame_buffer: &mut [u8]) {
         self.cpu.reset_cycles();
-        while self.cpu.get_cycles().to_t() <= cpu_cycles.0 {
+        while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
             if self.bus.reset_timer {
                 self.bus.reset_timer = false;
                 self.timer.reset(&mut self.bus);
             }
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles(), frame_buffer);
+            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), frame_buffer);
             self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
 
             // 1 CPU cycle = 238.42ns
@@ -123,7 +123,7 @@ impl Emulator {
                 self.bus.reset_timer = false;
                 self.timer.reset(&mut self.bus);
             }
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles(), &mut frame);
+            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), &mut frame);
             self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
