@@ -7,12 +7,23 @@ Any help or suggestion is welcome!
 
 ## TODO
 - [x] CPU implementation
-- [x] Interrupts (interrupts test not passing yet)
+- [x] Interrupts
 - [x] Timer
 - [x] Joypad (not configurable yet)
-- [ ] PPU implementations
-- [ ] Gameboy boot ROM
+- [X] PPU implementations
 - [x] Render the pixels
+- [ ] MBC Implementations
+  - [x] NoMBC
+  - [ ] MBC1
+  - [ ] MBC2
+  - [ ] MBC3
+  - [ ] MBC4
+  - [ ] MBC5
+  - [ ] MBC6
+  - [ ] MBC7
+  - [ ] HuC1
+- [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
+- [ ] Gameboy boot ROM (Not important for now)
 - [ ] Gameboy Color compatibility
 - [ ] Sound
-- [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
+- [ ] Many code refactors and optimizations are needed
