@@ -129,7 +129,6 @@ impl Bus {
 
         if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) || EXTERNAL_RAM.in_range(address) {
             self.game_rom.write(address, data);
-            // println!("WRITING TO ROM");
         } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
             self.data[address as usize] = data;
             // Copy to the ECHO RAM
@@ -143,11 +142,10 @@ impl Bus {
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.reset_timer = true;
-        } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
+        } else if address == LCD_CONTROL_ADDRESS {
+            self.data[address as usize] = data;
+            // Check if LCD is being turned on 
             if get_bit(data, BitIndex::I7) && !get_bit(self.data[address as usize], BitIndex::I7) {
-                // LCD is turned on
-                println!("LCD turned on");
-                self.data[address as usize] = data;
                 self.data[LCD_Y_ADDRESS as usize] = 0x00;
             }
         } else if address == LCD_Y_ADDRESS {

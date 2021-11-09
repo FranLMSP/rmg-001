@@ -164,7 +164,6 @@ impl Sprite {
         let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2, palette);
 
         Some(pixels[pixel_index])
-
     }
 }
 
@@ -208,8 +207,8 @@ impl PPU {
             }
         } else if PPU::get_lcd_y(bus) >= 144 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
-            bus.set_interrupt_flag(Interrupt::VBlank, true);
             PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            bus.set_interrupt_flag(Interrupt::VBlank, true);
             self.stat_interrupt(bus);
         }
 
@@ -249,7 +248,6 @@ impl PPU {
                 PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank))
             );
         if self.state && !prev_state {
-            println!("LCDSTAT interrupt");
             bus.set_interrupt_flag(Interrupt::LCDSTAT, self.state);
         }
     }
@@ -464,7 +462,6 @@ impl PPU {
         }
         let mut lcd_x: u8 = 0;
         while (lcd_x as u32) < LCD_WIDTH {
-
             let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
             if let Some(background_pixel) = PPU::get_background_pixel(lcd_x, bus) {
