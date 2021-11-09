@@ -57,7 +57,7 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
+        let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
         // let game_rom = match ROM::load_file("ignore/mooneye/emulator-only/mbc1/bits_bank1.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
         // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
@@ -144,8 +144,12 @@ impl Bus {
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.reset_timer = true;
         } else if address == LCD_CONTROL_ADDRESS && get_bit(data, BitIndex::I7) {
-            self.data[address as usize] = data;
-            self.data[LCD_Y_ADDRESS as usize] = 0x00;
+            if get_bit(data, BitIndex::I7) && !get_bit(self.data[address as usize], BitIndex::I7) {
+                // LCD is turned on
+                println!("LCD turned on");
+                self.data[address as usize] = data;
+                self.data[LCD_Y_ADDRESS as usize] = 0x00;
+            }
         } else if address == LCD_Y_ADDRESS {
             // println!("Write to LCD_Y not allowed");
         } else if address == LCD_STATUS_ADDRESS {
