@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::Read;
 
 use crate::bus::{
+    BANK_ZERO,
     BANK_SWITCHABLE,
     EXTERNAL_RAM,
 };
@@ -137,8 +138,8 @@ impl ROMInfo {
         }
     }
 
-    pub fn ram_size(&self) -> u16 {
-        0x4000 * self.ram_banks as u16
+    pub fn ram_size(&self) -> usize {
+        0x4000 * self.ram_banks as usize
     }
 }
 
@@ -177,8 +178,11 @@ impl ROM {
     pub fn read(&self, address: u16) -> u8 {
         match self.info.mbc {
             MBC::MBC1 => {
-                if BANK_SWITCHABLE.in_range(address) {
-                    return self.data[(address + (BANK_SWITCHABLE.begin() * (self.rom_bank - 1))) as usize];
+                if BANK_ZERO.in_range(address) {
+                    return self.data[address as usize];
+                } else if BANK_SWITCHABLE.in_range(address) {
+                    return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
+                    // return self.data[(address + (BANK_SWITCHABLE.begin() * (self.rom_bank - 1))) as usize];
                 } else if EXTERNAL_RAM.in_range(address) {
                     println!("RAM read");
                     if !self.info.has_ram {
@@ -196,20 +200,20 @@ impl ROM {
         match self.info.mbc {
             MBC::MBC1 => {
                 
-                if address >= 0x0000 || address <= 0x1FFF { // RAM enable register
+                if address >= 0x0000 && address <= 0x1FFF { // RAM enable register
                     self.ram_enable = match data & 0x0F {
                         0x0A => true,
                         _ => false,
                     };
                     return;
-                } else if address >= 0x2000 || address <= 0x3FFF { // ROM bank number register
-                    println!("Switch bank to {:02X}", data);
+                } else if address >= 0x2000 && address <= 0x3FFF { // ROM bank number register
+                    // println!("Switch bank to {:02X}", data);
                     self.switch_rom_bank(data as u16 & 0b00011111);
-                } else if address >= 0x4000 || address <= 0x5FFF { // ROM and RAM bank number register
-                    println!("RAM bank {:02X}", data);
+                } else if address >= 0x4000 && address <= 0x5FFF { // ROM and RAM bank number register
+                    // println!("RAM bank {:02X}", data);
                     self.ram_bank = data & 0b11;
-                } else if address >= 0x6000 || address <= 0x7FFF { // Banking mode select
-                    println!("Change banking mode");
+                } else if address >= 0x6000 && address <= 0x7FFF { // Banking mode select
+                    // println!("Change banking mode");
                 } else if EXTERNAL_RAM.in_range(address) {
                     if !self.ram_enable || !self.info.has_ram {
                         return;
