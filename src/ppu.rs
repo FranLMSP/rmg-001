@@ -167,6 +167,7 @@ pub struct PPU {
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
     last_bg_index: u8,
+    lcd_control_cache: Option<u8>,
 }
 
 impl PPU {
@@ -177,6 +178,7 @@ impl PPU {
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
             last_bg_index: 0,
+            lcd_control_cache: None,
         }
     }
 
@@ -189,7 +191,8 @@ impl PPU {
     }
 
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles, frame_buffer: &mut [u8]) {
-        if !PPU::get_lcd_control(bus, LCDControl::LCDEnable) {
+        self.lcd_control_cache = None;
+        if !self.get_lcd_control(bus, LCDControl::LCDEnable) {
             self.increment_cycles(cycles);
             return;
         }
@@ -269,10 +272,10 @@ impl PPU {
 
     fn oam_search(&mut self, bus: &Bus) {
         self.sprite_buffer = Vec::new();
-        if !PPU::get_lcd_control(bus, LCDControl::ObjectEnable) {
+        if !self.get_lcd_control(bus, LCDControl::ObjectEnable) {
             return;
         }
-        let long_sprites = PPU::get_lcd_control(bus, LCDControl::ObjectSize);
+        let long_sprites = self.get_lcd_control(bus, LCDControl::ObjectSize);
         let mut addr = SPRITE_ATTRIBUTE_TABLE.begin();
         while addr <= SPRITE_ATTRIBUTE_TABLE.end() {
             // The gameboy only supports 10 sprites per line,
@@ -356,8 +359,15 @@ impl PPU {
         bus.read(WINDOW_Y_ADDRESS)
     }
 
-    pub fn get_lcd_control(bus: &Bus, control: LCDControl) -> bool {
-        let byte = bus.read(LCD_CONTROL_ADDRESS);
+    pub fn get_lcd_control(&mut self, bus: &Bus, control: LCDControl) -> bool {
+        let byte = match self.lcd_control_cache {
+            Some(byte) => byte,
+            None => {
+                let byte = bus.read(LCD_CONTROL_ADDRESS);
+                self.lcd_control_cache = Some(byte);
+                byte
+            },
+        };
         control.get(byte)
     }
 
@@ -420,7 +430,7 @@ impl PPU {
         let window_y = PPU::get_window_y(bus);
 
         if
-            !PPU::get_lcd_control(bus, LCDControl::WindowEnable) ||
+            !self.get_lcd_control(bus, LCDControl::WindowEnable) ||
             lcd_x < window_x.saturating_sub(7) ||
             lcd_y < window_y ||
             window_y >= 144 ||
@@ -432,8 +442,8 @@ impl PPU {
         let x = lcd_x.wrapping_sub(window_x.saturating_sub(7));
         let y = self.window_y_counter;
 
-        let default_mode = PPU::get_lcd_control(bus, LCDControl::TileAddressMode);
-        let tilemap_area = match PPU::get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
+        let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
+        let tilemap_area = match self.get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
             true  => 0x9C00,
             false => 0x9800,
         };
@@ -448,7 +458,7 @@ impl PPU {
     }
 
     fn get_background_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
-        if !PPU::get_lcd_control(bus, LCDControl::BackgroundPriority) {
+        if !self.get_lcd_control(bus, LCDControl::BackgroundPriority) {
             return None;
         }
         let lcd_y = PPU::get_lcd_y(bus);
@@ -456,8 +466,8 @@ impl PPU {
         let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
         let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
 
-        let default_mode = PPU::get_lcd_control(bus, LCDControl::TileAddressMode);
-        let tilemap_area = match PPU::get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
+        let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
+        let tilemap_area = match self.get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
             true  => 0x9C00,
             false => 0x9800,
         };

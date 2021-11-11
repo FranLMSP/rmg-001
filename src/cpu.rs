@@ -844,6 +844,7 @@ pub struct CPU {
     is_halted: bool,
     ime: bool, // Interrupt Master Enable
     ei_delay: bool,
+    enable_logs: bool,
 }
 
 impl CPU {
@@ -856,6 +857,7 @@ impl CPU {
             is_halted: false,
             ei_delay: false,
             ime: true,
+            enable_logs: !env::var("CPU_LOG").is_err(),
         }
     }
 
@@ -953,7 +955,7 @@ impl CPU {
             let program_counter = self.registers.get(Register::PC);
             let parameter_bytes = OpcodeParameterBytes::from_address(program_counter, bus);
             let (opcode, cycles) = parameter_bytes.parse_opcode();
-            if !env::var("CPU_LOG").is_err() {
+            if self.enable_logs {
                 self.log(parameter_bytes);
                 self.increment_exec_calls_count();
             }

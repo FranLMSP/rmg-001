@@ -31,15 +31,15 @@ impl Timer {
     
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
         let mut count = 0;
-        while count < cycles.to_t().0 {
+        while count < cycles.0 {
             self.cycle(bus);
             count += 1;
         }
+        bus.force_write(TIMER_DIVIDER_REGISTER_ADDRESS, self.divider.to_be_bytes()[0]);
     }
 
     fn cycle(&mut self, bus: &mut Bus) {
         self.divider = self.divider.wrapping_add(1);
-        bus.force_write(TIMER_DIVIDER_REGISTER_ADDRESS, self.divider.to_be_bytes()[0]);
 
         let result = Timer::is_timer_enabled(bus) && self.get_tima_rate(bus);
 

@@ -106,7 +106,7 @@ impl Emulator {
                 self.timer.reset(&mut self.bus);
             }
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), frame_buffer);
-            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
@@ -116,7 +116,7 @@ impl Emulator {
 
     pub fn cpu_loop(&mut self) {
         let mut exit = false;
-        let mut frame: [u8; 144 * 160] = [0; 144 * 160];
+        let mut frame: [u8; 144 * 160 * 4] = [0; 144 * 160 * 4];
         while !exit {
             self.cpu.run(&mut self.bus);
             if self.bus.reset_timer {
@@ -124,7 +124,7 @@ impl Emulator {
                 self.timer.reset(&mut self.bus);
             }
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), &mut frame);
-            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles());
+            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
             exit = self.cpu.get_exec_calls_count() >= 161502; // log 2
