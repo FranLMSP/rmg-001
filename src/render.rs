@@ -39,6 +39,8 @@ pub fn start_eventloop() {
     let mut emulator = Emulator::new();
 
     event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
         // Handle input events
         if input.update(&event) {
             // Close events

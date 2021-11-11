@@ -13,6 +13,8 @@ pub const TIMER_CONTROL_ADDRESS: u16          = 0xFF07;
 pub struct Timer {
     divider: u16,
     prev_result: bool,
+    is_enabled: bool,
+    control: u8,
 }
 
 impl Timer {
@@ -20,7 +22,9 @@ impl Timer {
     pub fn new() -> Self {
         Self {
             divider: 0,
+            control: 0,
             prev_result: false,
+            is_enabled: false,
         }
     }
 
@@ -30,6 +34,8 @@ impl Timer {
     }
     
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
+        self.is_enabled = Timer::is_timer_enabled(bus);
+        self.control = bus.read(TIMER_CONTROL_ADDRESS);
         let mut count = 0;
         while count < cycles.0 {
             self.cycle(bus);
@@ -41,7 +47,7 @@ impl Timer {
     fn cycle(&mut self, bus: &mut Bus) {
         self.divider = self.divider.wrapping_add(1);
 
-        let result = Timer::is_timer_enabled(bus) && self.get_tima_rate(bus);
+        let result = self.is_enabled && self.get_tima_rate(bus);
 
         if self.prev_result && !result {
             let tima = bus.read(TIMER_COUNTER_ADDRESS).wrapping_add(1);
@@ -61,7 +67,7 @@ impl Timer {
     }
 
     fn get_tima_rate(&self, bus: &Bus) -> bool {
-        let clock_select = bus.read(TIMER_CONTROL_ADDRESS) & 0b0000_0011;
+        let clock_select = self.control & 0b0000_0011;
         match clock_select {
             0b00 => ((self.divider >> 9) & 1) == 1,
             0b01 => ((self.divider >> 3) & 1) == 1,
