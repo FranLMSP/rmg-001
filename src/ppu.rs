@@ -168,6 +168,11 @@ pub struct PPU {
     window_y_counter: u8,
     last_bg_index: u8,
     lcd_control_cache: Option<u8>,
+    lcd_y: u8,
+    scroll_x: u8,
+    scroll_y: u8,
+    window_x: u8,
+    window_y: u8,
 }
 
 impl PPU {
@@ -179,6 +184,11 @@ impl PPU {
             window_y_counter: 0,
             last_bg_index: 0,
             lcd_control_cache: None,
+            lcd_y: 0,
+            scroll_x: 0,
+            scroll_y: 0,
+            window_x: 0,
+            window_y: 0,
         }
     }
 
@@ -196,8 +206,13 @@ impl PPU {
             self.increment_cycles(cycles);
             return;
         }
+        self.lcd_y = bus.read(LCD_Y_ADDRESS);
+        self.scroll_x = bus.read(SCROLL_X_ADDRESS);
+        self.scroll_y = bus.read(SCROLL_Y_ADDRESS);
+        self.window_x = bus.read(WINDOW_X_ADDRESS);
+        self.window_y = bus.read(WINDOW_Y_ADDRESS);
 
-        if PPU::get_lcd_y(bus) < 144 {
+        if self.lcd_y < 144 {
             if self.cycles.0 <= 80 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
                 // Mode 2 OAM scan
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
@@ -212,7 +227,7 @@ impl PPU {
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
                 self.stat_interrupt(bus);
             }
-        } else if PPU::get_lcd_y(bus) >= 144 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
+        } else if self.lcd_y >= 144 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
             PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
             bus.set_interrupt_flag(Interrupt::VBlank, true);
@@ -225,13 +240,14 @@ impl PPU {
         if self.cycles.0 > 456 {
             self.reset_cycles();
 
-            PPU::set_lcd_y(bus, PPU::get_lcd_y(bus).wrapping_add(1));
+            self.lcd_y = self.lcd_y.wrapping_add(1);
 
             // Frame completed
-            if PPU::get_lcd_y(bus) > 153 {
-                PPU::set_lcd_y(bus, 0);
+            if self.lcd_y > 153 {
+                self.lcd_y = 0;
                 self.window_y_counter = 0;
             }
+            bus.force_write(LCD_Y_ADDRESS, self.lcd_y);
             // self.check_lyc(bus);
             self.stat_interrupt(bus);
         }
@@ -239,7 +255,7 @@ impl PPU {
 
     fn stat_interrupt(&mut self, bus: &mut Bus) {
         let prev_state = self.state;
-        let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
+        let lyc_compare = self.lcd_y == bus.read(LCD_Y_COMPARE_ADDRESS);
         PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
         self.state =
             (
@@ -262,7 +278,7 @@ impl PPU {
     }
 
     fn check_lyc(&mut self, bus: &mut Bus) {
-        let lyc_compare = PPU::get_lcd_y(bus) == bus.read(LCD_Y_COMPARE_ADDRESS);
+        let lyc_compare = self.lcd_y == bus.read(LCD_Y_COMPARE_ADDRESS);
         PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
         if !self.state && lyc_compare && PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) {
             bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
@@ -297,7 +313,7 @@ impl PPU {
                 false => 8,
             };
 
-            let lcd_y = PPU::get_lcd_y(bus).saturating_add(16);
+            let lcd_y = self.lcd_y.saturating_add(16);
 
             if lcd_y < y || lcd_y > (y + sprite_height - 1) {
                 addr += 4;
@@ -325,7 +341,7 @@ impl PPU {
     }
 
     fn find_sprite_pixel(&self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
-        let lcd_y = PPU::get_lcd_y(bus);
+        let lcd_y = self.lcd_y;
         for sprite in &self.sprite_buffer {
             if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, bus, self.last_bg_index) {
                 return Some(pixel);
@@ -333,30 +349,6 @@ impl PPU {
         }
 
         return None;
-    }
-
-    fn get_lcd_y(bus: &Bus) -> u8 {
-        bus.read(LCD_Y_ADDRESS)
-    }
-
-    fn set_lcd_y(bus: &mut Bus, val: u8) {
-        bus.force_write(LCD_Y_ADDRESS, val);
-    }
-
-    fn get_scroll_x(bus: &Bus) -> u8 {
-        bus.read(SCROLL_X_ADDRESS)
-    }
-
-    fn get_scroll_y(bus: &Bus) -> u8 {
-        bus.read(SCROLL_Y_ADDRESS)
-    }
-
-    fn get_window_x(bus: &Bus) -> u8 {
-        bus.read(WINDOW_X_ADDRESS)
-    }
-
-    fn get_window_y(bus: &Bus) -> u8 {
-        bus.read(WINDOW_Y_ADDRESS)
     }
 
     pub fn get_lcd_control(&mut self, bus: &Bus, control: LCDControl) -> bool {
@@ -425,9 +417,9 @@ impl PPU {
     }
 
     fn get_window_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
-        let lcd_y = PPU::get_lcd_y(bus);
-        let window_x = PPU::get_window_x(bus);
-        let window_y = PPU::get_window_y(bus);
+        let lcd_y = self.lcd_y;
+        let window_x = self.window_x;
+        let window_y = self.window_y;
 
         if
             !self.get_lcd_control(bus, LCDControl::WindowEnable) ||
@@ -461,10 +453,10 @@ impl PPU {
         if !self.get_lcd_control(bus, LCDControl::BackgroundPriority) {
             return None;
         }
-        let lcd_y = PPU::get_lcd_y(bus);
+        let lcd_y = self.lcd_y;
         let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
-        let y = lcd_y.wrapping_add(PPU::get_scroll_y(bus));
-        let x = lcd_x.wrapping_add(PPU::get_scroll_x(bus));
+        let y = lcd_y.wrapping_add(self.scroll_y);
+        let x = lcd_x.wrapping_add(self.scroll_x);
 
         let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
         let tilemap_area = match self.get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
@@ -481,7 +473,7 @@ impl PPU {
     }
 
     fn draw_line(&mut self, bus: &Bus, frame_buffer: &mut [u8]) {
-        let lcd_y = PPU::get_lcd_y(bus);
+        let lcd_y = self.lcd_y;
         if lcd_y as u32 >= LCD_HEIGHT {
             return;
         }
