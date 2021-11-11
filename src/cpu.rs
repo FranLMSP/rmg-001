@@ -917,22 +917,23 @@ impl CPU {
     }
 
     pub fn check_interrupts(&mut self, bus: &mut Bus) -> Option<Interrupt> {
-        if (bus.read(INTERRUPT_ENABLE_ADDRESS) & 0b00011111) & (bus.read(INTERRUPT_FLAG_ADDRESS) & 0b00011111) != 0 {
+        let interrupts = (bus.read(INTERRUPT_ENABLE_ADDRESS) & 0b00011111) & (bus.read(INTERRUPT_FLAG_ADDRESS) & 0b00011111);
+        if interrupts != 0 {
             self.is_halted = false;
         }
         if !self.ime {
             return None;
         }
 
-        if bus.get_interrupt(Interrupt::VBlank) {
+        if Interrupt::VBlank.get(interrupts) {
             return Some(Interrupt::VBlank);
-        } else if bus.get_interrupt(Interrupt::LCDSTAT) {
+        } else if Interrupt::LCDSTAT.get(interrupts) {
             return Some(Interrupt::LCDSTAT);
-        } else if bus.get_interrupt(Interrupt::Timer) {
+        } else if Interrupt::Timer.get(interrupts) {
             return Some(Interrupt::Timer);
-        } else if bus.get_interrupt(Interrupt::Serial) {
+        } else if Interrupt::Serial.get(interrupts) {
             return Some(Interrupt::Serial);
-        } else if bus.get_interrupt(Interrupt::Joypad) {
+        } else if Interrupt::Joypad.get(interrupts) {
             return Some(Interrupt::Joypad);
         }
         None

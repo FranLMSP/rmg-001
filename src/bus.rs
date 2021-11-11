@@ -184,18 +184,8 @@ impl Bus {
         self.write(address.wrapping_add(1), bytes[1]);
     }
 
-    pub fn set_interrupt_enable(&mut self, interrupt: Interrupt, val: bool) {
-        let byte = self.read(INTERRUPT_ENABLE_ADDRESS);
-        self.write(INTERRUPT_ENABLE_ADDRESS, interrupt.set(byte, val));
-    }
-
     pub fn set_interrupt_flag(&mut self, interrupt: Interrupt, val: bool) {
         let byte = self.read(INTERRUPT_FLAG_ADDRESS);
         self.write(INTERRUPT_FLAG_ADDRESS, interrupt.set(byte, val));
-    }
-
-    pub fn get_interrupt(&mut self, interrupt: Interrupt) -> bool {
-        let byte = self.read(INTERRUPT_ENABLE_ADDRESS) & self.read(INTERRUPT_FLAG_ADDRESS);
-        interrupt.get(byte)
     }
 }
