@@ -93,11 +93,12 @@ struct Sprite {
     x: u8,
     y: u8,
     tile_number: u8,
+    palette: u8,
     x_flip: bool,
     y_flip: bool,
     over_bg: bool,
-    palette_one: bool,
     is_long: bool,
+    bit_pixels: Option<[u8; 8]>,
 }
 
 impl Sprite {
@@ -105,7 +106,7 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&self, lcd_x: u8, lcd_y: u8, bus: &Bus, last_bg_index: u8) -> Option<Pixel> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, bus: &Bus, last_bg_index: u8) -> Option<Pixel> {
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -118,10 +119,8 @@ impl Sprite {
             true => 16,
             false => 8,
         };
-
         let x = lcd_x.saturating_sub(self.x.saturating_sub(8));
         let y = lcd_y.saturating_sub(self.y .saturating_sub(16));
-
         let x = match self.x_flip {
             true => 7 - x,
             false => x,
@@ -131,33 +130,38 @@ impl Sprite {
             false => y,
         };
 
-        let mut tile_number = self.tile_number;
+        let bit_pixel_index = (x as usize).rem_euclid(8);
 
-        if self.is_long && x <= 7 {
-            tile_number = tile_number & 0xFE;
-        } else if self.is_long && x > 7 {
-            tile_number = tile_number | 0x01;
-        }
+        let bit_pixel = match self.bit_pixels {
+            Some(bit_pixels_array) => {
+                bit_pixels_array[bit_pixel_index]
+            },
+            None => {
+                let mut tile_number = self.tile_number;
 
-        let tile_line = y.rem_euclid(height) * 2;
-        let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
+                if self.is_long && x <= 7 {
+                    tile_number = tile_number & 0xFE;
+                } else if self.is_long && x > 7 {
+                    tile_number = tile_number | 0x01;
+                }
 
-        let tile_byte_1 = bus.read(addr);
-        let tile_byte_2 = bus.read(addr + 1);
+                let tile_line = y.rem_euclid(height) * 2;
+                let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
-        let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+                let tile_byte_1 = bus.read(addr);
+                let tile_byte_2 = bus.read(addr + 1);
+                let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+                self.bit_pixels = Some(bit_pixels_array);
 
-        let index = (x as usize).rem_euclid(8);
+                bit_pixels_array[bit_pixel_index]
+            }
+        };
 
-        if pixels[index] == 0 {
+        if bit_pixel == 0 {
             return None;
         }
 
-        let palette = match self.palette_one {
-            true => bus.read(OBJECT_PALETTE_1_ADDRESS),
-            false => bus.read(OBJECT_PALETTE_0_ADDRESS),
-        };
-        Some(PPU::get_pixel(PPU::get_palette(pixels[index], palette)))
+        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.palette)))
     }
 }
 
@@ -167,7 +171,10 @@ pub struct PPU {
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
     last_bg_index: u8,
+    bg_palette: u8,
     lcd_control_cache: Option<u8>,
+    current_background_pixels: Option<[u8; 8]>,
+    current_window_pixels: Option<[u8; 8]>,
     lcd_y: u8,
     scroll_x: u8,
     scroll_y: u8,
@@ -183,7 +190,10 @@ impl PPU {
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
             last_bg_index: 0,
+            bg_palette: 0,
             lcd_control_cache: None,
+            current_background_pixels: None,
+            current_window_pixels: None,
             lcd_y: 0,
             scroll_x: 0,
             scroll_y: 0,
@@ -291,6 +301,8 @@ impl PPU {
         if !self.get_lcd_control(bus, LCDControl::ObjectEnable) {
             return;
         }
+        let palette_0 = bus.read(OBJECT_PALETTE_0_ADDRESS);
+        let palette_1 = bus.read(OBJECT_PALETTE_1_ADDRESS);
         let long_sprites = self.get_lcd_control(bus, LCDControl::ObjectSize);
         let mut addr = SPRITE_ATTRIBUTE_TABLE.begin();
         while addr <= SPRITE_ATTRIBUTE_TABLE.end() {
@@ -329,10 +341,14 @@ impl PPU {
                 y,
                 tile_number,
                 is_long: long_sprites,
-                palette_one: get_bit(attributes, BitIndex::I4),
+                palette: match get_bit(attributes, BitIndex::I4) {
+                    true => palette_1,
+                    false => palette_0,
+                },
                 x_flip: get_bit(attributes, BitIndex::I5),
                 y_flip: get_bit(attributes, BitIndex::I6),
                 over_bg: get_bit(attributes, BitIndex::I7),
+                bit_pixels: None,
             });
 
             addr += 4;
@@ -340,9 +356,9 @@ impl PPU {
         self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
     }
 
-    fn find_sprite_pixel(&self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
+    fn find_sprite_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
         let lcd_y = self.lcd_y;
-        for sprite in &self.sprite_buffer {
+        for sprite in &mut self.sprite_buffer {
             if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, bus, self.last_bg_index) {
                 return Some(pixel);
             }
@@ -434,19 +450,32 @@ impl PPU {
         let x = lcd_x.wrapping_sub(window_x.saturating_sub(7));
         let y = self.window_y_counter;
 
-        let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
-        let tilemap_area = match self.get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
-            true  => 0x9C00,
-            false => 0x9800,
+        let bit_pixel_index = (x as usize).rem_euclid(8);
+        if bit_pixel_index == 0 {
+            self.current_window_pixels = None;
+        }
+
+        let bit_pixel = match self.current_window_pixels {
+            Some(bit_pixels_array) => {
+                bit_pixels_array[bit_pixel_index]
+            },
+            None => {
+                let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
+                let tilemap_area = match self.get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
+                    true  => 0x9C00,
+                    false => 0x9800,
+                };
+                let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
+                let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+                self.current_window_pixels = Some(bit_pixels_array);
+
+                bit_pixels_array[bit_pixel_index]
+            },
         };
-        let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
 
-        let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
-        let pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
-        let index = pixels[(x as usize).rem_euclid(8)];
-        self.last_bg_index = index & 0b11;
+        self.last_bg_index = bit_pixel & 0b11;
 
-        Some(PPU::get_pixel(PPU::get_palette(index, palette)))
+        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
     fn get_background_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
@@ -454,22 +483,34 @@ impl PPU {
             return None;
         }
         let lcd_y = self.lcd_y;
-        let palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
         let y = lcd_y.wrapping_add(self.scroll_y);
         let x = lcd_x.wrapping_add(self.scroll_x);
+        let bit_pixel_index = x.rem_euclid(8) as usize;
 
-        let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
-        let tilemap_area = match self.get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
-            true  => 0x9C00,
-            false => 0x9800,
+        if bit_pixel_index == 0 {
+            self.current_background_pixels = None;
+        }
+
+        let bit_pixel = match self.current_background_pixels {
+            Some(bit_pixels_array) => {
+                bit_pixels_array[bit_pixel_index]
+            },
+            None => {
+                let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
+                let tilemap_area = match self.get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
+                    true  => 0x9C00,
+                    false => 0x9800,
+                };
+                let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
+                let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
+                self.current_background_pixels = Some(bit_pixels_array);
+
+                bit_pixels_array[bit_pixel_index]
+            },
         };
-        let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
+        self.last_bg_index = bit_pixel & 0b11;
 
-        let bg_pixels = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
-        let index = bg_pixels[x.rem_euclid(8) as usize];
-        self.last_bg_index = index & 0b11;
-
-        Some(PPU::get_pixel(PPU::get_palette(index, palette)))
+        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
     fn draw_line(&mut self, bus: &Bus, frame_buffer: &mut [u8]) {
@@ -477,6 +518,10 @@ impl PPU {
         if lcd_y as u32 >= LCD_HEIGHT {
             return;
         }
+        self.current_background_pixels = None;
+        self.current_window_pixels = None;
+
+        self.bg_palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
         let mut lcd_x: u8 = 0;
         let mut window_drawn = false;
         while (lcd_x as u32) < LCD_WIDTH {
