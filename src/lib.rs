@@ -7,3 +7,4 @@ pub mod bus;
 pub mod joypad;
 pub mod emulator;
 pub mod render;
+pub mod frames;

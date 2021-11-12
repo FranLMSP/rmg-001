@@ -59,11 +59,15 @@ impl Bus {
     pub fn new() -> Self {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
-            panic!("Please, specify a ROM");
+            println!("Please, specify a ROM file");
+            std::process::exit(1);
         }
         let game_rom = match ROM::load_file(&args[1]) {
             Ok(rom) => rom,
-            Err(_) => panic!("Could not read ROM"),
+            Err(err) => {
+                println!("Could not read ROM: {}", err);
+                std::process::exit(1);
+            },
         };
         let mut data = [0x00; 0x10000];
         // Hardware registers after the bootrom

@@ -1,4 +1,5 @@
 use crate::emulator::Emulator;
+use crate::frames::Frames;
 use crate::cpu::{Cycles};
 use crate::ppu::{WIDTH, HEIGHT};
 
@@ -42,14 +43,15 @@ pub fn create_window<T>(width: u32, height: u32, title: String, event_loop: &Eve
 }
 
 pub fn start_eventloop() {
+    let mut emulator = Emulator::new();
+    let mut frames = Frames::new();
+
     env_logger::init();
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
 
     let window = create_window(WIDTH, HEIGHT, "rmg-001".to_string(), &event_loop);
     let mut pixels = create_pixels(WIDTH, HEIGHT, &window);
-
-    let mut emulator = Emulator::new();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -80,6 +82,12 @@ pub fn start_eventloop() {
             },
             Event::MainEventsCleared => {
                 emulator.run(Cycles(70224), pixels.get_frame());
+                frames.increment();
+                if frames.elapsed_ms() >= 1000 {
+                    window.set_title(&format!("rmg-001 (FPS: {})", frames.count()));
+                    frames.reset_count();
+                    frames.reset_timer();
+                }
 
                 // thread::sleep(time::Duration::from_millis(1));
                 window.request_redraw();
