@@ -57,26 +57,13 @@ pub struct Bus {
 
 impl Bus {
     pub fn new() -> Self {
-        let game_rom = match ROM::load_file("/home/fran/Development/Personal/Rust/rmg-001/ignore/mario-land.gb".to_string()) {
-        // let game_rom = match ROM::load_file("ignore/dmg-acid2.gb".to_string()) {
-        // let game_rom = match ROM::load_file("ignore/mario-land.gb".to_string()) {
-        // let game_rom = match ROM::load_file("ignore/tetris.gb".to_string()) {
-        // let game_rom = match ROM::load_file("ignore/mooneye/emulator-only/mbc1/bits_bank1.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/01-special.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/02-interrupts.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/03-op sp,hl.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/04-op r,imm.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/05-op rp.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/06-ld r,r.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/07-jr,jp,call,ret,rst.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/08-misc instrs.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/09-op r,r.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/10-bit ops.gb".to_string()) {
-        // let game_rom = match ROM::load_file("roms/cpu_instrs_individual/11-op a,(hl).gb".to_string()) {
+        let args: Vec<String> = std::env::args().collect();
+        if args.len() < 2 {
+            panic!("Please, specify a ROM");
+        }
+        let game_rom = match ROM::load_file(&args[1]) {
             Ok(rom) => rom,
-            // _ => ROM::from_bytes(&[0; 0xFFFF])
-            _ => panic!("Could not read ROM"),
+            Err(_) => panic!("Could not read ROM"),
         };
         let mut data = [0x00; 0x10000];
         // Hardware registers after the bootrom
