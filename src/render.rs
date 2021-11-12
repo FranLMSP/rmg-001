@@ -5,7 +5,7 @@ use crate::ppu::{WIDTH, HEIGHT};
 use std::{thread, time};
 
 use log::error;
-use pixels::{Pixels, SurfaceTexture};
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -15,7 +15,20 @@ use winit_input_helper::WinitInputHelper;
 pub fn create_pixels(width: u32, height: u32, window: &Window) -> Pixels {
     let window_size = window.inner_size();
     let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, window);
-    Pixels::new(width, height, surface_texture).unwrap()
+    // Pixels::new(width, height, surface_texture).unwrap()
+    PixelsBuilder::new(width, height, surface_texture)
+        .device_descriptor(wgpu::DeviceDescriptor {
+            limits: wgpu::Limits {
+                max_storage_textures_per_shader_stage: 4,
+                max_texture_dimension_2d: 4096,
+                max_texture_dimension_1d: 4096,
+                ..wgpu::Limits::default()
+            },
+            ..wgpu::DeviceDescriptor::default()
+        })
+        .enable_vsync(false)
+        .build()
+        .unwrap()
 }
 
 pub fn create_window<T>(width: u32, height: u32, title: String, event_loop: &EventLoop<T>) -> Window {
