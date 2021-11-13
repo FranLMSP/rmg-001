@@ -6,7 +6,7 @@ use crate::ppu::{WIDTH, HEIGHT};
 use std::{thread, time};
 
 use log::error;
-use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
+use pixels::{wgpu, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};

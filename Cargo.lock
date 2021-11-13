@@ -1171,7 +1171,6 @@ dependencies = [
  "log",
  "pixels",
  "rand",
- "wgpu",
  "winit",
  "winit_input_helper",
 ]
