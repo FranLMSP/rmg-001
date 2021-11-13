@@ -138,9 +138,13 @@ impl Bus {
             self.reset_timer = true;
         } else if address == LCD_CONTROL_ADDRESS {
             self.data[address as usize] = data;
-            // Check if LCD is being turned on 
-            if get_bit(data, BitIndex::I7) && !get_bit(self.data[address as usize], BitIndex::I7) {
+            // Check if LCD is being turned on or off
+            if (get_bit(data, BitIndex::I7) && !get_bit(self.data[address as usize], BitIndex::I7)) ||
+               !get_bit(data, BitIndex::I7) {
                 self.data[LCD_Y_ADDRESS as usize] = 0x00;
+                // Set Hblank
+                let byte = self.data[LCD_STATUS_ADDRESS as usize];
+                self.data[LCD_STATUS_ADDRESS as usize] = byte & 0b11111100;
             }
         } else if address == LCD_Y_ADDRESS {
             // println!("Write to LCD_Y not allowed");

@@ -23,8 +23,8 @@ pub const DMA_ADDRESS: u16 = 0xFF46;
 pub const BACKGROUND_PALETTE_ADDRESS: u16 = 0xFF47;
 pub const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
 pub const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
-pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
 pub const WINDOW_Y_ADDRESS: u16 = 0xFF4A;
+pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
 pub const TILE_MAP_ADDRESS: u16 = 0x9800;
 
 #[derive(Debug, Copy, Clone)]

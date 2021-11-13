@@ -14,6 +14,7 @@ pub const RAM_SIZE_ADDRESS: u16 = 0x0149;
 pub const ROM_SIZE_ADDRESS: u16 = 0x0148;
 pub const DESTINATION_CODE_ADDRESS: u16 = 0x014A;
 
+#[derive(Debug)]
 enum Region {
     Japanese,
     NonJapanese,
@@ -37,11 +38,13 @@ enum MBC {
     BandaiTIMA5,
 }
 
+#[derive(Debug)]
 enum BankingMode {
     Simple,
     Advanced,
 }
 
+#[derive(Debug)]
 pub struct ROMInfo {
     mbc: MBC,
     publisher: String,
@@ -139,7 +142,7 @@ impl ROMInfo {
     }
 
     pub fn ram_size(&self) -> usize {
-        0x4000 * self.ram_banks as usize
+        0x2000 * self.ram_banks as usize
     }
 }
 
@@ -160,8 +163,11 @@ impl ROM {
         file.read_to_end(&mut data)?;
 
         let info = ROMInfo::from_bytes(&data);
-        println!("has ram {}", info.has_ram);
-        println!("mbc {:?}", info.mbc);
+        println!("MBC {:?}", info.mbc);
+        println!("Has RAM {}", info.has_ram);
+        println!("ROM banks {}", info.rom_banks);
+        println!("RAM banks {}", info.ram_banks);
+        println!("Region {:?}", info.region);
         let ram = Vec::with_capacity(info.ram_size() as usize);
 
         Ok(Self {
@@ -177,6 +183,12 @@ impl ROM {
 
     pub fn read(&self, address: u16) -> u8 {
         match self.info.mbc {
+            MBC::NoMBC => {
+                return match self.data.get(address as usize) {
+                    Some(data) => *data,
+                    None => 0xFF,
+                };
+            },
             MBC::MBC1 => {
                 if BANK_ZERO.in_range(address) {
                     return self.data[address as usize];
@@ -188,19 +200,26 @@ impl ROM {
                     if !self.info.has_ram {
                         return 0xFF;
                     }
-                    return self.ram[(address - EXTERNAL_RAM.begin() + (EXTERNAL_RAM.begin() * self.ram_bank as u16)) as usize];
+                    return match self.ram.get((address - EXTERNAL_RAM.begin() + (0x2000 * self.ram_bank as u16)) as usize) {
+                        Some(data) => *data,
+                        None => 0xFF,
+                    };
                 }
+                unreachable!("ROM read: Address {} not valid", address);
             },
-            _ => {},
+            _ => unimplemented!(),
         }
         self.data[address as usize]
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
         match self.info.mbc {
+            MBC::NoMBC => {},
             MBC::MBC1 => {
-                
                 if address >= 0x0000 && address <= 0x1FFF { // RAM enable register
+                    if !self.info.has_ram {
+                        return;
+                    }
                     self.ram_enable = match data & 0x0F {
                         0x0A => true,
                         _ => false,
@@ -218,12 +237,14 @@ impl ROM {
                     if !self.ram_enable || !self.info.has_ram {
                         return;
                     }
-                    let address = (address - EXTERNAL_RAM.begin() + (EXTERNAL_RAM.begin() * self.ram_bank as u16)) as usize;
-                    self.ram[address] = data;
+                    let address = address as usize - EXTERNAL_RAM.begin() as usize + (EXTERNAL_RAM.begin() as usize * self.ram_bank as usize);
+                    if let Some(elem) = self.ram.get_mut(address) {
+                        *elem = data;
+                    }
                     self.switch_rom_bank(self.rom_bank + (data as u16 >> 5));
                 }
             },
-            _ => {},
+            _ => unimplemented!(),
         }
     }
 

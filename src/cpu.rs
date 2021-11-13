@@ -857,7 +857,7 @@ impl CPU {
             is_halted: false,
             ei_delay: false,
             ime: true,
-            enable_logs: !env::var("CPU_LOG").is_err(),
+            enable_logs: !env::var("CPU_LOG").is_err() || !env::var("CPU_LOGS").is_err(),
         }
     }
 
