@@ -194,9 +194,7 @@ impl ROM {
                     return self.data[address as usize];
                 } else if BANK_SWITCHABLE.in_range(address) {
                     return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
-                    // return self.data[(address + (BANK_SWITCHABLE.begin() * (self.rom_bank - 1))) as usize];
                 } else if EXTERNAL_RAM.in_range(address) {
-                    println!("RAM read");
                     if !self.info.has_ram {
                         return 0xFF;
                     }
@@ -232,7 +230,11 @@ impl ROM {
                     // println!("RAM bank {:02X}", data);
                     self.ram_bank = data & 0b11;
                 } else if address >= 0x6000 && address <= 0x7FFF { // Banking mode select
-                    // println!("Change banking mode");
+                    self.banking_mode = match data & 1 {
+                        0 => BankingMode::Simple,
+                        1 => BankingMode::Advanced,
+                        _ => unreachable!(),
+                    }
                 } else if EXTERNAL_RAM.in_range(address) {
                     if !self.ram_enable || !self.info.has_ram {
                         return;
