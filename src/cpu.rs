@@ -921,7 +921,7 @@ impl CPU {
         if interrupts != 0 {
             self.is_halted = false;
         }
-        if !self.ime {
+        if !self.ime || interrupts == 0 {
             return None;
         }
 
