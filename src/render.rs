@@ -27,7 +27,7 @@ pub fn create_pixels(width: u32, height: u32, window: &Window) -> Pixels {
             },
             ..wgpu::DeviceDescriptor::default()
         })
-        .enable_vsync(false)
+        .enable_vsync(true)
         .build()
         .unwrap()
 }

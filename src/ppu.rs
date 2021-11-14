@@ -36,7 +36,42 @@ enum Pixel {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct ColorPalette(u8, u8, u8, u8);
+struct RGBA(u8, u8, u8, u8);
+#[derive(Debug, Copy, Clone)]
+struct ColorPalette {
+    white: RGBA,
+    light: RGBA,
+    dark:  RGBA,
+    black: RGBA,
+}
+
+const BACKGROUND_COLORS: ColorPalette = ColorPalette {
+    white: RGBA(0x83, 0xE6, 0xCD, 0),
+    light: RGBA(0x66, 0xAD, 0xC6, 0),
+    dark:  RGBA(0x4F, 0x53, 0xAB, 0),
+    black: RGBA(0x3E, 0x24, 0x69, 0),
+};
+
+const WINDOW_COLORS: ColorPalette = ColorPalette {
+    white: RGBA(0x83, 0xE6, 0xCD, 0),
+    light: RGBA(0x66, 0xAD, 0xC6, 0),
+    dark:  RGBA(0x4F, 0x53, 0xAB, 0),
+    black: RGBA(0x3E, 0x24, 0x69, 0),
+};
+
+const SPRITE_0_COLORS: ColorPalette = ColorPalette {
+    white: RGBA(0x83, 0xE6, 0xCD, 0),
+    light: RGBA(0x66, 0xAD, 0xC6, 0),
+    dark:  RGBA(0x4F, 0x53, 0xAB, 0),
+    black: RGBA(0x3E, 0x24, 0x69, 0),
+};
+
+const SPRITE_1_COLORS: ColorPalette = ColorPalette {
+    white: RGBA(0x83, 0xE6, 0xCD, 0),
+    light: RGBA(0x66, 0xAD, 0xC6, 0),
+    dark:  RGBA(0x4F, 0x53, 0xAB, 0),
+    black: RGBA(0x3E, 0x24, 0x69, 0),
+};
 
 #[derive(Debug, Copy, Clone)]
 pub enum LCDControl {
@@ -94,6 +129,7 @@ struct Sprite {
     y: u8,
     tile_number: u8,
     palette: u8,
+    palette_zero: bool,
     x_flip: bool,
     y_flip: bool,
     over_bg: bool,
@@ -106,7 +142,7 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, bus: &Bus, last_bg_index: u8) -> Option<Pixel> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, bus: &Bus, last_bg_index: u8) -> Option<(Pixel, bool)> {
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -161,7 +197,7 @@ impl Sprite {
             return None;
         }
 
-        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.palette)))
+        Some((PPU::get_pixel(PPU::get_palette(bit_pixel, self.palette)), self.palette_zero))
     }
 }
 
@@ -336,14 +372,16 @@ impl PPU {
             let tile_number = bus.read(addr + 2);
             let attributes = bus.read(addr + 3);
 
+            let palette_zero = !get_bit(attributes, BitIndex::I4);
             self.sprite_buffer.push(Sprite {
                 x,
                 y,
                 tile_number,
+                palette_zero,
                 is_long: long_sprites,
-                palette: match get_bit(attributes, BitIndex::I4) {
-                    true => palette_1,
-                    false => palette_0,
+                palette: match palette_zero {
+                    true => palette_0,
+                    false => palette_1,
                 },
                 x_flip: get_bit(attributes, BitIndex::I5),
                 y_flip: get_bit(attributes, BitIndex::I6),
@@ -356,7 +394,7 @@ impl PPU {
         self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
     }
 
-    fn find_sprite_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
+    fn find_sprite_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<(Pixel, bool)> {
         let lcd_y = self.lcd_y;
         for sprite in &mut self.sprite_buffer {
             if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, bus, self.last_bg_index) {
@@ -528,23 +566,29 @@ impl PPU {
             let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
             if let Some(background_pixel) = self.get_background_pixel(lcd_x, bus) {
-                let rgba = PPU::get_rgba(background_pixel);
+                let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
+                frame_buffer[idx + 3] = rgba[3];
             }
             if let Some(window_pixel) = self.get_window_pixel(lcd_x, bus) {
                 window_drawn = true;
-                let rgba = PPU::get_rgba(window_pixel);
+                let rgba = PPU::get_rgba(window_pixel, WINDOW_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
+                frame_buffer[idx + 3] = rgba[3];
             }
-            if let Some(sprite_pixel) = self.find_sprite_pixel(lcd_x, bus) {
-                let rgba = PPU::get_rgba(sprite_pixel);
+            if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x, bus) {
+                let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
+                    true => SPRITE_0_COLORS,
+                    false => SPRITE_1_COLORS,
+                });
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
+                frame_buffer[idx + 3] = rgba[3];
             }
 
             lcd_x += 1;
@@ -574,12 +618,12 @@ impl PPU {
         }
     }
 
-    fn get_rgba(pixel: Pixel) -> [u8; 4] {
+    fn get_rgba(pixel: Pixel, colors: ColorPalette) -> [u8; 4] {
         match pixel {
-            Pixel::White => [255, 255, 255, 0],
-            Pixel::Light => [192, 192, 192, 0],
-            Pixel::Dark  => [81, 81, 81, 0],
-            Pixel::Black => [0, 0, 0, 0],
+            Pixel::White => [colors.white.0, colors.white.1, colors.white.2, colors.white.3],
+            Pixel::Light => [colors.light.0, colors.light.1, colors.light.2, colors.light.3],
+            Pixel::Dark  => [ colors.dark.0,  colors.dark.1,  colors.dark.2,  colors.dark.3],
+            Pixel::Black => [colors.black.0, colors.black.1, colors.black.2, colors.black.3],
         }
     }
 
