@@ -14,19 +14,20 @@ pub struct Emulator {
     cpu: CPU,
     ppu: PPU,
     bus: Bus,
-    timer: Timer,
+    timer: Rc<RefCell<Timer>>,
     joypad: Rc<RefCell<Joypad>>,
 }
 
 impl Emulator {
     pub fn new() -> Self {
         let joypad = Rc::new(RefCell::new(Joypad::new()));
+        let timer = Rc::new(RefCell::new(Timer::new()));
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
-            bus: Bus::new(Rc::clone(&joypad)),
-            timer: Timer::new(),
-            joypad: joypad,
+            bus: Bus::new(Rc::clone(&joypad), Rc::clone(&timer)),
+            timer,
+            joypad,
         }
     }
 
@@ -107,12 +108,8 @@ impl Emulator {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
-            if self.bus.reset_timer {
-                self.bus.reset_timer = false;
-                self.timer.reset(&mut self.bus);
-            }
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), frame_buffer);
-            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
+            self.timer.borrow_mut().do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
@@ -125,12 +122,8 @@ impl Emulator {
         let mut frame: [u8; 144 * 160 * 4] = [0; 144 * 160 * 4];
         while !exit {
             self.cpu.run(&mut self.bus);
-            if self.bus.reset_timer {
-                self.bus.reset_timer = false;
-                self.timer.reset(&mut self.bus);
-            }
             self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), &mut frame);
-            self.timer.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
+            self.timer.borrow_mut().do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
             exit = self.cpu.get_exec_calls_count() >= 161502; // log 2

@@ -28,9 +28,13 @@ impl Timer {
         }
     }
 
-    pub fn reset(&mut self, bus: &mut Bus) {
+    pub fn read_divider(&self) -> u8 {
+        self.divider.to_be_bytes()[0]
+    }
+
+    pub fn reset(&mut self) {
+        println!("Reset divider");
         self.divider = 0;
-        bus.force_write(TIMER_DIVIDER_REGISTER_ADDRESS, 0);
     }
     
     pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles) {
@@ -41,7 +45,6 @@ impl Timer {
             self.cycle(bus);
             count += 1;
         }
-        bus.force_write(TIMER_DIVIDER_REGISTER_ADDRESS, self.divider.to_be_bytes()[0]);
     }
 
     fn cycle(&mut self, bus: &mut Bus) {

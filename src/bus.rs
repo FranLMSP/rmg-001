@@ -13,7 +13,7 @@ use crate::ppu::{
     DMA_ADDRESS,
 };
 use crate::cpu::{Interrupt};
-use crate::timer::{TIMER_DIVIDER_REGISTER_ADDRESS};
+use crate::timer::{Timer, TIMER_DIVIDER_REGISTER_ADDRESS};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
 
 pub struct AddressRange {
@@ -53,12 +53,12 @@ pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
-    pub reset_timer: bool,
     joypad: Rc<RefCell<Joypad>>,
+    timer: Rc<RefCell<Timer>>,
 }
 
 impl Bus {
-    pub fn new(joypad: Rc<RefCell<Joypad>>) -> Self {
+    pub fn new(joypad: Rc<RefCell<Joypad>>, timer: Rc<RefCell<Timer>>) -> Self {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
             println!("Please, specify a ROM file");
@@ -98,8 +98,8 @@ impl Bus {
         Self {
             data,
             game_rom,
-            reset_timer: false,
             joypad,
+            timer,
         }
     }
 
@@ -110,6 +110,8 @@ impl Bus {
             return 0b11100000 | self.data[address as usize];
         } else if address == JOYPAD_ADDRESS {
             return self.joypad.borrow().read(self.data[address as usize]);
+        }  else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
+            return self.timer.borrow().read_divider();
         }
         self.data[address as usize]
     }
@@ -137,7 +139,7 @@ impl Bus {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
-            self.reset_timer = true;
+            self.timer.borrow_mut().reset();
         } else if address == LCD_CONTROL_ADDRESS {
             self.data[address as usize] = data;
             // Check if LCD is being turned on or off
