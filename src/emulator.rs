@@ -1,4 +1,6 @@
 // use std::{thread, time};
+use std::rc::Rc;
+use std::cell::RefCell;
 use winit_input_helper::WinitInputHelper;
 use winit::event::{VirtualKeyCode};
 
@@ -6,91 +8,95 @@ use crate::cpu::{CPU, Cycles, Interrupt};
 use crate::ppu::PPU;
 use crate::bus::Bus;
 use crate::timer::Timer;
-use crate::joypad::{Button};
+use crate::joypad::{Joypad, Button};
 
 pub struct Emulator {
     cpu: CPU,
     ppu: PPU,
     bus: Bus,
     timer: Timer,
+    joypad: Rc<RefCell<Joypad>>,
 }
 
 impl Emulator {
     pub fn new() -> Self {
+        let joypad = Rc::new(RefCell::new(Joypad::new()));
         Self {
             cpu: CPU::new(),
             ppu: PPU::new(),
-            bus: Bus::new(),
+            bus: Bus::new(Rc::clone(&joypad)),
             timer: Timer::new(),
+            joypad: joypad,
         }
     }
 
     pub fn handle_input(&mut self, input: &WinitInputHelper) {
         let mut change = false;
+        let mut joypad = self.joypad.borrow_mut();
         if input.key_pressed(VirtualKeyCode::K) {
             change = true;
-            self.bus.joypad.press(Button::A);
+            joypad.press(Button::A);
         }
         if input.key_pressed(VirtualKeyCode::J) {
             change = true;
-            self.bus.joypad.press(Button::B);
+            joypad.press(Button::B);
         }
         if input.key_pressed(VirtualKeyCode::W) {
             change = true;
-            self.bus.joypad.press(Button::Up);
+            joypad.press(Button::Up);
         }
         if input.key_pressed(VirtualKeyCode::S) {
             change = true;
-            self.bus.joypad.press(Button::Down);
+            joypad.press(Button::Down);
         }
         if input.key_pressed(VirtualKeyCode::A) {
             change = true;
-            self.bus.joypad.press(Button::Left);
+            joypad.press(Button::Left);
         }
         if input.key_pressed(VirtualKeyCode::D) {
             change = true;
-            self.bus.joypad.press(Button::Right);
+            joypad.press(Button::Right);
         }
         if input.key_pressed(VirtualKeyCode::N) {
             change = true;
-            self.bus.joypad.press(Button::Start);
+            joypad.press(Button::Start);
         }
         if input.key_pressed(VirtualKeyCode::B) {
             change = true;
-            self.bus.joypad.press(Button::Select);
+            joypad.press(Button::Select);
         }
 
         if input.key_released(VirtualKeyCode::K) {
             change = true;
-            self.bus.joypad.release(Button::A);
+            joypad.release(Button::A);
         }
         if input.key_released(VirtualKeyCode::J) {
             change = true;
-            self.bus.joypad.release(Button::B);
+            joypad.release(Button::B);
         }
         if input.key_released(VirtualKeyCode::W) {
             change = true;
-            self.bus.joypad.release(Button::Up);
+            joypad.release(Button::Up);
         }
         if input.key_released(VirtualKeyCode::S) {
             change = true;
-            self.bus.joypad.release(Button::Down);
+            joypad.release(Button::Down);
         }
         if input.key_released(VirtualKeyCode::A) {
             change = true;
-            self.bus.joypad.release(Button::Left);
+            joypad.release(Button::Left);
         }
         if input.key_released(VirtualKeyCode::D) {
             change = true;
-            self.bus.joypad.release(Button::Right);
+            joypad.release(Button::Right);
         }
         if input.key_released(VirtualKeyCode::N) {
             change = true;
-            self.bus.joypad.release(Button::Start);
+            joypad.release(Button::Start);
         }
         if input.key_released(VirtualKeyCode::B) {
             change = true;
-            self.bus.joypad.release(Button::Select);
+            joypad.release(Button::Select);
         }
         if change {
             self.bus.set_interrupt_flag(Interrupt::Joypad, true);

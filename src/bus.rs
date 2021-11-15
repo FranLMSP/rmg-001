@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::utils::{
     get_bit,
     BitIndex,
@@ -52,11 +54,11 @@ pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
     pub reset_timer: bool,
-    pub joypad: Joypad,
+    joypad: Rc<RefCell<Joypad>>,
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn new(joypad: Rc<RefCell<Joypad>>) -> Self {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
             println!("Please, specify a ROM file");
@@ -97,7 +99,7 @@ impl Bus {
             data,
             game_rom,
             reset_timer: false,
-            joypad: Joypad::new(),
+            joypad,
         }
     }
 
@@ -107,7 +109,7 @@ impl Bus {
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
         } else if address == JOYPAD_ADDRESS {
-            return self.joypad.read(self.data[address as usize]);
+            return self.joypad.borrow().read(self.data[address as usize]);
         }
         self.data[address as usize]
     }
