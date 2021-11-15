@@ -156,9 +156,8 @@ impl Bus {
             let source = (data as u16) * 0x100;
             let mut count: u16 = 0;
             let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
-            let mut ppu = self.ppu.borrow_mut();
             while count < 160 {
-                ppu.write_oam(oam_addr + count, self.data[(source + count) as usize]);
+                self.ppu.borrow_mut().write_oam(oam_addr + count, self.data[(source + count) as usize]);
                 count += 1;
             }
         } else {

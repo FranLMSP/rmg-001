@@ -107,13 +107,11 @@ impl Emulator {
 
     pub fn run(&mut self, cpu_cycles: Cycles, frame_buffer: &mut [u8]) {
         self.cpu.reset_cycles();
-        let mut ppu = self.ppu.borrow_mut();
-        let mut timer = self.timer.borrow_mut();
         while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
             let cycles = self.cpu.get_last_op_cycles().to_t();
-            ppu.do_cycles(&mut self.bus, cycles, frame_buffer);
-            timer.do_cycles(&mut self.bus, cycles);
+            self.ppu.borrow_mut().do_cycles(&mut self.bus, cycles, frame_buffer);
+            self.timer.borrow_mut().do_cycles(&mut self.bus, cycles);
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));

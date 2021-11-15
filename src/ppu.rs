@@ -184,8 +184,9 @@ impl Sprite {
                 let tile_line = y.rem_euclid(height) * 2;
                 let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
-                let tile_byte_1 = vram[addr as usize - 0x2000];
-                let tile_byte_2 = vram[addr as usize - 0x2000 + 1];
+                let vram_start = VIDEO_RAM.min().unwrap();
+                let tile_byte_1 = vram[(addr - vram_start) as usize];
+                let tile_byte_2 = vram[(addr - vram_start + 1) as usize];
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.bit_pixels = Some(bit_pixels_array);
 
