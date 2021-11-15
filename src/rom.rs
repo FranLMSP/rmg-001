@@ -190,15 +190,15 @@ impl ROM {
                 };
             },
             MBC::MBC1 => {
-                if BANK_ZERO.in_range(address) {
+                if BANK_ZERO.contains(&address) {
                     return self.data[address as usize];
-                } else if BANK_SWITCHABLE.in_range(address) {
+                } else if BANK_SWITCHABLE.contains(&address) {
                     return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
-                } else if EXTERNAL_RAM.in_range(address) {
+                } else if EXTERNAL_RAM.contains(&address) {
                     if !self.info.has_ram {
                         return 0xFF;
                     }
-                    return match self.ram.get((address - EXTERNAL_RAM.begin() + (0x2000 * self.ram_bank as u16)) as usize) {
+                    return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
                         Some(data) => *data,
                         None => 0xFF,
                     };
@@ -235,11 +235,11 @@ impl ROM {
                         1 => BankingMode::Advanced,
                         _ => unreachable!(),
                     }
-                } else if EXTERNAL_RAM.in_range(address) {
+                } else if EXTERNAL_RAM.contains(&address) {
                     if !self.ram_enable || !self.info.has_ram {
                         return;
                     }
-                    let address = address as usize - EXTERNAL_RAM.begin() as usize + (EXTERNAL_RAM.begin() as usize * self.ram_bank as usize);
+                    let address = address as usize - EXTERNAL_RAM.min().unwrap() as usize + (EXTERNAL_RAM.min().unwrap() as usize * self.ram_bank as usize);
                     if let Some(elem) = self.ram.get_mut(address) {
                         *elem = data;
                     }

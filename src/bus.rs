@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::ops::RangeInclusive;
 use crate::utils::{
     get_bit,
     BitIndex,
@@ -16,37 +17,18 @@ use crate::cpu::{Interrupt};
 use crate::timer::{Timer, TIMER_DIVIDER_REGISTER_ADDRESS};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
 
-pub struct AddressRange {
-    begin: u16,
-    end: u16,
-}
-
-impl AddressRange {
-    pub fn begin(&self) -> u16 {
-        self.begin
-    }
-
-    pub fn end(&self) -> u16 {
-        self.end
-    }
-
-    pub fn in_range(&self, address: u16) -> bool {
-        address >= self.begin && address <= self.end
-    }
-}
-
-pub const BANK_ZERO: AddressRange                 = AddressRange{begin: 0x0000, end: 0x3FFF};
-pub const BANK_SWITCHABLE: AddressRange           = AddressRange{begin: 0x4000, end: 0x7FFF};
-pub const VIDEO_RAM: AddressRange                 = AddressRange{begin: 0x8000, end: 0x9FFF};
-pub const EXTERNAL_RAM: AddressRange              = AddressRange{begin: 0xA000, end: 0xBFFF};
-pub const WORK_RAM_1: AddressRange                = AddressRange{begin: 0xC000, end: 0xCFFF};
-pub const WORK_RAM_2: AddressRange                = AddressRange{begin: 0xD000, end: 0xDFFF};
-pub const ECHO_RAM: AddressRange                  = AddressRange{begin: 0xE000, end: 0xFDFF};
-pub const SPRITE_ATTRIBUTE_TABLE: AddressRange    = AddressRange{begin: 0xFE00, end: 0xFE9F};
-pub const NOT_USABLE: AddressRange                = AddressRange{begin: 0xFEA0, end: 0xFEFF};
-pub const IO_REGISTERS: AddressRange              = AddressRange{begin: 0xFF00, end: 0xFF7F};
-pub const HIGH_RAM: AddressRange                  = AddressRange{begin: 0xFF80, end: 0xFFFE};
-pub const INTERRUPT_ENABLE_REGISTER: AddressRange = AddressRange{begin: 0xFFFF, end: 0xFFFF};
+pub const BANK_ZERO: RangeInclusive<u16>                 = 0x0000..=0x3FFF;
+pub const BANK_SWITCHABLE: RangeInclusive<u16>           = 0x4000..=0x7FFF;
+pub const VIDEO_RAM: RangeInclusive<u16>                 = 0x8000..=0x9FFF;
+pub const EXTERNAL_RAM: RangeInclusive<u16>              = 0xA000..=0xBFFF;
+pub const WORK_RAM_1: RangeInclusive<u16>                = 0xC000..=0xCFFF;
+pub const WORK_RAM_2: RangeInclusive<u16>                = 0xD000..=0xDFFF;
+pub const ECHO_RAM: RangeInclusive<u16>                  = 0xE000..=0xFDFF;
+pub const SPRITE_ATTRIBUTE_TABLE: RangeInclusive<u16>    = 0xFE00..=0xFE9F;
+pub const NOT_USABLE: RangeInclusive<u16>                = 0xFEA0..=0xFEFF;
+pub const IO_REGISTERS: RangeInclusive<u16>              = 0xFF00..=0xFF7F;
+pub const HIGH_RAM: RangeInclusive<u16>                  = 0xFF80..=0xFFFE;
+pub const INTERRUPT_ENABLE_REGISTER: RangeInclusive<u16> = 0xFFFF..=0xFFFF;
 pub const INTERRUPT_ENABLE_ADDRESS: u16 = 0xFFFF;
 pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
@@ -104,7 +86,7 @@ impl Bus {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address)  || EXTERNAL_RAM.in_range(address) {
+        if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
             return self.game_rom.read(address);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
@@ -125,19 +107,19 @@ impl Bus {
             // print!("{}", data as char); 
         }
 
-        if BANK_ZERO.in_range(address) || BANK_SWITCHABLE.in_range(address) || EXTERNAL_RAM.in_range(address) {
+        if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
             self.game_rom.write(address, data);
-        } else if WORK_RAM_1.in_range(address) || WORK_RAM_2.in_range(address) {
+        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) {
             self.data[address as usize] = data;
             // Copy to the ECHO RAM
             if address <= 0xDDFF {
-                self.data[(ECHO_RAM.begin() + (address - WORK_RAM_1.begin())) as usize] = data;
+                self.data[(ECHO_RAM.min().unwrap() + (address - WORK_RAM_1.min().unwrap())) as usize] = data;
             }
-        } else if EXTERNAL_RAM.in_range(address) {
+        } else if EXTERNAL_RAM.contains(&address) {
             // self.game_rom.write(address, data);
-        } else if ECHO_RAM.in_range(address) {
+        } else if ECHO_RAM.contains(&address) {
             self.data[address as usize] = data;
-            self.data[(WORK_RAM_1.begin() + (address - ECHO_RAM.begin())) as usize] = data; // Copy to the working RAM
+            self.data[(WORK_RAM_1.min().unwrap() + (address - ECHO_RAM.min().unwrap())) as usize] = data; // Copy to the working RAM
         } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.timer.borrow_mut().reset();
         } else if address == LCD_CONTROL_ADDRESS {
@@ -163,7 +145,7 @@ impl Bus {
             self.data[address as usize] = data;
             let source = (data as usize) * 0x100;
             let mut count = 0;
-            let oam_addr = SPRITE_ATTRIBUTE_TABLE.begin() as usize;
+            let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap() as usize;
             while count < 160 {
                 self.data[oam_addr + count] = self.data[source + count];
                 count += 1;

@@ -340,8 +340,8 @@ impl PPU {
         let palette_0 = bus.read(OBJECT_PALETTE_0_ADDRESS);
         let palette_1 = bus.read(OBJECT_PALETTE_1_ADDRESS);
         let long_sprites = self.get_lcd_control(bus, LCDControl::ObjectSize);
-        let mut addr = SPRITE_ATTRIBUTE_TABLE.begin();
-        while addr <= SPRITE_ATTRIBUTE_TABLE.end() {
+        let mut addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
+        while addr <= SPRITE_ATTRIBUTE_TABLE.max().unwrap() {
             // The gameboy only supports 10 sprites per line,
             // but since we are on an emulator we can avoud that limitation
             if self.sprite_buffer.len() >= 10 {
