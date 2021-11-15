@@ -3,7 +3,7 @@ use crate::utils::{
     get_bit,
     set_bit,
 };
-use crate::bus::{Bus, SPRITE_ATTRIBUTE_TABLE};
+use crate::bus::{Bus, VIDEO_RAM, SPRITE_ATTRIBUTE_TABLE};
 use crate::cpu::{Cycles, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;
@@ -142,7 +142,7 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, bus: &Bus, last_bg_index: u8) -> Option<(Pixel, bool)> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8) -> Option<(Pixel, bool)> {
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -184,8 +184,8 @@ impl Sprite {
                 let tile_line = y.rem_euclid(height) * 2;
                 let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
-                let tile_byte_1 = bus.read(addr);
-                let tile_byte_2 = bus.read(addr + 1);
+                let tile_byte_1 = vram[addr as usize - 0x2000];
+                let tile_byte_2 = vram[addr as usize - 0x2000 + 1];
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.bit_pixels = Some(bit_pixels_array);
 
@@ -216,6 +216,8 @@ pub struct PPU {
     scroll_y: u8,
     window_x: u8,
     window_y: u8,
+    vram: [u8; 0x2000],
+    oam: [u8; 0xA0],
 }
 
 impl PPU {
@@ -235,7 +237,25 @@ impl PPU {
             scroll_y: 0,
             window_x: 0,
             window_y: 0,
+            vram: [0; 0x2000],
+            oam: [0; 0xA0],
         }
+    }
+
+    pub fn read_vram(&self, address: u16) -> u8 {
+        self.vram[(address - VIDEO_RAM.min().unwrap()) as usize]
+    }
+
+    pub fn write_vram(&mut self, address: u16, data: u8) {
+        self.vram[(address - VIDEO_RAM.min().unwrap()) as usize] = data;
+    }
+
+    pub fn read_oam(&self, address: u16) -> u8 {
+        self.oam[(address - SPRITE_ATTRIBUTE_TABLE.min().unwrap()) as usize]
+    }
+
+    pub fn write_oam(&mut self, address: u16, data: u8) {
+        self.oam[(address - SPRITE_ATTRIBUTE_TABLE.min().unwrap()) as usize] = data;
     }
 
     pub fn reset_cycles(&mut self) {
@@ -294,7 +314,6 @@ impl PPU {
                 self.window_y_counter = 0;
             }
             bus.force_write(LCD_Y_ADDRESS, self.lcd_y);
-            // self.check_lyc(bus);
             self.stat_interrupt(bus);
         }
     }
@@ -323,15 +342,6 @@ impl PPU {
         }
     }
 
-    fn check_lyc(&mut self, bus: &mut Bus) {
-        let lyc_compare = self.lcd_y == bus.read(LCD_Y_COMPARE_ADDRESS);
-        PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
-        if !self.state && lyc_compare && PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt) {
-            bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
-            self.state = true;
-        }
-    }
-
     fn oam_search(&mut self, bus: &Bus) {
         if !self.get_lcd_control(bus, LCDControl::ObjectEnable) {
             return;
@@ -348,8 +358,8 @@ impl PPU {
                 // todo!("Make a setting for the 10 sprites per scanline");
                 break;
             }
-            let y = bus.read(addr);
-            let x = bus.read(addr + 1);
+            let y = self.read_oam(addr);
+            let x = self.read_oam(addr + 1);
 
             if x == 0 {
                 addr += 4;
@@ -369,8 +379,8 @@ impl PPU {
             }
 
 
-            let tile_number = bus.read(addr + 2);
-            let attributes = bus.read(addr + 3);
+            let tile_number = self.read_oam(addr + 2);
+            let attributes = self.read_oam(addr + 3);
 
             let palette_zero = !get_bit(attributes, BitIndex::I4);
             self.sprite_buffer.push(Sprite {
@@ -394,10 +404,10 @@ impl PPU {
         self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
     }
 
-    fn find_sprite_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<(Pixel, bool)> {
+    fn find_sprite_pixel(&mut self, lcd_x: u8) -> Option<(Pixel, bool)> {
         let lcd_y = self.lcd_y;
         for sprite in &mut self.sprite_buffer {
-            if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, bus, self.last_bg_index) {
+            if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, &self.vram, self.last_bg_index) {
                 return Some(pixel);
             }
         }
@@ -452,12 +462,12 @@ impl PPU {
         bus.force_write(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_tile_bytes(x: u8, y: u8, tilemap_area: u16, default_method: bool, bus: &Bus) -> (u8, u8) {
+    fn get_tile_bytes(&self, x: u8, y: u8, tilemap_area: u16, default_method: bool) -> (u8, u8) {
         let index_x = x as u16 / 8;
         let index_y = (y as u16 / 8) * 32;
         let index = index_x + index_y;
         let tile_line = (y).rem_euclid(8) * 2;
-        let tile_number = bus.read(tilemap_area + index as u16) as u16;
+        let tile_number = self.read_vram(tilemap_area + index as u16) as u16;
         let addr = if default_method {
             0x8000 + tile_line as u16 + (tile_number * 16)
         } else {
@@ -467,7 +477,7 @@ impl PPU {
             (base + tile_line + (tile_number * 16)) as u16
         };
 
-        (bus.read(addr), bus.read(addr + 1))
+        (self.read_vram(addr), self.read_vram(addr + 1))
     }
 
     fn get_window_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
@@ -506,7 +516,7 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
+                let (tile_byte_1, tile_byte_2) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_window_pixels = Some(bit_pixels_array);
 
@@ -542,7 +552,7 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2) = PPU::get_tile_bytes(x, y, tilemap_area, default_mode, bus);
+                let (tile_byte_1, tile_byte_2) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_background_pixels = Some(bit_pixels_array);
 
@@ -581,7 +591,7 @@ impl PPU {
                 frame_buffer[idx + 2] = rgba[2];
             }
             if self.get_lcd_control(bus, LCDControl::ObjectEnable) {
-                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x, bus) {
+                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x) {
                     let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
                         true => SPRITE_0_COLORS,
                         false => SPRITE_1_COLORS,

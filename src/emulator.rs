@@ -11,9 +11,9 @@ use crate::timer::Timer;
 use crate::joypad::{Joypad, Button};
 
 pub struct Emulator {
-    cpu: CPU,
-    ppu: PPU,
     bus: Bus,
+    cpu: CPU,
+    ppu: Rc<RefCell<PPU>>,
     timer: Rc<RefCell<Timer>>,
     joypad: Rc<RefCell<Joypad>>,
 }
@@ -21,11 +21,12 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Self {
         let joypad = Rc::new(RefCell::new(Joypad::new()));
-        let timer = Rc::new(RefCell::new(Timer::new()));
+        let timer  = Rc::new(RefCell::new(Timer::new()));
+        let ppu    = Rc::new(RefCell::new(PPU::new()));
         Self {
+            bus: Bus::new(Rc::clone(&ppu), Rc::clone(&joypad), Rc::clone(&timer)),
             cpu: CPU::new(),
-            ppu: PPU::new(),
-            bus: Bus::new(Rc::clone(&joypad), Rc::clone(&timer)),
+            ppu,
             timer,
             joypad,
         }
@@ -106,10 +107,13 @@ impl Emulator {
 
     pub fn run(&mut self, cpu_cycles: Cycles, frame_buffer: &mut [u8]) {
         self.cpu.reset_cycles();
+        let mut ppu = self.ppu.borrow_mut();
+        let mut timer = self.timer.borrow_mut();
         while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), frame_buffer);
-            self.timer.borrow_mut().do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
+            let cycles = self.cpu.get_last_op_cycles().to_t();
+            ppu.do_cycles(&mut self.bus, cycles, frame_buffer);
+            timer.do_cycles(&mut self.bus, cycles);
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
@@ -122,7 +126,7 @@ impl Emulator {
         let mut frame: [u8; 144 * 160 * 4] = [0; 144 * 160 * 4];
         while !exit {
             self.cpu.run(&mut self.bus);
-            self.ppu.do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), &mut frame);
+            self.ppu.borrow_mut().do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t(), &mut frame);
             self.timer.borrow_mut().do_cycles(&mut self.bus, self.cpu.get_last_op_cycles().to_t());
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1

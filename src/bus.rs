@@ -8,6 +8,7 @@ use crate::utils::{
 };
 use crate::rom::ROM;
 use crate::ppu::{
+    PPU,
     LCD_STATUS_ADDRESS,
     LCD_CONTROL_ADDRESS,
     LCD_Y_ADDRESS,
@@ -35,12 +36,13 @@ pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
+    ppu: Rc<RefCell<PPU>>,
     joypad: Rc<RefCell<Joypad>>,
     timer: Rc<RefCell<Timer>>,
 }
 
 impl Bus {
-    pub fn new(joypad: Rc<RefCell<Joypad>>, timer: Rc<RefCell<Timer>>) -> Self {
+    pub fn new(ppu: Rc<RefCell<PPU>>, joypad: Rc<RefCell<Joypad>>, timer: Rc<RefCell<Timer>>) -> Self {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
             println!("Please, specify a ROM file");
@@ -80,6 +82,7 @@ impl Bus {
         Self {
             data,
             game_rom,
+            ppu,
             joypad,
             timer,
         }
@@ -90,6 +93,10 @@ impl Bus {
             return self.game_rom.read(address);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
+        } else if VIDEO_RAM.contains(&address) {
+            return self.ppu.borrow().read_vram(address);
+        } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
+            return self.ppu.borrow().read_oam(address);
         } else if address == JOYPAD_ADDRESS {
             return self.joypad.borrow().read(self.data[address as usize]);
         }  else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
@@ -140,14 +147,18 @@ impl Bus {
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[address as usize];
             self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
+        } else if VIDEO_RAM.contains(&address) {
+            return self.ppu.borrow_mut().write_vram(address, data);
+        } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
+            return self.ppu.borrow_mut().write_oam(address, data);
         } else if address == DMA_ADDRESS {
-            // the idea is: when something gets written to $FF46, multiply it by 0x100, then copy 160 bytes starting from that memory location into OAM
             self.data[address as usize] = data;
-            let source = (data as usize) * 0x100;
-            let mut count = 0;
-            let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap() as usize;
+            let source = (data as u16) * 0x100;
+            let mut count: u16 = 0;
+            let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
+            let mut ppu = self.ppu.borrow_mut();
             while count < 160 {
-                self.data[oam_addr + count] = self.data[source + count];
+                ppu.write_oam(oam_addr + count, self.data[(source + count) as usize]);
                 count += 1;
             }
         } else {
