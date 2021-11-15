@@ -253,10 +253,6 @@ impl PPU {
             return;
         }
         self.lcd_y = bus.read(LCD_Y_ADDRESS);
-        self.scroll_x = bus.read(SCROLL_X_ADDRESS);
-        self.scroll_y = bus.read(SCROLL_Y_ADDRESS);
-        self.window_x = bus.read(WINDOW_X_ADDRESS);
-        self.window_y = bus.read(WINDOW_Y_ADDRESS);
 
         if self.lcd_y < 144 {
             if self.cycles.0 <= 80 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
@@ -266,6 +262,10 @@ impl PPU {
                 self.oam_search(bus);
             } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
+                self.scroll_x = bus.read(SCROLL_X_ADDRESS);
+                self.scroll_y = bus.read(SCROLL_Y_ADDRESS);
+                self.window_x = bus.read(WINDOW_X_ADDRESS);
+                self.window_y = bus.read(WINDOW_Y_ADDRESS);
                 PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
                 self.draw_line(bus, frame_buffer);
             } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
@@ -333,10 +333,10 @@ impl PPU {
     }
 
     fn oam_search(&mut self, bus: &Bus) {
-        self.sprite_buffer = Vec::new();
         if !self.get_lcd_control(bus, LCDControl::ObjectEnable) {
             return;
         }
+        self.sprite_buffer = Vec::new();
         let palette_0 = bus.read(OBJECT_PALETTE_0_ADDRESS);
         let palette_1 = bus.read(OBJECT_PALETTE_1_ADDRESS);
         let long_sprites = self.get_lcd_control(bus, LCDControl::ObjectSize);
@@ -471,14 +471,17 @@ impl PPU {
     }
 
     fn get_window_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
+        if !self.get_lcd_control(bus, LCDControl::WindowEnable) {
+            return None;
+        }
+
         let lcd_y = self.lcd_y;
         let window_x = self.window_x;
         let window_y = self.window_y;
 
         if
-            !self.get_lcd_control(bus, LCDControl::WindowEnable) ||
-            lcd_x < window_x.saturating_sub(7) ||
             lcd_y < window_y ||
+            lcd_x < window_x.saturating_sub(7) ||
             window_y >= 144 ||
             window_x.saturating_sub(7) >= 160
         {
@@ -565,30 +568,28 @@ impl PPU {
         while (lcd_x as u32) < LCD_WIDTH {
             let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
-            if let Some(background_pixel) = self.get_background_pixel(lcd_x, bus) {
-                let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
-                frame_buffer[idx]     = rgba[0];
-                frame_buffer[idx + 1] = rgba[1];
-                frame_buffer[idx + 2] = rgba[2];
-                frame_buffer[idx + 3] = rgba[3];
-            }
             if let Some(window_pixel) = self.get_window_pixel(lcd_x, bus) {
                 window_drawn = true;
                 let rgba = PPU::get_rgba(window_pixel, WINDOW_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
-                frame_buffer[idx + 3] = rgba[3];
-            }
-            if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x, bus) {
-                let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
-                    true => SPRITE_0_COLORS,
-                    false => SPRITE_1_COLORS,
-                });
+            } else if let Some(background_pixel) = self.get_background_pixel(lcd_x, bus) {
+                let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
-                frame_buffer[idx + 3] = rgba[3];
+            }
+            if self.get_lcd_control(bus, LCDControl::ObjectEnable) {
+                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x, bus) {
+                    let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
+                        true => SPRITE_0_COLORS,
+                        false => SPRITE_1_COLORS,
+                    });
+                    frame_buffer[idx]     = rgba[0];
+                    frame_buffer[idx + 1] = rgba[1];
+                    frame_buffer[idx + 2] = rgba[2];
+                }
             }
 
             lcd_x += 1;
