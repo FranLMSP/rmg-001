@@ -14,10 +14,17 @@ pub const RAM_SIZE_ADDRESS: u16 = 0x0149;
 pub const ROM_SIZE_ADDRESS: u16 = 0x0148;
 pub const DESTINATION_CODE_ADDRESS: u16 = 0x014A;
 
-#[derive(Debug)]
-enum Region {
-    Japanese,
-    NonJapanese,
+pub fn load_rom(filename: &str) -> std::io::Result<Box<dyn ROM>> {
+    let mut file = File::open(filename)?;
+    let mut data = vec![];
+    file.read_to_end(&mut data)?;
+    let info = ROMInfo::from_bytes(&data);
+
+    Ok(match info.mbc {
+        MBC::NoMBC => Box::new(NoMBC::new(data, info)),
+        MBC::MBC1 => Box::new(MBC1::new(data, info)),
+        _ => unimplemented!(),
+    })
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -34,6 +41,12 @@ enum MBC {
     MMM01,
     PocketCamera,
     BandaiTIMA5,
+}
+
+#[derive(Debug)]
+enum Region {
+    Japanese,
+    NonJapanese,
 }
 
 #[derive(Debug)]
@@ -144,7 +157,41 @@ impl ROMInfo {
     }
 }
 
-pub struct ROM {
+pub trait ROM {
+    fn read(&self, address: u16) -> u8;
+    fn write(&mut self, address: u16, data: u8);
+}
+
+pub struct NoMBC {
+    data: Vec<u8>,
+    info: ROMInfo,
+}
+
+impl NoMBC {
+    pub fn new(data: Vec<u8>, info: ROMInfo) -> Self {
+        let rom = Self {
+            data,
+            info,
+        };
+        println!("MBC {:?}", rom.info.mbc);
+        println!("Region {:?}", rom.info.region);
+
+        rom
+    }
+}
+
+impl ROM for NoMBC {
+    fn read(&self, address: u16) -> u8 {
+        match self.data.get(address as usize) {
+            Some(byte) => *byte,
+            None => 0xFF,
+        }
+    }
+
+    fn write(&mut self, _address: u16, _data: u8) {}
+}
+
+pub struct MBC1 {
     data: Vec<u8>,
     info: ROMInfo,
     ram: Vec<u8>,
@@ -154,21 +201,15 @@ pub struct ROM {
     banking_mode: BankingMode,
 }
 
-impl ROM {
-    pub fn load_file(filename: &str) -> std::io::Result<Self> {
-        let mut file = File::open(filename)?;
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-
-        let info = ROMInfo::from_bytes(&data);
+impl MBC1 {
+    fn new(data: Vec<u8>, info: ROMInfo) -> Self {
         println!("MBC {:?}", info.mbc);
+        println!("Region {:?}", info.region);
         println!("Has RAM {}", info.has_ram);
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
-        println!("Region {:?}", info.region);
         let ram = Vec::with_capacity(info.ram_size() as usize);
-
-        Ok(Self {
+        Self {
             data,
             info,
             ram,
@@ -176,84 +217,69 @@ impl ROM {
             ram_bank: 0,
             ram_enable: false,
             banking_mode: BankingMode::Simple,
-        })
-    }
-
-    pub fn read(&self, address: u16) -> u8 {
-        match self.info.mbc {
-            MBC::NoMBC => {
-                return match self.data.get(address as usize) {
-                    Some(data) => *data,
-                    None => 0xFF,
-                };
-            },
-            MBC::MBC1 => {
-                if BANK_ZERO.contains(&address) {
-                    return self.data[address as usize];
-                } else if BANK_SWITCHABLE.contains(&address) {
-                    return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
-                } else if EXTERNAL_RAM.contains(&address) {
-                    if !self.info.has_ram {
-                        return 0xFF;
-                    }
-                    return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
-                        Some(data) => *data,
-                        None => 0xFF,
-                    };
-                }
-                unreachable!("ROM read: Address {} not valid", address);
-            },
-            _ => unimplemented!(),
         }
     }
 
-    pub fn write(&mut self, address: u16, data: u8) {
-        match self.info.mbc {
-            MBC::NoMBC => {},
-            MBC::MBC1 => {
-                if address <= 0x1FFF { // RAM enable register
-                    if !self.info.has_ram {
-                        return;
-                    }
-                    self.ram_enable = match data & 0x0F {
-                        0x0A => true,
-                        _ => false,
-                    };
-                    return;
-                } else if address >= 0x2000 && address <= 0x3FFF { // ROM bank number register
-                    // println!("Switch bank to {:02X}", data);
-                    self.switch_rom_bank(data as u16 & 0b00011111);
-                } else if address >= 0x4000 && address <= 0x5FFF { // ROM and RAM bank number register
-                    // println!("RAM bank {:02X}", data);
-                    self.ram_bank = data & 0b11;
-                } else if address >= 0x6000 && address <= 0x7FFF { // Banking mode select
-                    self.banking_mode = match data & 1 {
-                        0 => BankingMode::Simple,
-                        1 => BankingMode::Advanced,
-                        _ => unreachable!(),
-                    }
-                } else if EXTERNAL_RAM.contains(&address) {
-                    if !self.ram_enable || !self.info.has_ram {
-                        return;
-                    }
-                    let address = address as usize - EXTERNAL_RAM.min().unwrap() as usize + (EXTERNAL_RAM.min().unwrap() as usize * self.ram_bank as usize);
-                    if let Some(elem) = self.ram.get_mut(address) {
-                        *elem = data;
-                    }
-                    self.switch_rom_bank(self.rom_bank + (data as u16 >> 5));
-                }
-            },
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn switch_rom_bank(&mut self, bank: u16) {
+    fn switch_rom_bank(&mut self, bank: u16) {
         self.rom_bank = bank;
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
         }
         if self.rom_bank == 0 {
             self.rom_bank = 1;
+        }
+    }
+}
+
+impl ROM for MBC1 {
+    fn read(&self, address: u16) -> u8 {
+        if BANK_ZERO.contains(&address) {
+            return self.data[address as usize];
+        } else if BANK_SWITCHABLE.contains(&address) {
+            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
+        } else if EXTERNAL_RAM.contains(&address) {
+            if !self.info.has_ram {
+                return 0xFF;
+            }
+            return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
+                Some(data) => *data,
+                None => 0xFF,
+            };
+        }
+        unreachable!("ROM read: Address {} not valid", address);
+    }
+
+    fn write(&mut self, address: u16, data: u8) {
+        if address <= 0x1FFF { // RAM enable register
+            if !self.info.has_ram {
+                return;
+            }
+            self.ram_enable = match data & 0x0F {
+                0x0A => true,
+                _ => false,
+            };
+            return;
+        } else if address >= 0x2000 && address <= 0x3FFF { // ROM bank number register
+            // println!("Switch bank to {:02X}", data);
+            self.switch_rom_bank(data as u16 & 0b00011111);
+        } else if address >= 0x4000 && address <= 0x5FFF { // ROM and RAM bank number register
+            // println!("RAM bank {:02X}", data);
+            self.ram_bank = data & 0b11;
+        } else if address >= 0x6000 && address <= 0x7FFF { // Banking mode select
+            self.banking_mode = match data & 1 {
+                0 => BankingMode::Simple,
+                1 => BankingMode::Advanced,
+                _ => unreachable!(),
+            }
+        } else if EXTERNAL_RAM.contains(&address) {
+            if !self.ram_enable || !self.info.has_ram {
+                return;
+            }
+            let address = address as usize - EXTERNAL_RAM.min().unwrap() as usize + (EXTERNAL_RAM.min().unwrap() as usize * self.ram_bank as usize);
+            if let Some(elem) = self.ram.get_mut(address) {
+                *elem = data;
+            }
+            self.switch_rom_bank(self.rom_bank + (data as u16 >> 5));
         }
     }
 }

@@ -2,7 +2,7 @@ use std::ops::RangeInclusive;
 use crate::utils::{
     join_bytes
 };
-use crate::rom::ROM;
+use crate::rom::{ROM, load_rom};
 use crate::ppu::{
     PPU,
     DMA_ADDRESS,
@@ -27,7 +27,7 @@ pub const INTERRUPT_ENABLE_ADDRESS: u16 = 0xFFFF;
 pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
 pub struct Bus {
-    game_rom: ROM,
+    game_rom: Box<dyn ROM>,
     data: [u8; 0x10000],
     pub ppu: PPU,
     pub joypad: Joypad,
@@ -41,7 +41,7 @@ impl Bus {
             println!("Please, specify a ROM file");
             std::process::exit(1);
         }
-        let game_rom = match ROM::load_file(&args[1]) {
+        let game_rom = match load_rom(&args[1]) {
             Ok(rom) => rom,
             Err(err) => {
                 println!("Could not read ROM: {}", err);
