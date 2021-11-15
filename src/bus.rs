@@ -48,37 +48,38 @@ impl Bus {
                 std::process::exit(1);
             },
         };
-        let mut data = [0x00; 0x10000];
-        // Hardware registers after the bootrom
-        data[0xFF00] = 0xCF;
-        data[0xFF01] = 0x00;
-        data[0xFF02] = 0x7E;
-        data[0xFF04] = 0x18;
-        data[0xFF05] = 0x00;
-        data[0xFF06] = 0x00;
-        data[0xFF07] = 0xF8;
-        data[0xFF0F] = 0xE1;
-
-        data[0xFF40] = 0x91;
-        data[0xFF41] = 0x81;
-        data[0xFF42] = 0x00;
-        data[0xFF43] = 0x00;
-        data[0xFF44] = 0x91;
-        data[0xFF45] = 0x00;
-        data[0xFF46] = 0xFF;
-        data[0xFF47] = 0xFC;
-
-        data[0xFF4A] = 0x00;
-        data[0xFF4B] = 0x00;
-        data[0xFFFF] = 0x00;
-
-        Self {
-            data,
+        let mut bus = Self {
+            data: [0x00; 0x10000],
             game_rom,
             ppu: PPU::new(),
             joypad: Joypad::new(),
             timer: Timer::new(),
-        }
+        };
+
+        // Hardware registers after the bootrom
+        bus.write(0xFF00, 0xCF);
+        bus.write(0xFF01, 0x00);
+        bus.write(0xFF02, 0x7E);
+        bus.write(0xFF04, 0x18);
+        bus.write(0xFF05, 0x00);
+        bus.write(0xFF06, 0x00);
+        bus.write(0xFF07, 0xF8);
+        bus.write(0xFF0F, 0xE1);
+
+        bus.write(0xFF40, 0x91);
+        bus.write(0xFF41, 0x81);
+        bus.write(0xFF42, 0x00);
+        bus.write(0xFF43, 0x00);
+        bus.write(0xFF44, 0x91);
+        bus.write(0xFF45, 0x00);
+        bus.write(0xFF46, 0xFF);
+        bus.write(0xFF47, 0xFC);
+
+        bus.write(0xFF4A, 0x00);
+        bus.write(0xFF4B, 0x00);
+        bus.write(0xFFFF, 0x00);
+
+        bus
     }
 
     pub fn read(&self, address: u16) -> u8 {
