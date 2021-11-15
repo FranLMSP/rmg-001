@@ -3,7 +3,7 @@ use crate::utils::{
     get_bit,
     set_bit,
 };
-use crate::bus::{Bus, VIDEO_RAM, SPRITE_ATTRIBUTE_TABLE};
+use crate::bus::{SPRITE_ATTRIBUTE_TABLE};
 use crate::cpu::{Cycles, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;
@@ -25,6 +25,7 @@ pub const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
 pub const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
 pub const WINDOW_Y_ADDRESS: u16 = 0xFF4A;
 pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
+
 pub const TILE_MAP_ADDRESS: u16 = 0x9800;
 
 #[derive(Debug, Copy, Clone)]
@@ -184,7 +185,7 @@ impl Sprite {
                 let tile_line = y.rem_euclid(height) * 2;
                 let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
-                let vram_start = VIDEO_RAM.min().unwrap();
+                let vram_start = 0x8000;
                 let tile_byte_1 = vram[(addr - vram_start) as usize];
                 let tile_byte_2 = vram[(addr - vram_start + 1) as usize];
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
@@ -204,6 +205,8 @@ impl Sprite {
 
 pub struct PPU {
     state: bool,
+    vblank_request: bool,
+    lcdstat_request: bool,
     cycles: Cycles,
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
@@ -217,6 +220,7 @@ pub struct PPU {
     scroll_y: u8,
     window_x: u8,
     window_y: u8,
+    io_registers: [u8; 12],
     vram: [u8; 0x2000],
     oam: [u8; 0xA0],
 }
@@ -225,6 +229,8 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             state: false,
+            vblank_request: false,
+            lcdstat_request: false,
             cycles: Cycles(0),
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
@@ -238,25 +244,79 @@ impl PPU {
             scroll_y: 0,
             window_x: 0,
             window_y: 0,
+            io_registers: [0; 12],
             vram: [0; 0x2000],
             oam: [0; 0xA0],
         }
     }
 
+    pub fn set_interrupt(&mut self, interrupt: Interrupt, val: bool) {
+        match interrupt {
+            Interrupt::VBlank => self.vblank_request = val,
+            Interrupt::LCDSTAT => self.lcdstat_request = val,
+            _ => unreachable!(),
+        };
+    }
+
+    pub fn get_interrupt(&self, interrupt: Interrupt) -> bool {
+        match interrupt {
+            Interrupt::VBlank => self.vblank_request,
+            Interrupt::LCDSTAT => self.lcdstat_request,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn is_io_register(address: u16) -> bool {
+        address >= 0xFF40 && address <= 0xFF4B
+    }
+
     pub fn read_vram(&self, address: u16) -> u8 {
-        self.vram[(address - VIDEO_RAM.min().unwrap()) as usize]
+        self.vram[(address - 0x8000) as usize]
     }
 
     pub fn write_vram(&mut self, address: u16, data: u8) {
-        self.vram[(address - VIDEO_RAM.min().unwrap()) as usize] = data;
+        self.vram[(address - 0x8000) as usize] = data;
     }
 
     pub fn read_oam(&self, address: u16) -> u8 {
-        self.oam[(address - SPRITE_ATTRIBUTE_TABLE.min().unwrap()) as usize]
+        self.oam[(address - 0xFE00) as usize]
     }
 
     pub fn write_oam(&mut self, address: u16, data: u8) {
-        self.oam[(address - SPRITE_ATTRIBUTE_TABLE.min().unwrap()) as usize] = data;
+        self.oam[(address - 0xFE00) as usize] = data;
+    }
+
+    pub fn get_register(&self, address: u16) -> u8 {
+        self.io_registers[(address - 0xFF40) as usize]
+    }
+
+    pub fn set_register(&mut self, address: u16, data: u8) {
+        if address == LCD_Y_ADDRESS {
+            return;
+        } else if address == LCD_CONTROL_ADDRESS {
+            let address = address - 0xFF40;
+            self.io_registers[address as usize] = data;
+            // Check if LCD is being turned on or off
+            if (get_bit(data, BitIndex::I7) && !get_bit(self.io_registers[address as usize], BitIndex::I7)) ||
+               !get_bit(data, BitIndex::I7)
+            {
+                self.io_registers[LCD_Y_ADDRESS as usize - 0xFF40] = 0x00;
+                // Set Hblank
+                let byte = self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40];
+                self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40] = byte & 0b11111100;
+            }
+            return;
+        } else if address == LCD_STATUS_ADDRESS {
+            let address = address - 0xFF40;
+            let byte = self.io_registers[address as usize];
+            self.io_registers[address as usize] = (data & 0b11111000) | (byte & 0b00000111);
+        } else {
+            self.io_registers[address as usize - 0xFF40] = data;
+        }
+    }
+
+    pub fn force_set_register(&mut self, address: u16, data: u8) {
+        self.io_registers[address as usize - 0xFF40] = data;
     }
 
     pub fn reset_cycles(&mut self) {
@@ -267,38 +327,38 @@ impl PPU {
         self.cycles.0 += cycles.0;
     }
 
-    pub fn do_cycles(&mut self, bus: &mut Bus, cycles: Cycles, frame_buffer: &mut [u8]) {
+    pub fn do_cycles(&mut self, cycles: Cycles, frame_buffer: &mut [u8]) {
         self.lcd_control_cache = None;
-        if !self.get_lcd_control(bus, LCDControl::LCDEnable) {
+        if !self.get_lcd_control(LCDControl::LCDEnable) {
             self.increment_cycles(cycles);
             return;
         }
-        self.lcd_y = bus.read(LCD_Y_ADDRESS);
+        self.lcd_y = self.get_register(LCD_Y_ADDRESS);
 
         if self.lcd_y < 144 {
-            if self.cycles.0 <= 80 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
+            if self.cycles.0 <= 80 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
                 // Mode 2 OAM scan
-                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
-                self.stat_interrupt(bus);
-                self.oam_search(bus);
-            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
+                self.stat_interrupt();
+                self.oam_search();
+            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                self.scroll_x = bus.read(SCROLL_X_ADDRESS);
-                self.scroll_y = bus.read(SCROLL_Y_ADDRESS);
-                self.window_x = bus.read(WINDOW_X_ADDRESS);
-                self.window_y = bus.read(WINDOW_Y_ADDRESS);
-                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
-                self.draw_line(bus, frame_buffer);
-            } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
+                self.scroll_x = self.get_register(SCROLL_X_ADDRESS);
+                self.scroll_y = self.get_register(SCROLL_Y_ADDRESS);
+                self.window_x = self.get_register(WINDOW_X_ADDRESS);
+                self.window_y = self.get_register(WINDOW_Y_ADDRESS);
+                self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
+                self.draw_line(frame_buffer);
+            } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
-                PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
-                self.stat_interrupt(bus);
+                self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
+                self.stat_interrupt();
             }
-        } else if self.lcd_y >= 144 && !PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
+        } else if self.lcd_y >= 144 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
-            PPU::set_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
-            bus.set_interrupt_flag(Interrupt::VBlank, true);
-            self.stat_interrupt(bus);
+            self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
+            self.set_interrupt(Interrupt::VBlank, true);
+            self.stat_interrupt();
         }
 
         self.increment_cycles(cycles);
@@ -314,43 +374,43 @@ impl PPU {
                 self.lcd_y = 0;
                 self.window_y_counter = 0;
             }
-            bus.force_write(LCD_Y_ADDRESS, self.lcd_y);
-            self.stat_interrupt(bus);
+            self.force_set_register(LCD_Y_ADDRESS, self.lcd_y);
+            self.stat_interrupt();
         }
     }
 
-    fn stat_interrupt(&mut self, bus: &mut Bus) {
+    fn stat_interrupt(&mut self) {
         let prev_state = self.state;
-        let lyc_compare = self.lcd_y == bus.read(LCD_Y_COMPARE_ADDRESS);
-        PPU::set_lcd_status(bus, LCDStatus::LYCFlag, lyc_compare);
+        let lyc_compare = self.lcd_y == self.get_register(LCD_Y_COMPARE_ADDRESS);
+        self.set_lcd_status(LCDStatus::LYCFlag, lyc_compare);
         self.state =
             (
                 lyc_compare &&
-                PPU::get_lcd_status(bus, LCDStatus::LYCInterrupt)
+                self.get_lcd_status(LCDStatus::LYCInterrupt)
             ) ||
             (
-                PPU::get_lcd_status(bus, LCDStatus::Mode2OAMInterrupt) &&
-                PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM))
+                self.get_lcd_status(LCDStatus::Mode2OAMInterrupt) &&
+                self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM))
             ) || (
-                PPU::get_lcd_status(bus, LCDStatus::Mode0HBlankInterrupt) &&
-                PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank))
+                self.get_lcd_status(LCDStatus::Mode0HBlankInterrupt) &&
+                self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank))
             ) || (
-                PPU::get_lcd_status(bus, LCDStatus::Mode1VBlankInterrupt) &&
-                PPU::get_lcd_status(bus, LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank))
+                self.get_lcd_status(LCDStatus::Mode1VBlankInterrupt) &&
+                self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank))
             );
         if self.state && !prev_state {
-            bus.set_interrupt_flag(Interrupt::LCDSTAT, self.state);
+            self.set_interrupt(Interrupt::LCDSTAT, self.state);
         }
     }
 
-    fn oam_search(&mut self, bus: &Bus) {
-        if !self.get_lcd_control(bus, LCDControl::ObjectEnable) {
+    fn oam_search(&mut self) {
+        if !self.get_lcd_control(LCDControl::ObjectEnable) {
             return;
         }
         self.sprite_buffer = Vec::new();
-        let palette_0 = bus.read(OBJECT_PALETTE_0_ADDRESS);
-        let palette_1 = bus.read(OBJECT_PALETTE_1_ADDRESS);
-        let long_sprites = self.get_lcd_control(bus, LCDControl::ObjectSize);
+        let palette_0 = self.get_register(OBJECT_PALETTE_0_ADDRESS);
+        let palette_1 = self.get_register(OBJECT_PALETTE_1_ADDRESS);
+        let long_sprites = self.get_lcd_control(LCDControl::ObjectSize);
         let mut addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
         while addr <= SPRITE_ATTRIBUTE_TABLE.max().unwrap() {
             // The gameboy only supports 10 sprites per line,
@@ -416,11 +476,11 @@ impl PPU {
         return None;
     }
 
-    pub fn get_lcd_control(&mut self, bus: &Bus, control: LCDControl) -> bool {
+    pub fn get_lcd_control(&mut self, control: LCDControl) -> bool {
         let byte = match self.lcd_control_cache {
             Some(byte) => byte,
             None => {
-                let byte = bus.read(LCD_CONTROL_ADDRESS);
+                let byte = self.get_register(LCD_CONTROL_ADDRESS);
                 self.lcd_control_cache = Some(byte);
                 byte
             },
@@ -428,8 +488,8 @@ impl PPU {
         control.get(byte)
     }
 
-    pub fn get_lcd_status(bus: &Bus, status: LCDStatus) -> bool {
-        let byte = bus.read(LCD_STATUS_ADDRESS);
+    pub fn get_lcd_status(&self, status: LCDStatus) -> bool {
+        let byte = self.get_register(LCD_STATUS_ADDRESS);
         match status {
             LCDStatus::LYCInterrupt         => get_bit(byte, BitIndex::I6),
             LCDStatus::Mode2OAMInterrupt    => get_bit(byte, BitIndex::I5),
@@ -445,8 +505,8 @@ impl PPU {
         }
     }
 
-    fn set_lcd_status(bus: &mut Bus, status: LCDStatus, val: bool) {
-        let mut byte = bus.read(LCD_STATUS_ADDRESS);
+    fn set_lcd_status(&mut self, status: LCDStatus, val: bool) {
+        let mut byte = self.get_register(LCD_STATUS_ADDRESS);
         byte = match status {
             LCDStatus::LYCInterrupt         => set_bit(byte, val, BitIndex::I6),
             LCDStatus::Mode2OAMInterrupt    => set_bit(byte, val, BitIndex::I5),
@@ -460,7 +520,7 @@ impl PPU {
                 LCDStatusModeFlag::TransferringToLCD => (byte & 0b11111100) | 3,
             },
         };
-        bus.force_write(LCD_STATUS_ADDRESS, byte);
+        self.force_set_register(LCD_STATUS_ADDRESS, byte);
     }
 
     fn get_tile_bytes(&self, x: u8, y: u8, tilemap_area: u16, default_method: bool) -> (u8, u8) {
@@ -481,8 +541,8 @@ impl PPU {
         (self.read_vram(addr), self.read_vram(addr + 1))
     }
 
-    fn get_window_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
-        if !self.get_lcd_control(bus, LCDControl::WindowEnable) {
+    fn get_window_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
+        if !self.get_lcd_control(LCDControl::WindowEnable) {
             return None;
         }
 
@@ -512,8 +572,8 @@ impl PPU {
                 bit_pixels_array[bit_pixel_index]
             },
             None => {
-                let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
-                let tilemap_area = match self.get_lcd_control(bus, LCDControl::WindowTileMapAddress) {
+                let default_mode = self.get_lcd_control(LCDControl::TileAddressMode);
+                let tilemap_area = match self.get_lcd_control(LCDControl::WindowTileMapAddress) {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
@@ -530,8 +590,8 @@ impl PPU {
         Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
-    fn get_background_pixel(&mut self, lcd_x: u8, bus: &Bus) -> Option<Pixel> {
-        if !self.get_lcd_control(bus, LCDControl::BackgroundPriority) {
+    fn get_background_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
+        if !self.get_lcd_control(LCDControl::BackgroundPriority) {
             return None;
         }
         let lcd_y = self.lcd_y;
@@ -548,8 +608,8 @@ impl PPU {
                 bit_pixels_array[bit_pixel_index]
             },
             None => {
-                let default_mode = self.get_lcd_control(bus, LCDControl::TileAddressMode);
-                let tilemap_area = match self.get_lcd_control(bus, LCDControl::BackgroundTileMapAddress) {
+                let default_mode = self.get_lcd_control(LCDControl::TileAddressMode);
+                let tilemap_area = match self.get_lcd_control(LCDControl::BackgroundTileMapAddress) {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
@@ -565,7 +625,7 @@ impl PPU {
         Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
-    fn draw_line(&mut self, bus: &Bus, frame_buffer: &mut [u8]) {
+    fn draw_line(&mut self, frame_buffer: &mut [u8]) {
         let lcd_y = self.lcd_y;
         if lcd_y as u32 >= LCD_HEIGHT {
             return;
@@ -573,25 +633,25 @@ impl PPU {
         self.current_background_pixels = None;
         self.current_window_pixels = None;
 
-        self.bg_palette = bus.read(BACKGROUND_PALETTE_ADDRESS);
+        self.bg_palette = self.get_register(BACKGROUND_PALETTE_ADDRESS);
         let mut lcd_x: u8 = 0;
         let mut window_drawn = false;
         while (lcd_x as u32) < LCD_WIDTH {
             let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
-            if let Some(window_pixel) = self.get_window_pixel(lcd_x, bus) {
+            if let Some(window_pixel) = self.get_window_pixel(lcd_x) {
                 window_drawn = true;
                 let rgba = PPU::get_rgba(window_pixel, WINDOW_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
-            } else if let Some(background_pixel) = self.get_background_pixel(lcd_x, bus) {
+            } else if let Some(background_pixel) = self.get_background_pixel(lcd_x) {
                 let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
             }
-            if self.get_lcd_control(bus, LCDControl::ObjectEnable) {
+            if self.get_lcd_control(LCDControl::ObjectEnable) {
                 if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x) {
                     let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
                         true => SPRITE_0_COLORS,

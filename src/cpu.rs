@@ -1385,11 +1385,10 @@ impl CPU {
                     let prev_value = self.registers.get(register);
                     self.registers.increment(register, 1);
                     if affect_flags {
-                        let mut byte_compare = 0;
-                        match register.is_8bit() {
-                            true => byte_compare = prev_value.to_be_bytes()[1],
-                            false => byte_compare = prev_value.to_be_bytes()[0],
-                        }
+                        let byte_compare = match register.is_8bit() {
+                            true => prev_value.to_be_bytes()[1],
+                            false => prev_value.to_be_bytes()[0],
+                        };
                         let result = self.registers.get(register);
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, add_half_carry(byte_compare, 1));
@@ -1413,11 +1412,10 @@ impl CPU {
                     let prev_value = self.registers.get(register);
                     self.registers.decrement(register, 1);
                     if affect_flags {
-                        let mut byte_compare = 0;
-                        match register.is_8bit() {
-                            true => byte_compare = prev_value.to_be_bytes()[1],
-                            false => byte_compare = prev_value.to_be_bytes()[0],
-                        }
+                        let byte_compare = match register.is_8bit() {
+                            true => prev_value.to_be_bytes()[1],
+                            false => prev_value.to_be_bytes()[0],
+                        };
                         let result = self.registers.get(register);
                         self.registers.set_flag(FlagRegister::Substract, true);
                         self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(byte_compare, 1));
@@ -1594,46 +1592,51 @@ impl CPU {
                 self.registers.increment(Register::PC, 2);
                 match *opcode {
                     Opcode::RLC(register) => {
-                        let mut result = 0;
-                        let mut val = 0;
-                        if register.is_8bit() {
-                            val = self.registers.get_8bit(register);
-                            result = val.rotate_left(1);
-                            self.registers.set(register, result as u16);
-                        } else {
-                            let addr = self.registers.get(register);
-                            val = bus.read(addr);
-                            result = val.rotate_left(1);
-                            bus.write(addr, result);
-                        }
+                        let (val, result) = match register.is_8bit() {
+                            true => {
+                                let val = self.registers.get_8bit(register);
+                                let result = val.rotate_left(1);
+                                self.registers.set(register, result as u16);
+                                (val, result)
+                            },
+                            false => {
+                                let addr = self.registers.get(register);
+                                let val = bus.read(addr);
+                                let result = val.rotate_left(1);
+                                bus.write(addr, result);
+                                (val, result)
+                            }
+                        };
                         self.registers.set_flag(FlagRegister::Zero, result == 0);
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                         self.registers.set_flag(FlagRegister::Carry, get_bit(val, BitIndex::I7));
                     },
                     Opcode::RRC(register) => {
-                        let mut result = 0;
-                        let mut val = 0;
-                        if register.is_8bit() {
-                            val = self.registers.get_8bit(register);
-                            result = val.rotate_right(1);
-                            self.registers.set(register, result as u16);
-                        } else {
-                            let addr = self.registers.get(register);
-                            val = bus.read(addr);
-                            result = val.rotate_right(1);
-                            bus.write(addr, result);
-                        }
+                        let (val, result) = match register.is_8bit() {
+                            true => {
+                                let val = self.registers.get_8bit(register);
+                                let result = val.rotate_right(1);
+                                self.registers.set(register, result as u16);
+                                (val, result)
+                            },
+                            false => {
+                                let addr = self.registers.get(register);
+                                let val = bus.read(addr);
+                                let result = val.rotate_right(1);
+                                bus.write(addr, result);
+                                (val, result)
+                            },
+                        };
                         self.registers.set_flag(FlagRegister::Zero, result == 0);
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                         self.registers.set_flag(FlagRegister::Carry, get_bit(val, BitIndex::I0));
                     },
                     Opcode::RL(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let old_carry = self.registers.get_flag(FlagRegister::Carry);
                         let new_carry = get_bit(val, BitIndex::I7);
@@ -1648,10 +1651,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::RR(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let old_carry = self.registers.get_flag(FlagRegister::Carry);
                         let new_carry = get_bit(val, BitIndex::I0);
@@ -1666,10 +1668,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::SLA(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register) as i8,
-                            false => val = bus.read(self.registers.get(register)) as i8,
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register) as i8,
+                            false => bus.read(self.registers.get(register)) as i8,
                         };
                         let res = val << 1;
                         match register.is_8bit() {
@@ -1682,10 +1683,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::SRA(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register) as i8,
-                            false => val = bus.read(self.registers.get(register)) as i8,
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register) as i8,
+                            false => bus.read(self.registers.get(register)) as i8,
                         };
                         let res = val >> 1;
                         match register.is_8bit() {
@@ -1698,10 +1698,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::SRL(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let carry = get_bit(val, BitIndex::I0);
                         let val = val >> 1;
@@ -1715,10 +1714,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::SWAP(register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let val = (val << 4) | (val >> 4);
                         match register.is_8bit() {
@@ -1731,10 +1729,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
                     Opcode::BIT(index, register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let res = get_bit(val, index);
                         self.registers.set_flag(FlagRegister::Zero, !res);
@@ -1742,10 +1739,9 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, true);
                     },
                     Opcode::RES(index, register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let val = set_bit(val, false, index);
                         match register.is_8bit() {
@@ -1754,10 +1750,9 @@ impl CPU {
                         };
                     },
                     Opcode::SET(index, register) => {
-                        let mut val = 0;
-                        match register.is_8bit() {
-                            true => val = self.registers.get_8bit(register),
-                            false => val = bus.read(self.registers.get(register)),
+                        let val = match register.is_8bit() {
+                            true => self.registers.get_8bit(register),
+                            false => bus.read(self.registers.get(register)),
                         };
                         let val = set_bit(val, true, index);
                         match register.is_8bit() {

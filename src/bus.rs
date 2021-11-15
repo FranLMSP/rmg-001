@@ -1,21 +1,14 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::ops::RangeInclusive;
 use crate::utils::{
-    get_bit,
-    BitIndex,
     join_bytes
 };
 use crate::rom::ROM;
 use crate::ppu::{
     PPU,
-    LCD_STATUS_ADDRESS,
-    LCD_CONTROL_ADDRESS,
-    LCD_Y_ADDRESS,
     DMA_ADDRESS,
 };
 use crate::cpu::{Interrupt};
-use crate::timer::{Timer, TIMER_DIVIDER_REGISTER_ADDRESS};
+use crate::timer::{Timer};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
 
 pub const BANK_ZERO: RangeInclusive<u16>                 = 0x0000..=0x3FFF;
@@ -36,13 +29,13 @@ pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 pub struct Bus {
     game_rom: ROM,
     data: [u8; 0x10000],
-    ppu: Rc<RefCell<PPU>>,
-    joypad: Rc<RefCell<Joypad>>,
-    timer: Rc<RefCell<Timer>>,
+    pub ppu: PPU,
+    pub joypad: Joypad,
+    pub timer: Timer,
 }
 
 impl Bus {
-    pub fn new(ppu: Rc<RefCell<PPU>>, joypad: Rc<RefCell<Joypad>>, timer: Rc<RefCell<Timer>>) -> Self {
+    pub fn new() -> Self {
         let args: Vec<String> = std::env::args().collect();
         if args.len() < 2 {
             println!("Please, specify a ROM file");
@@ -82,9 +75,9 @@ impl Bus {
         Self {
             data,
             game_rom,
-            ppu,
-            joypad,
-            timer,
+            ppu: PPU::new(),
+            joypad: Joypad::new(),
+            timer: Timer::new(),
         }
     }
 
@@ -94,13 +87,15 @@ impl Bus {
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
         } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.borrow().read_vram(address);
+            return self.ppu.read_vram(address);
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
-            return self.ppu.borrow().read_oam(address);
+            return self.ppu.read_oam(address);
+        } else if PPU::is_io_register(address) {
+            return self.ppu.get_register(address);
         } else if address == JOYPAD_ADDRESS {
-            return self.joypad.borrow().read(self.data[address as usize]);
-        }  else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
-            return self.timer.borrow().read_divider();
+            return self.joypad.read(self.data[address as usize]);
+        }  else if Timer::is_io_register(address) {
+            return self.timer.get_register(address);
         }
         self.data[address as usize]
     }
@@ -123,43 +118,30 @@ impl Bus {
                 self.data[(ECHO_RAM.min().unwrap() + (address - WORK_RAM_1.min().unwrap())) as usize] = data;
             }
         } else if EXTERNAL_RAM.contains(&address) {
-            // self.game_rom.write(address, data);
+            self.game_rom.write(address, data);
         } else if ECHO_RAM.contains(&address) {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.min().unwrap() + (address - ECHO_RAM.min().unwrap())) as usize] = data; // Copy to the working RAM
-        } else if address == TIMER_DIVIDER_REGISTER_ADDRESS {
-            self.timer.borrow_mut().reset();
-        } else if address == LCD_CONTROL_ADDRESS {
-            self.data[address as usize] = data;
-            // Check if LCD is being turned on or off
-            if (get_bit(data, BitIndex::I7) && !get_bit(self.data[address as usize], BitIndex::I7)) ||
-               !get_bit(data, BitIndex::I7) {
-                self.data[LCD_Y_ADDRESS as usize] = 0x00;
-                // Set Hblank
-                let byte = self.data[LCD_STATUS_ADDRESS as usize];
-                self.data[LCD_STATUS_ADDRESS as usize] = byte & 0b11111100;
-            }
-        } else if address == LCD_Y_ADDRESS {
-            // println!("Write to LCD_Y not allowed");
-        } else if address == LCD_STATUS_ADDRESS {
-            let byte = self.data[address as usize];
-            self.data[address as usize] = (data & 0b11111000) | (byte & 0b00000111);
+        } else if Timer::is_io_register(address) {
+            self.timer.set_register(address, data);
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[address as usize];
             self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
         } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.borrow_mut().write_vram(address, data);
+            return self.ppu.write_vram(address, data);
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
-            return self.ppu.borrow_mut().write_oam(address, data);
+            return self.ppu.write_oam(address, data);
         } else if address == DMA_ADDRESS {
             self.data[address as usize] = data;
             let source = (data as u16) * 0x100;
             let mut count: u16 = 0;
             let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
             while count < 160 {
-                self.ppu.borrow_mut().write_oam(oam_addr + count, self.data[(source + count) as usize]);
+                self.ppu.write_oam(oam_addr + count, self.data[(source + count) as usize]);
                 count += 1;
             }
+        } else if PPU::is_io_register(address) {
+            self.ppu.set_register(address, data);
         } else {
             self.data[address as usize] = data;
         }
