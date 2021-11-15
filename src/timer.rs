@@ -50,7 +50,7 @@ impl Timer {
     fn cycle(&mut self, bus: &mut Bus) {
         self.divider = self.divider.wrapping_add(1);
 
-        let result = self.is_enabled && self.get_tima_rate(bus);
+        let result = self.is_enabled && self.get_tima_rate();
 
         if self.prev_result && !result {
             let tima = bus.read(TIMER_COUNTER_ADDRESS).wrapping_add(1);
@@ -69,7 +69,7 @@ impl Timer {
         get_bit(bus.read(TIMER_CONTROL_ADDRESS), BitIndex::I2)
     }
 
-    fn get_tima_rate(&self, bus: &Bus) -> bool {
+    fn get_tima_rate(&self) -> bool {
         let clock_select = self.control & 0b0000_0011;
         match clock_select {
             0b00 => ((self.divider >> 9) & 1) == 1,

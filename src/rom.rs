@@ -26,14 +26,12 @@ enum MBC {
     MBC1,
     MBC2,
     MBC3,
-    MBC4,
     MBC5,
     MBC6,
     MBC7,
     HuC1,
     HuC3,
     MMM01,
-    MBC1M,
     PocketCamera,
     BandaiTIMA5,
 }
@@ -207,14 +205,13 @@ impl ROM {
             },
             _ => unimplemented!(),
         }
-        self.data[address as usize]
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
         match self.info.mbc {
             MBC::NoMBC => {},
             MBC::MBC1 => {
-                if address >= 0x0000 && address <= 0x1FFF { // RAM enable register
+                if address <= 0x1FFF { // RAM enable register
                     if !self.info.has_ram {
                         return;
                     }

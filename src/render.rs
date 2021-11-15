@@ -3,8 +3,6 @@ use crate::frames::Frames;
 use crate::cpu::{Cycles};
 use crate::ppu::{WIDTH, HEIGHT};
 
-use std::{thread, time};
-
 use log::error;
 use pixels::{wgpu, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::LogicalSize;
