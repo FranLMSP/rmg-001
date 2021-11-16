@@ -64,6 +64,7 @@ pub fn load_rom(filename: &str) -> std::io::Result<Box<dyn ROM>> {
         MBC::NoMBC => Box::new(NoMBC::new(data, info)),
         MBC::MBC1 => Box::new(MBC1::new(data, info)),
         MBC::MBC2 => Box::new(MBC2::new(data, info)),
+        MBC::MBC3 => Box::new(MBC3::new(data, info)),
         _ => unimplemented!(),
     })
 }
@@ -265,8 +266,7 @@ impl MBC1 {
         self.rom_bank = bank;
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
-        }
-        if self.rom_bank == 0 {
+        } else if self.rom_bank == 0 {
             self.rom_bank = 1;
         }
     }
@@ -356,8 +356,7 @@ impl MBC2 {
         self.rom_bank = bank;
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
-        }
-        if self.rom_bank == 0 {
+        } else if self.rom_bank == 0 {
             self.rom_bank = 1;
         }
     }
@@ -394,5 +393,81 @@ impl ROM for MBC2 {
                 self.switch_rom_bank(data as u16);
             }
         }
+    }
+}
+
+pub struct MBC3 {
+    data: Vec<u8>,
+    info: ROMInfo,
+    ram: Vec<u8>,
+    rom_bank: u16,
+    ram_bank: u8,
+    ram_timer_enable: bool,
+}
+
+impl MBC3 {
+    fn new(data: Vec<u8>, info: ROMInfo) -> Self {
+        println!("MBC {:?}", info.mbc);
+        println!("Region {:?}", info.region);
+        println!("Has RAM {}", info.has_ram);
+        println!("ROM banks {}", info.rom_banks);
+        println!("RAM banks {}", info.ram_banks);
+        let ram = Vec::with_capacity(info.ram_size() as usize);
+        Self {
+            data,
+            info,
+            ram,
+            rom_bank: 1,
+            ram_bank: 0,
+            ram_timer_enable: false,
+        }
+    }
+
+    fn switch_rom_bank(&mut self, bank: u16) {
+        self.rom_bank = bank;
+        if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
+            self.rom_bank = self.info.rom_banks.saturating_sub(1);
+        } else if self.rom_bank == 0 {
+            self.rom_bank = 1;
+        }
+    }
+}
+
+impl ROM for MBC3 {
+    fn read(&self, address: u16) -> u8 {
+        if BANK_ZERO.contains(&address) {
+            return self.data[address as usize];
+        } else if BANK_SWITCHABLE.contains(&address) {
+            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
+        } else if EXTERNAL_RAM.contains(&address) {
+            if !self.info.has_ram || !self.ram_timer_enable {
+                return 0xFF;
+            }
+            return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
+                Some(data) => *data,
+                None => 0xFF,
+            };
+        }
+        return 0xFF;
+    }
+
+    fn write(&mut self, address: u16, data: u8) {
+        if address >= 0xA000 && address <= 0xBFFF {
+        } else if address <= 0x1FFF {
+            match data {
+                0x0A => self.ram_timer_enable = true,
+                0x00 => self.ram_timer_enable = true,
+                _ => {},
+            }
+        } else if address >= 0x2000 && address <= 0x3FFF {
+            self.switch_rom_bank(data as u16);
+        } else if address >= 0x4000 && address <= 0x5FFF {
+            if data <= 0x03 {
+                self.ram_bank = data;
+            } else if data >= 0x08 && data <= 0x0C && self.info.has_timer {
+            }
+        } else if address >= 0x6000 && address <= 0x7FFF {
+        }
+
     }
 }
