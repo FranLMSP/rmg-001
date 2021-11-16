@@ -1,4 +1,6 @@
+#[cfg(not(test))]
 use std::fs::File;
+#[cfg(not(test))]
 use std::io::Read;
 
 use crate::bus::{
@@ -13,11 +15,49 @@ pub const SGB_FLAG_ADDRESS: u16 = 0x0146;
 pub const RAM_SIZE_ADDRESS: u16 = 0x0149;
 pub const ROM_SIZE_ADDRESS: u16 = 0x0148;
 pub const DESTINATION_CODE_ADDRESS: u16 = 0x014A;
+pub const HEADER_CHECKSUM_ADDRESS: u16 = 0x014D;
 
+#[cfg(not(test))]
+fn header_checksum(data: &Vec<u8>) -> bool {
+    if data.len() < HEADER_CHECKSUM_ADDRESS as usize {
+        return false;
+    }
+
+    let mut checksum: u8 = 0;
+    let mut index: u16 = 0x0134;
+    while index < HEADER_CHECKSUM_ADDRESS {
+        checksum = checksum.wrapping_sub(data[index as usize]).wrapping_sub(1);
+        index += 1;
+    }
+    checksum == data[HEADER_CHECKSUM_ADDRESS as usize]
+}
+
+#[cfg(test)]
+pub fn load_rom(_filename: &str) -> std::io::Result<Box<dyn ROM>> {
+    Ok(Box::new(NoMBC::new(Vec::new(), ROMInfo {
+        mbc: MBC::NoMBC,
+        publisher: "".to_string(),
+        title: "".to_string(),
+        cgb_only: false,
+        sgb_features: false,
+        has_ram: false,
+        has_battery: false,
+        has_timer: false,
+        ram_banks: 0,
+        rom_banks: 2,
+        region: Region::NonJapanese,
+    })))
+}
+
+#[cfg(not(test))]
 pub fn load_rom(filename: &str) -> std::io::Result<Box<dyn ROM>> {
     let mut file = File::open(filename)?;
     let mut data = vec![];
     file.read_to_end(&mut data)?;
+    if !header_checksum(&data) {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Header checksum failed. Is this a Gameboy ROM?"));
+    }
+
     let info = ROMInfo::from_bytes(&data);
 
     Ok(match info.mbc {
