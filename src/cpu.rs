@@ -257,8 +257,8 @@ impl OpcodeParameterBytes {
         let opcode = self.0;
         let two_byte_param = join_bytes(self.2, self.1);
         match opcode {
-            0x06 => (Opcode::LD(OpcodeParameter::Register_U8(Register::B, self.1)), Cycles(1)),
-            0x0E => (Opcode::LD(OpcodeParameter::Register_U8(Register::C, self.1)), Cycles(3)),
+            0x06 => (Opcode::LD(OpcodeParameter::Register_U8(Register::B, self.1)), Cycles(2)),
+            0x0E => (Opcode::LD(OpcodeParameter::Register_U8(Register::C, self.1)), Cycles(2)),
             0x16 => (Opcode::LD(OpcodeParameter::Register_U8(Register::D, self.1)), Cycles(2)),
             0x1E => (Opcode::LD(OpcodeParameter::Register_U8(Register::E, self.1)), Cycles(2)),
             0x26 => (Opcode::LD(OpcodeParameter::Register_U8(Register::H, self.1)), Cycles(2)),
@@ -500,7 +500,7 @@ impl OpcodeParameterBytes {
                 0x1B => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::E))), Cycles(2)),
                 0x1C => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::H))), Cycles(2)),
                 0x1D => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::L))), Cycles(2)),
-                0x1E => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::HL))), Cycles(2)),
+                0x1E => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::HL))), Cycles(4)),
                 0x1F => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::A))), Cycles(2)),
 
                 0x20 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::B))), Cycles(2)),
@@ -740,7 +740,7 @@ impl OpcodeParameterBytes {
             0xD2 => (Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Carry, two_byte_param)), Cycles(3)),
             0xDA => (Opcode::JP(OpcodeParameter::FlagRegisterSet_U16(FlagRegister::Carry, two_byte_param)), Cycles(3)),
             0xE9 => (Opcode::JP(OpcodeParameter::Register(Register::HL)), Cycles(1)),
-            0x18 => (Opcode::JR(OpcodeParameter::I8(self.1 as i8)), Cycles(3)),
+            0x18 => (Opcode::JR(OpcodeParameter::I8(self.1 as i8)), Cycles(2)),
             0x20 => (Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Zero, self.1 as i8)), Cycles(2)),
             0x28 => (Opcode::JR(OpcodeParameter::FlagRegisterSet_I8(FlagRegister::Zero, self.1 as i8)), Cycles(2)),
             0x30 => (Opcode::JR(OpcodeParameter::FlagRegisterReset_I8(FlagRegister::Carry, self.1 as i8)), Cycles(2)),
@@ -909,7 +909,7 @@ impl CPU {
     }
 
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
-        // println!("Interrupt: {:?}", interrupt);
+        println!("Interrupt: {:?}", interrupt);
         bus.set_interrupt_flag(interrupt, false);
         self.ime = false;
         self.registers.decrement(Register::PC, 3);
