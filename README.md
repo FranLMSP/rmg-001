@@ -14,10 +14,9 @@ Any help or suggestion is welcome!
 - [x] Render the pixels
 - [ ] MBC Implementations
   - [x] NoMBC
-  - [ ] MBC1
-  - [ ] MBC2
+  - [x] MBC1
+  - [x] MBC2
   - [ ] MBC3
-  - [ ] MBC4
   - [ ] MBC5
   - [ ] MBC6
   - [ ] MBC7
