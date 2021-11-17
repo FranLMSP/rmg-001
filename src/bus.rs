@@ -37,11 +37,12 @@ pub struct Bus {
 impl Bus {
     pub fn new() -> Self {
         let args: Vec<String> = std::env::args().collect();
+        #[cfg(not(test))]
         if args.len() < 2 {
             println!("Please, specify a ROM file");
             std::process::exit(1);
         }
-        let game_rom = match load_rom(&args[1]) {
+        let game_rom = match load_rom(&args.get(1).unwrap_or(&"".to_string())) {
             Ok(rom) => rom,
             Err(err) => {
                 println!("Could not read ROM: {}", err);

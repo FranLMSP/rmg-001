@@ -207,12 +207,15 @@ pub struct PPU {
     state: bool,
     vblank_request: bool,
     lcdstat_request: bool,
+    background_priority: bool,
+    window_enable: bool,
+    lcd_enable: bool,
     cycles: Cycles,
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
     last_bg_index: u8,
     bg_palette: u8,
-    lcd_control_cache: Option<u8>,
+    lcd_control: u8,
     current_background_pixels: Option<[u8; 8]>,
     current_window_pixels: Option<[u8; 8]>,
     lcd_y: u8,
@@ -231,12 +234,15 @@ impl PPU {
             state: false,
             vblank_request: false,
             lcdstat_request: false,
+            background_priority: false,
+            window_enable: false,
+            lcd_enable: false,
             cycles: Cycles(0),
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
             last_bg_index: 0,
             bg_palette: 0,
-            lcd_control_cache: None,
+            lcd_control: 0,
             current_background_pixels: None,
             current_window_pixels: None,
             lcd_y: 0,
@@ -287,6 +293,9 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
+        if address == LCD_CONTROL_ADDRESS {
+            return self.lcd_control;
+        }
         self.io_registers[(address - 0xFF40) as usize]
     }
 
@@ -294,10 +303,10 @@ impl PPU {
         if address == LCD_Y_ADDRESS {
             return;
         } else if address == LCD_CONTROL_ADDRESS {
-            let address = address - 0xFF40;
-            self.io_registers[address as usize] = data;
+            self.lcd_control = data;
             // Check if LCD is being turned on or off
-            if (get_bit(data, BitIndex::I7) && !get_bit(self.io_registers[address as usize], BitIndex::I7)) ||
+            self.lcd_enable = get_bit(data, BitIndex::I7);
+            if (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) ||
                !get_bit(data, BitIndex::I7)
             {
                 self.io_registers[LCD_Y_ADDRESS as usize - 0xFF40] = 0x00;
@@ -328,8 +337,7 @@ impl PPU {
     }
 
     pub fn do_cycles(&mut self, cycles: Cycles, frame_buffer: &mut [u8]) {
-        self.lcd_control_cache = None;
-        if !self.get_lcd_control(LCDControl::LCDEnable) {
+        if !self.lcd_enable {
             self.increment_cycles(cycles);
             return;
         }
@@ -347,6 +355,8 @@ impl PPU {
                 self.scroll_y = self.get_register(SCROLL_Y_ADDRESS);
                 self.window_x = self.get_register(WINDOW_X_ADDRESS);
                 self.window_y = self.get_register(WINDOW_Y_ADDRESS);
+                self.window_enable = self.get_lcd_control(LCDControl::WindowEnable);
+                self.background_priority = self.get_lcd_control(LCDControl::BackgroundPriority);
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
                 self.draw_line(frame_buffer);
             } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
@@ -477,15 +487,7 @@ impl PPU {
     }
 
     pub fn get_lcd_control(&mut self, control: LCDControl) -> bool {
-        let byte = match self.lcd_control_cache {
-            Some(byte) => byte,
-            None => {
-                let byte = self.get_register(LCD_CONTROL_ADDRESS);
-                self.lcd_control_cache = Some(byte);
-                byte
-            },
-        };
-        control.get(byte)
+        control.get(self.lcd_control)
     }
 
     pub fn get_lcd_status(&self, status: LCDStatus) -> bool {
@@ -542,7 +544,7 @@ impl PPU {
     }
 
     fn get_window_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
-        if !self.get_lcd_control(LCDControl::WindowEnable) {
+        if !self.window_enable {
             return None;
         }
 
@@ -591,7 +593,7 @@ impl PPU {
     }
 
     fn get_background_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
-        if !self.get_lcd_control(LCDControl::BackgroundPriority) {
+        if !self.background_priority {
             return None;
         }
         let lcd_y = self.lcd_y;
