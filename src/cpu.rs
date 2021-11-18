@@ -467,272 +467,272 @@ impl OpcodeParameterBytes {
             0x0F => (Opcode::RRCA, Cycles(1)),
             0x1F => (Opcode::RRA, Cycles(1)),
             0xCB => match self.1 {
-                0x00 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::B))), Cycles(2)),
-                0x01 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::C))), Cycles(2)),
-                0x02 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::D))), Cycles(2)),
-                0x03 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::E))), Cycles(2)),
-                0x04 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::H))), Cycles(2)),
-                0x05 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::L))), Cycles(2)),
-                0x06 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::HL))), Cycles(4)),
-                0x07 => (Opcode::PrefixCB(Box::new(Opcode::RLC(Register::A))), Cycles(2)),
+                0x00 => (Opcode::PrefixCB(CBOpcode::RLC(Register::B)), Cycles(2)),
+                0x01 => (Opcode::PrefixCB(CBOpcode::RLC(Register::C)), Cycles(2)),
+                0x02 => (Opcode::PrefixCB(CBOpcode::RLC(Register::D)), Cycles(2)),
+                0x03 => (Opcode::PrefixCB(CBOpcode::RLC(Register::E)), Cycles(2)),
+                0x04 => (Opcode::PrefixCB(CBOpcode::RLC(Register::H)), Cycles(2)),
+                0x05 => (Opcode::PrefixCB(CBOpcode::RLC(Register::L)), Cycles(2)),
+                0x06 => (Opcode::PrefixCB(CBOpcode::RLC(Register::HL)), Cycles(4)),
+                0x07 => (Opcode::PrefixCB(CBOpcode::RLC(Register::A)), Cycles(2)),
 
-                0x08 => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::B))), Cycles(2)),
-                0x09 => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::C))), Cycles(2)),
-                0x0A => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::D))), Cycles(2)),
-                0x0B => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::E))), Cycles(2)),
-                0x0C => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::H))), Cycles(2)),
-                0x0D => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::L))), Cycles(2)),
-                0x0E => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::HL))), Cycles(4)),
-                0x0F => (Opcode::PrefixCB(Box::new(Opcode::RRC(Register::A))), Cycles(2)),
+                0x08 => (Opcode::PrefixCB(CBOpcode::RRC(Register::B)), Cycles(2)),
+                0x09 => (Opcode::PrefixCB(CBOpcode::RRC(Register::C)), Cycles(2)),
+                0x0A => (Opcode::PrefixCB(CBOpcode::RRC(Register::D)), Cycles(2)),
+                0x0B => (Opcode::PrefixCB(CBOpcode::RRC(Register::E)), Cycles(2)),
+                0x0C => (Opcode::PrefixCB(CBOpcode::RRC(Register::H)), Cycles(2)),
+                0x0D => (Opcode::PrefixCB(CBOpcode::RRC(Register::L)), Cycles(2)),
+                0x0E => (Opcode::PrefixCB(CBOpcode::RRC(Register::HL)), Cycles(4)),
+                0x0F => (Opcode::PrefixCB(CBOpcode::RRC(Register::A)), Cycles(2)),
 
-                0x10 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::B))), Cycles(2)),
-                0x11 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::C))), Cycles(2)),
-                0x12 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::D))), Cycles(2)),
-                0x13 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::E))), Cycles(2)),
-                0x14 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::H))), Cycles(2)),
-                0x15 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::L))), Cycles(2)),
-                0x16 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::HL))), Cycles(4)),
-                0x17 => (Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), Cycles(2)),
+                0x10 => (Opcode::PrefixCB(CBOpcode::RL(Register::B)), Cycles(2)),
+                0x11 => (Opcode::PrefixCB(CBOpcode::RL(Register::C)), Cycles(2)),
+                0x12 => (Opcode::PrefixCB(CBOpcode::RL(Register::D)), Cycles(2)),
+                0x13 => (Opcode::PrefixCB(CBOpcode::RL(Register::E)), Cycles(2)),
+                0x14 => (Opcode::PrefixCB(CBOpcode::RL(Register::H)), Cycles(2)),
+                0x15 => (Opcode::PrefixCB(CBOpcode::RL(Register::L)), Cycles(2)),
+                0x16 => (Opcode::PrefixCB(CBOpcode::RL(Register::HL)), Cycles(4)),
+                0x17 => (Opcode::PrefixCB(CBOpcode::RL(Register::A)), Cycles(2)),
 
-                0x18 => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::B))), Cycles(2)),
-                0x19 => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::C))), Cycles(2)),
-                0x1A => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::D))), Cycles(2)),
-                0x1B => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::E))), Cycles(2)),
-                0x1C => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::H))), Cycles(2)),
-                0x1D => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::L))), Cycles(2)),
-                0x1E => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::HL))), Cycles(4)),
-                0x1F => (Opcode::PrefixCB(Box::new(Opcode::RR(Register::A))), Cycles(2)),
+                0x18 => (Opcode::PrefixCB(CBOpcode::RR(Register::B)), Cycles(2)),
+                0x19 => (Opcode::PrefixCB(CBOpcode::RR(Register::C)), Cycles(2)),
+                0x1A => (Opcode::PrefixCB(CBOpcode::RR(Register::D)), Cycles(2)),
+                0x1B => (Opcode::PrefixCB(CBOpcode::RR(Register::E)), Cycles(2)),
+                0x1C => (Opcode::PrefixCB(CBOpcode::RR(Register::H)), Cycles(2)),
+                0x1D => (Opcode::PrefixCB(CBOpcode::RR(Register::L)), Cycles(2)),
+                0x1E => (Opcode::PrefixCB(CBOpcode::RR(Register::HL)), Cycles(4)),
+                0x1F => (Opcode::PrefixCB(CBOpcode::RR(Register::A)), Cycles(2)),
 
-                0x20 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::B))), Cycles(2)),
-                0x21 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::C))), Cycles(2)),
-                0x22 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::D))), Cycles(2)),
-                0x23 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::E))), Cycles(2)),
-                0x24 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::H))), Cycles(2)),
-                0x25 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::L))), Cycles(2)),
-                0x26 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::HL))), Cycles(4)),
-                0x27 => (Opcode::PrefixCB(Box::new(Opcode::SLA(Register::A))), Cycles(2)),
+                0x20 => (Opcode::PrefixCB(CBOpcode::SLA(Register::B)), Cycles(2)),
+                0x21 => (Opcode::PrefixCB(CBOpcode::SLA(Register::C)), Cycles(2)),
+                0x22 => (Opcode::PrefixCB(CBOpcode::SLA(Register::D)), Cycles(2)),
+                0x23 => (Opcode::PrefixCB(CBOpcode::SLA(Register::E)), Cycles(2)),
+                0x24 => (Opcode::PrefixCB(CBOpcode::SLA(Register::H)), Cycles(2)),
+                0x25 => (Opcode::PrefixCB(CBOpcode::SLA(Register::L)), Cycles(2)),
+                0x26 => (Opcode::PrefixCB(CBOpcode::SLA(Register::HL)), Cycles(4)),
+                0x27 => (Opcode::PrefixCB(CBOpcode::SLA(Register::A)), Cycles(2)),
 
-                0x28 => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::B))), Cycles(2)),
-                0x29 => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::C))), Cycles(2)),
-                0x2A => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::D))), Cycles(2)),
-                0x2B => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::E))), Cycles(2)),
-                0x2C => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::H))), Cycles(2)),
-                0x2D => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::L))), Cycles(2)),
-                0x2E => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::HL))), Cycles(4)),
-                0x2F => (Opcode::PrefixCB(Box::new(Opcode::SRA(Register::A))), Cycles(2)),
+                0x28 => (Opcode::PrefixCB(CBOpcode::SRA(Register::B)), Cycles(2)),
+                0x29 => (Opcode::PrefixCB(CBOpcode::SRA(Register::C)), Cycles(2)),
+                0x2A => (Opcode::PrefixCB(CBOpcode::SRA(Register::D)), Cycles(2)),
+                0x2B => (Opcode::PrefixCB(CBOpcode::SRA(Register::E)), Cycles(2)),
+                0x2C => (Opcode::PrefixCB(CBOpcode::SRA(Register::H)), Cycles(2)),
+                0x2D => (Opcode::PrefixCB(CBOpcode::SRA(Register::L)), Cycles(2)),
+                0x2E => (Opcode::PrefixCB(CBOpcode::SRA(Register::HL)), Cycles(4)),
+                0x2F => (Opcode::PrefixCB(CBOpcode::SRA(Register::A)), Cycles(2)),
 
-                0x30 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::B))), Cycles(2)),
-                0x31 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::C))), Cycles(2)),
-                0x32 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::D))), Cycles(2)),
-                0x33 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::E))), Cycles(2)),
-                0x34 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::H))), Cycles(2)),
-                0x35 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::L))), Cycles(2)),
-                0x36 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::HL))), Cycles(4)),
-                0x37 => (Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::A))), Cycles(2)),
+                0x30 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::B)), Cycles(2)),
+                0x31 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::C)), Cycles(2)),
+                0x32 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::D)), Cycles(2)),
+                0x33 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::E)), Cycles(2)),
+                0x34 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::H)), Cycles(2)),
+                0x35 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::L)), Cycles(2)),
+                0x36 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::HL)), Cycles(4)),
+                0x37 => (Opcode::PrefixCB(CBOpcode::SWAP(Register::A)), Cycles(2)),
 
-                0x38 => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::B))), Cycles(2)),
-                0x39 => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::C))), Cycles(2)),
-                0x3A => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::D))), Cycles(2)),
-                0x3B => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::E))), Cycles(2)),
-                0x3C => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::H))), Cycles(2)),
-                0x3D => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::L))), Cycles(2)),
-                0x3E => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::HL))), Cycles(4)),
-                0x3F => (Opcode::PrefixCB(Box::new(Opcode::SRL(Register::A))), Cycles(2)),
+                0x38 => (Opcode::PrefixCB(CBOpcode::SRL(Register::B)), Cycles(2)),
+                0x39 => (Opcode::PrefixCB(CBOpcode::SRL(Register::C)), Cycles(2)),
+                0x3A => (Opcode::PrefixCB(CBOpcode::SRL(Register::D)), Cycles(2)),
+                0x3B => (Opcode::PrefixCB(CBOpcode::SRL(Register::E)), Cycles(2)),
+                0x3C => (Opcode::PrefixCB(CBOpcode::SRL(Register::H)), Cycles(2)),
+                0x3D => (Opcode::PrefixCB(CBOpcode::SRL(Register::L)), Cycles(2)),
+                0x3E => (Opcode::PrefixCB(CBOpcode::SRL(Register::HL)), Cycles(4)),
+                0x3F => (Opcode::PrefixCB(CBOpcode::SRL(Register::A)), Cycles(2)),
 
-                0x40 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::B))), Cycles(2)),
-                0x41 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::C))), Cycles(2)),
-                0x42 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::D))), Cycles(2)),
-                0x43 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::E))), Cycles(2)),
-                0x44 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::H))), Cycles(2)),
-                0x45 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::L))), Cycles(2)),
-                0x46 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::HL))), Cycles(3)),
-                0x47 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0, Register::A))), Cycles(2)),
-                0x48 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::B))), Cycles(2)),
-                0x49 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::C))), Cycles(2)),
-                0x4A => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::D))), Cycles(2)),
-                0x4B => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::E))), Cycles(2)),
-                0x4C => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::H))), Cycles(2)),
-                0x4D => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::L))), Cycles(2)),
-                0x4E => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::HL))), Cycles(3)),
-                0x4F => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I1, Register::A))), Cycles(2)),
-                0x50 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::B))), Cycles(2)),
-                0x51 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::C))), Cycles(2)),
-                0x52 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::D))), Cycles(2)),
-                0x53 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::E))), Cycles(2)),
-                0x54 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::H))), Cycles(2)),
-                0x55 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::L))), Cycles(2)),
-                0x56 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::HL))), Cycles(3)),
-                0x57 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I2, Register::A))), Cycles(2)),
-                0x58 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::B))), Cycles(2)),
-                0x59 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::C))), Cycles(2)),
-                0x5A => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::D))), Cycles(2)),
-                0x5B => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::E))), Cycles(2)),
-                0x5C => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::H))), Cycles(2)),
-                0x5D => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::L))), Cycles(2)),
-                0x5E => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::HL))), Cycles(3)),
-                0x5F => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::A))), Cycles(2)),
-                0x60 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::B))), Cycles(2)),
-                0x61 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::C))), Cycles(2)),
-                0x62 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::D))), Cycles(2)),
-                0x63 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::E))), Cycles(2)),
-                0x64 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::H))), Cycles(2)),
-                0x65 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::L))), Cycles(2)),
-                0x66 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::HL))), Cycles(3)),
-                0x67 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::A))), Cycles(2)),
-                0x68 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::B))), Cycles(2)),
-                0x69 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::C))), Cycles(2)),
-                0x6A => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::D))), Cycles(2)),
-                0x6B => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::E))), Cycles(2)),
-                0x6C => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::H))), Cycles(2)),
-                0x6D => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::L))), Cycles(2)),
-                0x6E => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::HL))), Cycles(3)),
-                0x6F => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I5, Register::A))), Cycles(2)),
-                0x70 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::B))), Cycles(2)),
-                0x71 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::C))), Cycles(2)),
-                0x72 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::D))), Cycles(2)),
-                0x73 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::E))), Cycles(2)),
-                0x74 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::H))), Cycles(2)),
-                0x75 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::L))), Cycles(2)),
-                0x76 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::HL))), Cycles(3)),
-                0x77 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I6, Register::A))), Cycles(2)),
-                0x78 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::B))), Cycles(2)),
-                0x79 => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::C))), Cycles(2)),
-                0x7A => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::D))), Cycles(2)),
-                0x7B => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::E))), Cycles(2)),
-                0x7C => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::H))), Cycles(2)),
-                0x7D => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::L))), Cycles(2)),
-                0x7E => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::HL))), Cycles(3)),
-                0x7F => (Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I7, Register::A))), Cycles(2)),
+                0x40 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::B)), Cycles(2)),
+                0x41 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::C)), Cycles(2)),
+                0x42 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::D)), Cycles(2)),
+                0x43 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::E)), Cycles(2)),
+                0x44 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::H)), Cycles(2)),
+                0x45 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::L)), Cycles(2)),
+                0x46 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::HL)), Cycles(3)),
+                0x47 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0, Register::A)), Cycles(2)),
+                0x48 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::B)), Cycles(2)),
+                0x49 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::C)), Cycles(2)),
+                0x4A => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::D)), Cycles(2)),
+                0x4B => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::E)), Cycles(2)),
+                0x4C => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::H)), Cycles(2)),
+                0x4D => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::L)), Cycles(2)),
+                0x4E => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::HL)), Cycles(3)),
+                0x4F => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I1, Register::A)), Cycles(2)),
+                0x50 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::B)), Cycles(2)),
+                0x51 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::C)), Cycles(2)),
+                0x52 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::D)), Cycles(2)),
+                0x53 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::E)), Cycles(2)),
+                0x54 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::H)), Cycles(2)),
+                0x55 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::L)), Cycles(2)),
+                0x56 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::HL)), Cycles(3)),
+                0x57 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I2, Register::A)), Cycles(2)),
+                0x58 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::B)), Cycles(2)),
+                0x59 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::C)), Cycles(2)),
+                0x5A => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::D)), Cycles(2)),
+                0x5B => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::E)), Cycles(2)),
+                0x5C => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::H)), Cycles(2)),
+                0x5D => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::L)), Cycles(2)),
+                0x5E => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::HL)), Cycles(3)),
+                0x5F => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::A)), Cycles(2)),
+                0x60 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::B)), Cycles(2)),
+                0x61 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::C)), Cycles(2)),
+                0x62 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::D)), Cycles(2)),
+                0x63 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::E)), Cycles(2)),
+                0x64 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::H)), Cycles(2)),
+                0x65 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::L)), Cycles(2)),
+                0x66 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::HL)), Cycles(3)),
+                0x67 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::A)), Cycles(2)),
+                0x68 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::B)), Cycles(2)),
+                0x69 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::C)), Cycles(2)),
+                0x6A => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::D)), Cycles(2)),
+                0x6B => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::E)), Cycles(2)),
+                0x6C => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::H)), Cycles(2)),
+                0x6D => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::L)), Cycles(2)),
+                0x6E => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::HL)), Cycles(3)),
+                0x6F => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I5, Register::A)), Cycles(2)),
+                0x70 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::B)), Cycles(2)),
+                0x71 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::C)), Cycles(2)),
+                0x72 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::D)), Cycles(2)),
+                0x73 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::E)), Cycles(2)),
+                0x74 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::H)), Cycles(2)),
+                0x75 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::L)), Cycles(2)),
+                0x76 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::HL)), Cycles(3)),
+                0x77 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I6, Register::A)), Cycles(2)),
+                0x78 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::B)), Cycles(2)),
+                0x79 => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::C)), Cycles(2)),
+                0x7A => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::D)), Cycles(2)),
+                0x7B => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::E)), Cycles(2)),
+                0x7C => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::H)), Cycles(2)),
+                0x7D => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::L)), Cycles(2)),
+                0x7E => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::HL)), Cycles(3)),
+                0x7F => (Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I7, Register::A)), Cycles(2)),
 
-                0x80 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::B))), Cycles(2)),
-                0x81 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::C))), Cycles(2)),
-                0x82 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::D))), Cycles(2)),
-                0x83 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::E))), Cycles(2)),
-                0x84 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::H))), Cycles(2)),
-                0x85 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::L))), Cycles(2)),
-                0x86 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::HL))), Cycles(4)),
-                0x87 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0, Register::A))), Cycles(2)),
-                0x88 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::B))), Cycles(2)),
-                0x89 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::C))), Cycles(2)),
-                0x8A => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::D))), Cycles(2)),
-                0x8B => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::E))), Cycles(2)),
-                0x8C => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::H))), Cycles(2)),
-                0x8D => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::L))), Cycles(2)),
-                0x8E => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::HL))), Cycles(4)),
-                0x8F => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I1, Register::A))), Cycles(2)),
-                0x90 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::B))), Cycles(2)),
-                0x91 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::C))), Cycles(2)),
-                0x92 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::D))), Cycles(2)),
-                0x93 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::E))), Cycles(2)),
-                0x94 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::H))), Cycles(2)),
-                0x95 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::L))), Cycles(2)),
-                0x96 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::HL))), Cycles(4)),
-                0x97 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::A))), Cycles(2)),
-                0x98 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::B))), Cycles(2)),
-                0x99 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::C))), Cycles(2)),
-                0x9A => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::D))), Cycles(2)),
-                0x9B => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::E))), Cycles(2)),
-                0x9C => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::H))), Cycles(2)),
-                0x9D => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::L))), Cycles(2)),
-                0x9E => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::HL))), Cycles(4)),
-                0x9F => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I3, Register::A))), Cycles(2)),
-                0xA0 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::B))), Cycles(2)),
-                0xA1 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::C))), Cycles(2)),
-                0xA2 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::D))), Cycles(2)),
-                0xA3 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::E))), Cycles(2)),
-                0xA4 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::H))), Cycles(2)),
-                0xA5 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::L))), Cycles(2)),
-                0xA6 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::HL))), Cycles(4)),
-                0xA7 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I4, Register::A))), Cycles(2)),
-                0xA8 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::B))), Cycles(2)),
-                0xA9 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::C))), Cycles(2)),
-                0xAA => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::D))), Cycles(2)),
-                0xAB => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::E))), Cycles(2)),
-                0xAC => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::H))), Cycles(2)),
-                0xAD => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::L))), Cycles(2)),
-                0xAE => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::HL))), Cycles(4)),
-                0xAF => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I5, Register::A))), Cycles(2)),
-                0xB0 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::B))), Cycles(2)),
-                0xB1 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::C))), Cycles(2)),
-                0xB2 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::D))), Cycles(2)),
-                0xB3 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::E))), Cycles(2)),
-                0xB4 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::H))), Cycles(2)),
-                0xB5 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::L))), Cycles(2)),
-                0xB6 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::HL))), Cycles(4)),
-                0xB7 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I6, Register::A))), Cycles(2)),
-                0xB8 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::B))), Cycles(2)),
-                0xB9 => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::C))), Cycles(2)),
-                0xBA => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::D))), Cycles(2)),
-                0xBB => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::E))), Cycles(2)),
-                0xBC => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::H))), Cycles(2)),
-                0xBD => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::L))), Cycles(2)),
-                0xBE => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::HL))), Cycles(4)),
-                0xBF => (Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I7, Register::A))), Cycles(2)),
+                0x80 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::B)), Cycles(2)),
+                0x81 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::C)), Cycles(2)),
+                0x82 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::D)), Cycles(2)),
+                0x83 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::E)), Cycles(2)),
+                0x84 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::H)), Cycles(2)),
+                0x85 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::L)), Cycles(2)),
+                0x86 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::HL)), Cycles(4)),
+                0x87 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0, Register::A)), Cycles(2)),
+                0x88 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::B)), Cycles(2)),
+                0x89 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::C)), Cycles(2)),
+                0x8A => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::D)), Cycles(2)),
+                0x8B => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::E)), Cycles(2)),
+                0x8C => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::H)), Cycles(2)),
+                0x8D => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::L)), Cycles(2)),
+                0x8E => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::HL)), Cycles(4)),
+                0x8F => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I1, Register::A)), Cycles(2)),
+                0x90 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::B)), Cycles(2)),
+                0x91 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::C)), Cycles(2)),
+                0x92 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::D)), Cycles(2)),
+                0x93 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::E)), Cycles(2)),
+                0x94 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::H)), Cycles(2)),
+                0x95 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::L)), Cycles(2)),
+                0x96 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::HL)), Cycles(4)),
+                0x97 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::A)), Cycles(2)),
+                0x98 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::B)), Cycles(2)),
+                0x99 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::C)), Cycles(2)),
+                0x9A => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::D)), Cycles(2)),
+                0x9B => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::E)), Cycles(2)),
+                0x9C => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::H)), Cycles(2)),
+                0x9D => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::L)), Cycles(2)),
+                0x9E => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::HL)), Cycles(4)),
+                0x9F => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I3, Register::A)), Cycles(2)),
+                0xA0 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::B)), Cycles(2)),
+                0xA1 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::C)), Cycles(2)),
+                0xA2 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::D)), Cycles(2)),
+                0xA3 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::E)), Cycles(2)),
+                0xA4 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::H)), Cycles(2)),
+                0xA5 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::L)), Cycles(2)),
+                0xA6 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::HL)), Cycles(4)),
+                0xA7 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I4, Register::A)), Cycles(2)),
+                0xA8 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::B)), Cycles(2)),
+                0xA9 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::C)), Cycles(2)),
+                0xAA => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::D)), Cycles(2)),
+                0xAB => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::E)), Cycles(2)),
+                0xAC => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::H)), Cycles(2)),
+                0xAD => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::L)), Cycles(2)),
+                0xAE => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::HL)), Cycles(4)),
+                0xAF => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I5, Register::A)), Cycles(2)),
+                0xB0 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::B)), Cycles(2)),
+                0xB1 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::C)), Cycles(2)),
+                0xB2 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::D)), Cycles(2)),
+                0xB3 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::E)), Cycles(2)),
+                0xB4 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::H)), Cycles(2)),
+                0xB5 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::L)), Cycles(2)),
+                0xB6 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::HL)), Cycles(4)),
+                0xB7 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I6, Register::A)), Cycles(2)),
+                0xB8 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::B)), Cycles(2)),
+                0xB9 => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::C)), Cycles(2)),
+                0xBA => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::D)), Cycles(2)),
+                0xBB => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::E)), Cycles(2)),
+                0xBC => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::H)), Cycles(2)),
+                0xBD => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::L)), Cycles(2)),
+                0xBE => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::HL)), Cycles(4)),
+                0xBF => (Opcode::PrefixCB(CBOpcode::RES(BitIndex::I7, Register::A)), Cycles(2)),
 
-                0xC0 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::B))), Cycles(2)),
-                0xC1 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::C))), Cycles(2)),
-                0xC2 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::D))), Cycles(2)),
-                0xC3 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::E))), Cycles(2)),
-                0xC4 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::H))), Cycles(2)),
-                0xC5 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::L))), Cycles(2)),
-                0xC6 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::HL))), Cycles(4)),
-                0xC7 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I0, Register::A))), Cycles(2)),
-                0xC8 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::B))), Cycles(2)),
-                0xC9 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::C))), Cycles(2)),
-                0xCA => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::D))), Cycles(2)),
-                0xCB => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::E))), Cycles(2)),
-                0xCC => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::H))), Cycles(2)),
-                0xCD => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::L))), Cycles(2)),
-                0xCE => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::HL))), Cycles(4)),
-                0xCF => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::A))), Cycles(2)),
-                0xD0 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::B))), Cycles(2)),
-                0xD1 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::C))), Cycles(2)),
-                0xD2 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::D))), Cycles(2)),
-                0xD3 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::E))), Cycles(2)),
-                0xD4 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::H))), Cycles(2)),
-                0xD5 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::L))), Cycles(2)),
-                0xD6 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::HL))), Cycles(4)),
-                0xD7 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I2, Register::A))), Cycles(2)),
-                0xD8 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::B))), Cycles(2)),
-                0xD9 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::C))), Cycles(2)),
-                0xDA => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::D))), Cycles(2)),
-                0xDB => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::E))), Cycles(2)),
-                0xDC => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::H))), Cycles(2)),
-                0xDD => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::L))), Cycles(2)),
-                0xDE => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::HL))), Cycles(4)),
-                0xDF => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3, Register::A))), Cycles(2)),
-                0xE0 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::B))), Cycles(2)),
-                0xE1 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::C))), Cycles(2)),
-                0xE2 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::D))), Cycles(2)),
-                0xE3 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::E))), Cycles(2)),
-                0xE4 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::H))), Cycles(2)),
-                0xE5 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::L))), Cycles(2)),
-                0xE6 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::HL))), Cycles(4)),
-                0xE7 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I4, Register::A))), Cycles(2)),
-                0xE8 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::B))), Cycles(2)),
-                0xE9 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::C))), Cycles(2)),
-                0xEA => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::D))), Cycles(2)),
-                0xEB => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::E))), Cycles(2)),
-                0xEC => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::H))), Cycles(2)),
-                0xED => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::L))), Cycles(2)),
-                0xEE => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::HL))), Cycles(4)),
-                0xEF => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I5, Register::A))), Cycles(2)),
-                0xF0 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::B))), Cycles(2)),
-                0xF1 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::C))), Cycles(2)),
-                0xF2 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::D))), Cycles(2)),
-                0xF3 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::E))), Cycles(2)),
-                0xF4 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::H))), Cycles(2)),
-                0xF5 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::L))), Cycles(2)),
-                0xF6 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::HL))), Cycles(4)),
-                0xF7 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I6, Register::A))), Cycles(2)),
-                0xF8 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::B))), Cycles(2)),
-                0xF9 => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::C))), Cycles(2)),
-                0xFA => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::D))), Cycles(2)),
-                0xFB => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::E))), Cycles(2)),
-                0xFC => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::H))), Cycles(2)),
-                0xFD => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::L))), Cycles(2)),
-                0xFE => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::HL))), Cycles(4)),
-                0xFF => (Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I7, Register::A))), Cycles(2)),
+                0xC0 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::B)), Cycles(2)),
+                0xC1 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::C)), Cycles(2)),
+                0xC2 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::D)), Cycles(2)),
+                0xC3 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::E)), Cycles(2)),
+                0xC4 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::H)), Cycles(2)),
+                0xC5 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::L)), Cycles(2)),
+                0xC6 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::HL)), Cycles(4)),
+                0xC7 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I0, Register::A)), Cycles(2)),
+                0xC8 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::B)), Cycles(2)),
+                0xC9 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::C)), Cycles(2)),
+                0xCA => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::D)), Cycles(2)),
+                0xCB => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::E)), Cycles(2)),
+                0xCC => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::H)), Cycles(2)),
+                0xCD => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::L)), Cycles(2)),
+                0xCE => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::HL)), Cycles(4)),
+                0xCF => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::A)), Cycles(2)),
+                0xD0 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::B)), Cycles(2)),
+                0xD1 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::C)), Cycles(2)),
+                0xD2 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::D)), Cycles(2)),
+                0xD3 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::E)), Cycles(2)),
+                0xD4 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::H)), Cycles(2)),
+                0xD5 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::L)), Cycles(2)),
+                0xD6 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::HL)), Cycles(4)),
+                0xD7 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I2, Register::A)), Cycles(2)),
+                0xD8 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::B)), Cycles(2)),
+                0xD9 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::C)), Cycles(2)),
+                0xDA => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::D)), Cycles(2)),
+                0xDB => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::E)), Cycles(2)),
+                0xDC => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::H)), Cycles(2)),
+                0xDD => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::L)), Cycles(2)),
+                0xDE => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::HL)), Cycles(4)),
+                0xDF => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3, Register::A)), Cycles(2)),
+                0xE0 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::B)), Cycles(2)),
+                0xE1 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::C)), Cycles(2)),
+                0xE2 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::D)), Cycles(2)),
+                0xE3 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::E)), Cycles(2)),
+                0xE4 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::H)), Cycles(2)),
+                0xE5 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::L)), Cycles(2)),
+                0xE6 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::HL)), Cycles(4)),
+                0xE7 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I4, Register::A)), Cycles(2)),
+                0xE8 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::B)), Cycles(2)),
+                0xE9 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::C)), Cycles(2)),
+                0xEA => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::D)), Cycles(2)),
+                0xEB => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::E)), Cycles(2)),
+                0xEC => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::H)), Cycles(2)),
+                0xED => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::L)), Cycles(2)),
+                0xEE => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::HL)), Cycles(4)),
+                0xEF => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I5, Register::A)), Cycles(2)),
+                0xF0 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::B)), Cycles(2)),
+                0xF1 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::C)), Cycles(2)),
+                0xF2 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::D)), Cycles(2)),
+                0xF3 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::E)), Cycles(2)),
+                0xF4 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::H)), Cycles(2)),
+                0xF5 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::L)), Cycles(2)),
+                0xF6 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::HL)), Cycles(4)),
+                0xF7 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I6, Register::A)), Cycles(2)),
+                0xF8 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::B)), Cycles(2)),
+                0xF9 => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::C)), Cycles(2)),
+                0xFA => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::D)), Cycles(2)),
+                0xFB => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::E)), Cycles(2)),
+                0xFC => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::H)), Cycles(2)),
+                0xFD => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::L)), Cycles(2)),
+                0xFE => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::HL)), Cycles(4)),
+                0xFF => (Opcode::PrefixCB(CBOpcode::SET(BitIndex::I7, Register::A)), Cycles(2)),
             },
             0xC3 => (Opcode::JP(OpcodeParameter::U16(two_byte_param)), Cycles(4)),
             0xC2 => (Opcode::JP(OpcodeParameter::FlagRegisterReset_U16(FlagRegister::Zero, two_byte_param)), Cycles(3)),
@@ -805,6 +805,18 @@ pub enum Opcode {
     RLA,
     RRCA,
     RRA,
+    JP(OpcodeParameter),
+    JR(OpcodeParameter),
+    CALL(OpcodeParameter),
+    RST(u8),
+    RET(OpcodeParameter),
+    RETI,
+    PrefixCB(CBOpcode),
+    IllegalInstruction,
+}
+
+#[derive(Debug)]
+pub enum CBOpcode {
     SWAP(Register),
     RLC(Register),
     RL(Register),
@@ -816,14 +828,6 @@ pub enum Opcode {
     BIT(BitIndex, Register),
     SET(BitIndex, Register),
     RES(BitIndex, Register),
-    JP(OpcodeParameter),
-    JR(OpcodeParameter),
-    CALL(OpcodeParameter),
-    RST(u8),
-    RET(OpcodeParameter),
-    RETI,
-    PrefixCB(Box<Opcode>),
-    IllegalInstruction,
 }
 
 // Store cycles in M
@@ -1041,27 +1045,16 @@ impl CPU {
                     let res = (self.registers.get(reg2) as i16).wrapping_add(value as i16);
                     self.registers.set(reg1, res as u16);
                 },
-                _ => {},
+                _ => unreachable!(),
             },
             // Increment or decrement program counter by signed N
             Opcode::JR(params) => {
                 self.registers.increment(Register::PC, 2);
-                let mut condition_met = false;
-                let mut value = 0 as i16;
-                match params {
-                    OpcodeParameter::I8(val) => {
-                        condition_met = true;
-                        value = val as i16;
-                    },
-                    OpcodeParameter::FlagRegisterReset_I8(flag, val) => {
-                        condition_met = !self.registers.get_flag(flag);
-                        value = val as i16;
-                    },
-                    OpcodeParameter::FlagRegisterSet_I8(flag, val) => {
-                        condition_met = self.registers.get_flag(flag);
-                        value = val as i16;
-                    },
-                    _ => {},
+                let (condition_met, value) = match params {
+                    OpcodeParameter::I8(val) => (true, val as i8),
+                    OpcodeParameter::FlagRegisterReset_I8(flag, val) => (!self.registers.get_flag(flag), val as i8),
+                    OpcodeParameter::FlagRegisterSet_I8(flag, val) => (self.registers.get_flag(flag), val as i8),
+                    _ => unreachable!(),
                 };
                 if condition_met {
                     self.increment_cycles(Cycles(1));
@@ -1083,7 +1076,7 @@ impl CPU {
                     bus.write(self.registers.get(reg1), val);
                     self.registers.increment(reg1, 1);
                 },
-                _ => {},
+                _ => unreachable!(),
             },
             // Load and decrement
             Opcode::LDD(params) => match params {
@@ -1099,7 +1092,7 @@ impl CPU {
                     bus.write(self.registers.get(reg1), val);
                     self.registers.decrement(reg1, 1);
                 },
-                _ => {},
+                _ => unreachable!(),
             },
             Opcode::AND(params) => {
                 match params {
@@ -1118,7 +1111,7 @@ impl CPU {
                         self.registers.set(reg, self.registers.get(reg) & (val as u16));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Substract, false);
                 self.registers.set_flag(FlagRegister::HalfCarry, true);
@@ -1141,7 +1134,7 @@ impl CPU {
                         self.registers.set(reg, self.registers.get(reg) | (val as u16));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Substract, false);
                 self.registers.set_flag(FlagRegister::HalfCarry, false);
@@ -1164,7 +1157,7 @@ impl CPU {
                         self.registers.set(reg, self.registers.get(reg) ^ (val as u16));
                         self.registers.set_flag(FlagRegister::Zero, self.registers.get(reg) == 0);
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Substract, false);
                 self.registers.set_flag(FlagRegister::HalfCarry, false);
@@ -1172,23 +1165,21 @@ impl CPU {
             },
             // Substract without storing the value
             Opcode::CP(params) => {
-                let mut val1: i16 = 0;
-                let mut val2: i16 = 0;
-                match params {
+                let (val1, val2) = match params {
                     OpcodeParameter::Register_U8(register, val) => {
                         self.registers.increment(Register::PC, 2);
-                        val1 = self.registers.get(register) as i16;
-                        val2 = val as i16;
+                        (self.registers.get(register) as i16, val as i16)
                     },
                     OpcodeParameter::Register_Register(reg1, reg2) => {
                         self.registers.increment(Register::PC, 1);
-                        val1 = self.registers.get(reg1) as i16;
-                        match reg2.is_8bit() {
-                            true => val2 = self.registers.get(reg2) as i16,
-                            false => val2 = bus.read(self.registers.get(reg2)) as i16,
+                        let val1 = self.registers.get(reg1) as i16;
+                        let val2 = match reg2.is_8bit() {
+                            true => self.registers.get(reg2) as i16,
+                            false => bus.read(self.registers.get(reg2)) as i16,
                         };
+                        (val1, val2)
                     }
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Zero, (val1 - val2) == 0);
                 self.registers.set_flag(FlagRegister::Substract, true);
@@ -1254,75 +1245,71 @@ impl CPU {
                         let res = (self.registers.get(reg) as i16).wrapping_add(value as i16);
                         self.registers.set(reg, res as u16);
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
             },
             Opcode::ADC(params) => {
-                let mut carry_prev = false;
-                let mut half_carry_prev = false;
-                match params {
+                let (carry_prev, half_carry_prev) = match params {
                     OpcodeParameter::Register_Register(reg1, reg2) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::ADD(OpcodeParameter::Register_Register(reg1, reg2)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::ADD(OpcodeParameter::Register_U8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
                     OpcodeParameter::Register_U8(reg1, val) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::ADD(OpcodeParameter::Register_U8(reg1, val)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::ADD(OpcodeParameter::Register_U8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
                     OpcodeParameter::Register_I8(reg1, val) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::ADD(OpcodeParameter::Register_I8(reg1, val)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::ADD(OpcodeParameter::Register_I8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Carry, carry_prev || self.registers.get_flag(FlagRegister::Carry));
                 self.registers.set_flag(FlagRegister::HalfCarry, half_carry_prev || self.registers.get_flag(FlagRegister::HalfCarry));
             },
             Opcode::SUB(params) => {
                 self.registers.increment(Register::PC, 1);
-                let mut register = Register::A;
-                let mut val1: u16 = 0;
-                let mut val2: u16 = 0;
-                match params {
+                let (register, val1, val2) = match params {
                     OpcodeParameter::Register_Register(reg1, reg2) => {
-                        register = reg1;
-                        val1 = self.registers.get(reg1);
-                        if reg1.is_8bit() && reg2.is_8bit() {
-                            val2 = self.registers.get(reg2);
-                        } else if reg1.is_8bit() && reg2.is_16bit() {
-                            val2 = bus.read(self.registers.get(reg2)) as u16;
-                        }
+                        let val1 = self.registers.get(reg1);
+                        let val2 = match reg1.is_8bit() && reg2.is_8bit() {
+                            true => self.registers.get(reg2),
+                            false => bus.read(self.registers.get(reg2)) as u16,
+                        };
+                        (reg1, val1, val2)
                     },
                     OpcodeParameter::Register_U8(reg1, val) => {
                         self.registers.increment(Register::PC, 1);
-                        register = reg1;
-                        val1 = self.registers.get(reg1);
-                        val2 = val as u16;
+                        (reg1, self.registers.get(reg1), val as u16)
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 let carry = val2 > val1;
-                if carry {
-                    val1 = val1 | 0x100;
-                }
+                let val1 = match carry {
+                    true => val1 | 0x100,
+                    false => val1,
+                };
                 let result = val1.wrapping_sub(val2);
                 self.registers.set(register, result);
                 self.registers.set_flag(FlagRegister::Zero, self.registers.get(register) == 0);
@@ -1331,40 +1318,41 @@ impl CPU {
                 self.registers.set_flag(FlagRegister::HalfCarry, sub_half_carry(val1.to_be_bytes()[1], val2.to_be_bytes()[1]));
             },
             Opcode::SBC(params) => {
-                let mut carry_prev = false;
-                let mut half_carry_prev = false;
-                match params {
+                let (carry_prev, half_carry_prev) = match params {
                     OpcodeParameter::Register_Register(reg1, reg2) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::SUB(OpcodeParameter::Register_Register(reg1, reg2)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::SUB(OpcodeParameter::Register_U8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
                     OpcodeParameter::Register_U8(reg1, val) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::SUB(OpcodeParameter::Register_U8(reg1, val)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::SUB(OpcodeParameter::Register_U8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
                     OpcodeParameter::Register_I8(reg1, val) => {
                         let carry = self.registers.get_flag(FlagRegister::Carry);
                         self.exec(Opcode::ADD(OpcodeParameter::Register_I8(reg1, val)), bus);
-                        carry_prev = self.registers.get_flag(FlagRegister::Carry);
-                        half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
+                        let carry_prev = self.registers.get_flag(FlagRegister::Carry);
+                        let half_carry_prev = self.registers.get_flag(FlagRegister::HalfCarry);
                         if carry {
                             self.registers.decrement(Register::PC, 2);
                             self.exec(Opcode::SUB(OpcodeParameter::Register_I8(reg1, 1)), bus);
                         }
+                        (carry_prev, half_carry_prev)
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 self.registers.set_flag(FlagRegister::Carry, carry_prev || self.registers.get_flag(FlagRegister::Carry));
                 self.registers.set_flag(FlagRegister::HalfCarry, half_carry_prev || self.registers.get_flag(FlagRegister::HalfCarry));
@@ -1465,36 +1453,33 @@ impl CPU {
                         self.increment_cycles(Cycles(1));
                     }
                 },
-                _ => {},
+                _ => unreachable!(),
             },
             // CALL
             Opcode::CALL(params) => {
                 self.registers.increment(Register::PC, 3);
-                let mut condition_met = false;
-                let mut addr = self.registers.get(Register::PC);
-                match params {
+                let (condition_met, address) = match params {
                     OpcodeParameter::U16(address) => {
-                        condition_met = true;
-                        addr = address;
+                        (true, address)
                     },
                     OpcodeParameter::FlagRegisterReset_U16(flag, address) => {
-                        condition_met = !self.registers.get_flag(flag);
-                        addr = address;
+                        let condition_met = !self.registers.get_flag(flag);
                         if condition_met {self.increment_cycles(Cycles(3))};
+                        (condition_met, address)
                     },
                     OpcodeParameter::FlagRegisterSet_U16(flag, address) => {
-                        condition_met = self.registers.get_flag(flag);
-                        addr = address;
+                        let condition_met = self.registers.get_flag(flag);
                         if condition_met {self.increment_cycles(Cycles(3))};
+                        (condition_met, address)
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
                 if condition_met {
                     let pc = self.registers.get(Register::PC);
                     self.registers.decrement(Register::SP, 2);
                     let sp = self.registers.get(Register::SP);
                     bus.write_16bit(sp, pc);
-                    self.registers.set(Register::PC, addr);
+                    self.registers.set(Register::PC, address);
                 }
             },
             // RST, same as Call
@@ -1539,7 +1524,7 @@ impl CPU {
                             self.increment_cycles(Cycles(3));
                         }
                     },
-                    _ => {},
+                    _ => unreachable!(),
                 };
             },
             // Rotate A Left
@@ -1590,8 +1575,8 @@ impl CPU {
             },
             Opcode::PrefixCB(opcode) => {
                 self.registers.increment(Register::PC, 2);
-                match *opcode {
-                    Opcode::RLC(register) => {
+                match opcode {
+                    CBOpcode::RLC(register) => {
                         let (val, result) = match register.is_8bit() {
                             true => {
                                 let val = self.registers.get_8bit(register);
@@ -1612,7 +1597,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                         self.registers.set_flag(FlagRegister::Carry, get_bit(val, BitIndex::I7));
                     },
-                    Opcode::RRC(register) => {
+                    CBOpcode::RRC(register) => {
                         let (val, result) = match register.is_8bit() {
                             true => {
                                 let val = self.registers.get_8bit(register);
@@ -1633,7 +1618,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                         self.registers.set_flag(FlagRegister::Carry, get_bit(val, BitIndex::I0));
                     },
-                    Opcode::RL(register) => {
+                    CBOpcode::RL(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1650,7 +1635,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::RR(register) => {
+                    CBOpcode::RR(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1667,7 +1652,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::SLA(register) => {
+                    CBOpcode::SLA(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register) as i8,
                             false => bus.read(self.registers.get(register)) as i8,
@@ -1682,7 +1667,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::SRA(register) => {
+                    CBOpcode::SRA(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register) as i8,
                             false => bus.read(self.registers.get(register)) as i8,
@@ -1697,7 +1682,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::SRL(register) => {
+                    CBOpcode::SRL(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1713,7 +1698,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::SWAP(register) => {
+                    CBOpcode::SWAP(register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1728,7 +1713,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, false);
                     },
-                    Opcode::BIT(index, register) => {
+                    CBOpcode::BIT(index, register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1738,7 +1723,7 @@ impl CPU {
                         self.registers.set_flag(FlagRegister::Substract, false);
                         self.registers.set_flag(FlagRegister::HalfCarry, true);
                     },
-                    Opcode::RES(index, register) => {
+                    CBOpcode::RES(index, register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1749,7 +1734,7 @@ impl CPU {
                             false => bus.write(self.registers.get(register), val),
                         };
                     },
-                    Opcode::SET(index, register) => {
+                    CBOpcode::SET(index, register) => {
                         let val = match register.is_8bit() {
                             true => self.registers.get_8bit(register),
                             false => bus.read(self.registers.get(register)),
@@ -1760,7 +1745,6 @@ impl CPU {
                             false => bus.write(self.registers.get(register), val),
                         };
                     },
-                    _ => {},
                 };
             },
             Opcode::CPL => {
@@ -3135,7 +3119,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RLC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RLC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3144,7 +3128,7 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b10000000);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RLC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RLC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3153,7 +3137,7 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RLC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RLC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3164,7 +3148,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b00000001);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RLC(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RLC(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3178,7 +3162,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RRC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RRC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3187,7 +3171,7 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000010);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RRC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RRC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3196,7 +3180,7 @@ mod tests {
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RRC(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RRC(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3207,7 +3191,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b00000001);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RRC(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RRC(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3222,7 +3206,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
         cpu.registers.set_flag(FlagRegister::Carry, true);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RL(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3233,7 +3217,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b10000000);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RL(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3244,7 +3228,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000010);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RL(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3257,7 +3241,7 @@ mod tests {
         bus.write(addr, 0b00000010);
         cpu.registers.set(Register::HL, addr);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RL(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RL(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3272,7 +3256,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
         cpu.registers.set_flag(FlagRegister::Carry, true);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RR(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RR(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3283,7 +3267,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b01000000);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RR(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RR(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3294,7 +3278,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RR(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RR(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3307,7 +3291,7 @@ mod tests {
         bus.write(addr, 0b01000000);
         cpu.registers.set(Register::HL, addr);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RR(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RR(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3325,7 +3309,7 @@ mod tests {
         cpu.registers.set_flag(FlagRegister::Substract, true);
         cpu.registers.set_flag(FlagRegister::HalfCarry, true);
         cpu.registers.set_flag(FlagRegister::Carry, true);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SLA(Register::B))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SLA(Register::B)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3343,7 +3327,7 @@ mod tests {
         cpu.registers.set_flag(FlagRegister::Substract, false);
         cpu.registers.set_flag(FlagRegister::HalfCarry, false);
         cpu.registers.set_flag(FlagRegister::Carry, false);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SRA(Register::B))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SRA(Register::B)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3357,7 +3341,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000010);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SRL(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SRL(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3368,7 +3352,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000001);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SRL(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SRL(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3380,7 +3364,7 @@ mod tests {
         let addr = 0xC000;
         bus.write(addr, 0b00000001);
         cpu.registers.set(Register::HL, addr);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SRL(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SRL(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3394,7 +3378,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SWAP(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3405,7 +3389,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b00000000);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SWAP(Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3418,7 +3402,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SWAP(Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SWAP(Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), false);
@@ -3432,7 +3416,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I3, Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I3, Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), true);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
@@ -3440,7 +3424,7 @@ mod tests {
 
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I4, Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I4, Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
@@ -3450,7 +3434,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::BIT(BitIndex::I0 ,Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::BIT(BitIndex::I0 ,Register::HL)), &mut bus);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Zero), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::Substract), false);
         assert_eq!(cpu.registers.get_flag(FlagRegister::HalfCarry), true);
@@ -3462,7 +3446,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I2, Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RES(BitIndex::I2, Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_8bit(Register::A), 0b11110001);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
 
@@ -3470,7 +3454,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::RES(BitIndex::I0 ,Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::RES(BitIndex::I0 ,Register::HL)), &mut bus);
         assert_eq!(bus.read(addr), 0b11110100);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
     }
@@ -3480,7 +3464,7 @@ mod tests {
         let mut bus = Bus::new();
         let mut cpu = CPU::new();
         cpu.registers.set(Register::A, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I1, Register::A))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SET(BitIndex::I1, Register::A)), &mut bus);
         assert_eq!(cpu.registers.get_8bit(Register::A), 0b11110111);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
 
@@ -3488,7 +3472,7 @@ mod tests {
         let addr = 0xC000;
         cpu.registers.set(Register::HL, addr);
         bus.write(addr, 0b11110101);
-        cpu.exec(Opcode::PrefixCB(Box::new(Opcode::SET(BitIndex::I3 ,Register::HL))), &mut bus);
+        cpu.exec(Opcode::PrefixCB(CBOpcode::SET(BitIndex::I3 ,Register::HL)), &mut bus);
         assert_eq!(bus.read(addr), 0b11111101);
         assert_eq!(cpu.registers.get(Register::PC), 0x102);
     }
