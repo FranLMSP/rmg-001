@@ -91,7 +91,7 @@ enum Region {
     NonJapanese,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum BankingMode {
     Simple,
     Advanced,
@@ -264,25 +264,55 @@ impl MBC1 {
 
     fn switch_rom_bank(&mut self, bank: u16) {
         self.rom_bank = bank;
+        if (self.rom_bank & 0b11111) == 0 {
+            self.rom_bank += 1;
+        }
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
-        } else if self.rom_bank == 0 {
-            self.rom_bank = 1;
         }
+    }
+
+    fn get_bank_zero_address(&self, address: u16) -> usize {
+        match self.banking_mode {
+            BankingMode::Simple => (address & 0x3FFF) as usize,
+            BankingMode::Advanced => {
+                ((self.ram_bank as usize) << 5) * ((address & 0x3FFF) as usize)
+                // ((self.ram_bank as usize) << 19) | (address & 0x3FFF) as usize
+            },
+        }
+    }
+
+    fn get_bank_switchable_address(&self, address: u16) -> usize {
+        let rom_bank = ((self.ram_bank as u16) << 5) | (self.rom_bank & 0b11111);
+        ((rom_bank as usize) << 14) | (address & 0x3FFF) as usize
+    }
+
+    fn get_ram_address(&self, address: u16) -> usize {
+        let bank = match self.banking_mode {
+            BankingMode::Simple => 0,
+            BankingMode::Advanced => self.ram_bank,
+        };
+        ((bank as usize) << 11) + ((address as usize) & 0x1FFF)
     }
 }
 
 impl ROM for MBC1 {
     fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.contains(&address) {
-            return self.data[address as usize];
+            return match self.data.get(self.get_bank_zero_address(address)) {
+                Some(byte) => *byte,
+                None => 0xFF,
+            };
         } else if BANK_SWITCHABLE.contains(&address) {
-            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
+            return match self.data.get(self.get_bank_switchable_address(address)) {
+                Some(byte) => *byte,
+                None => 0xFF,
+            };
         } else if EXTERNAL_RAM.contains(&address) {
-            if !self.info.has_ram {
+            if !self.info.has_ram && !self.ram_enable {
                 return 0xFF;
             }
-            return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
+            return match self.ram.get(self.get_ram_address(address)) {
                 Some(data) => *data,
                 None => 0xFF,
             };
@@ -301,26 +331,22 @@ impl ROM for MBC1 {
             };
             return;
         } else if address >= 0x2000 && address <= 0x3FFF { // ROM bank number register
-            // println!("Switch bank to {:02X}", data);
             self.switch_rom_bank(data as u16 & 0b00011111);
         } else if address >= 0x4000 && address <= 0x5FFF { // ROM and RAM bank number register
-            // println!("RAM bank {:02X}", data);
             self.ram_bank = data & 0b11;
         } else if address >= 0x6000 && address <= 0x7FFF { // Banking mode select
-            self.banking_mode = match data & 1 {
-                0 => BankingMode::Simple,
-                1 => BankingMode::Advanced,
-                _ => unreachable!(),
+            self.banking_mode = match (data & 1) == 0 {
+                true => BankingMode::Simple,
+                false => BankingMode::Advanced,
             }
         } else if EXTERNAL_RAM.contains(&address) {
             if !self.ram_enable || !self.info.has_ram {
                 return;
             }
-            let address = address as usize - EXTERNAL_RAM.min().unwrap() as usize + (EXTERNAL_RAM.min().unwrap() as usize * self.ram_bank as usize);
+            let address = self.get_ram_address(address);
             if let Some(elem) = self.ram.get_mut(address) {
                 *elem = data;
             }
-            self.switch_rom_bank(self.rom_bank + (data as u16 >> 5));
         }
     }
 }

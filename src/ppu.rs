@@ -306,9 +306,7 @@ impl PPU {
             self.lcd_control = data;
             // Check if LCD is being turned on or off
             self.lcd_enable = get_bit(data, BitIndex::I7);
-            if (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) ||
-               !get_bit(data, BitIndex::I7)
-            {
+            if !get_bit(data, BitIndex::I7) || (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) {
                 self.io_registers[LCD_Y_ADDRESS as usize - 0xFF40] = 0x00;
                 // Set Hblank
                 let byte = self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40];
