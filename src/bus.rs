@@ -139,7 +139,7 @@ impl Bus {
             let mut count: u16 = 0;
             let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
             while count < 160 {
-                self.ppu.write_oam(oam_addr + count, self.data[(source + count) as usize]);
+                self.ppu.write_oam(oam_addr + count, self.read(source + count));
                 count += 1;
             }
         } else if PPU::is_io_register(address) {
