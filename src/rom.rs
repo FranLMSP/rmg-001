@@ -257,7 +257,7 @@ impl MBC1 {
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; info.ram_size() as usize];
-        let is_large_rom = info.rom_size() >= 1048576;
+        let is_large_rom = info.rom_banks > 32;
         Self {
             data,
             info,
@@ -278,12 +278,13 @@ impl MBC1 {
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
         }
-        //println!("switched to ROM bank {}", self.rom_bank);
     }
 
     fn switch_ram_bank(&mut self, bank: u8) {
         self.ram_bank = bank & 0b11;
-        // println!("switched to RAM bank {}", self.ram_bank);
+        if self.ram_bank > self.info.ram_banks.saturating_sub(1) {
+            self.ram_bank = self.info.ram_banks.saturating_sub(1);
+        }
     }
 
     fn get_bank_zero_address(&self, address: u16) -> usize {
@@ -292,9 +293,7 @@ impl MBC1 {
         }
         match self.banking_mode {
             BankingMode::Simple => address as usize,
-            BankingMode::Advanced => {
-                ((self.ram_bank as usize) << 5) * ((address & 0x3FFF) as usize)
-            },
+            BankingMode::Advanced => ((self.ram_bank as usize) << 5) * ((address & 0x3FFF) as usize),
         }
     }
 
