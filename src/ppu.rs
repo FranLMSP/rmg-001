@@ -364,6 +364,7 @@ impl PPU {
             }
         } else if self.lcd_y >= 144 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
+            self.window_y_counter = 0;
             self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
             self.set_interrupt(Interrupt::VBlank, true);
             self.stat_interrupt();
@@ -380,7 +381,6 @@ impl PPU {
             // Frame completed
             if self.lcd_y > 153 {
                 self.lcd_y = 0;
-                self.window_y_counter = 0;
             }
             self.force_set_register(LCD_Y_ADDRESS, self.lcd_y);
             self.stat_interrupt();
