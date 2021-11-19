@@ -2,6 +2,8 @@
 use std::fs::File;
 #[cfg(not(test))]
 use std::io::Read;
+#[cfg(not(test))]
+use std::io::Write;
 
 use crate::bus::{
     BANK_ZERO,
@@ -36,6 +38,7 @@ fn header_checksum(data: &Vec<u8>) -> bool {
 pub fn load_rom(_filename: &str) -> std::io::Result<Box<dyn ROM>> {
     Ok(Box::new(NoMBC::new(Vec::new(), ROMInfo {
         mbc: MBC::NoMBC,
+        filename: "".to_string(),
         publisher: "".to_string(),
         title: "".to_string(),
         cgb_only: false,
@@ -58,16 +61,59 @@ pub fn load_rom(filename: &str) -> std::io::Result<Box<dyn ROM>> {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Header checksum failed. Is this a Gameboy ROM?"));
     }
 
-    let info = ROMInfo::from_bytes(&data);
+    let mut info = ROMInfo::from_bytes(&data);
+    info.set_filename(filename.to_string());
+    let info_copy = info.clone();
 
-    Ok(match info.mbc {
+    let mut rom: Box<dyn ROM> = match info.mbc {
         MBC::NoMBC => Box::new(NoMBC::new(data, info)),
         MBC::MBC1 => Box::new(MBC1::new(data, info)),
         MBC::MBC2 => Box::new(MBC2::new(data, info)),
         MBC::MBC3 => Box::new(MBC3::new(data, info)),
         MBC::MBC5 => Box::new(MBC5::new(data, info)),
         _ => unimplemented!(),
-    })
+    };
+
+    #[cfg(not(test))]
+    match load_save(rom.ram_mut(), &info_copy) {
+        Err(err) => eprintln!("Could not load save file: {}", err),
+        _ => {},
+    };
+
+    Ok(rom)
+}
+
+#[cfg(not(test))]
+pub fn save_file(ram: &Vec<u8>, info: &ROMInfo) -> std::io::Result<()> {
+    if !info.has_ram || !info.has_battery {
+        return Ok(());
+    }
+    let mut file = File::create(format!("{}.sav", info.filename))?;
+    file.write_all(ram)?;
+    Ok(())
+}
+
+#[cfg(not(test))]
+pub fn load_save(ram: &mut Vec<u8>, info: &ROMInfo) -> std::io::Result<()> {
+    if !info.has_ram || !info.has_battery {
+        return Ok(());
+    }
+
+    let mut file = File::open(format!("{}.sav", info.filename))?;
+    let mut data = vec![];
+    file.read_to_end(&mut data)?;
+
+    let mut index = 0;
+    let size = match ram.len() < data.len() {
+        true => ram.len(),
+        false => data.len(),
+    };
+    while index < size {
+        ram[index] = data[index];
+        index += 1;
+    } 
+
+    Ok(())
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -86,21 +132,22 @@ enum MBC {
     BandaiTIMA5,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 enum Region {
     Japanese,
     NonJapanese,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 enum BankingMode {
     Simple,
     Advanced,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ROMInfo {
     mbc: MBC,
+    filename: String,
     publisher: String,
     title: String,
     cgb_only: bool,
@@ -114,6 +161,10 @@ pub struct ROMInfo {
 }
 
 impl ROMInfo {
+    pub fn set_filename(&mut self, filename: String) {
+        self.filename = filename;
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let rom_type = bytes[CARTRIDGE_TYPE_ADDRESS as usize];
         Self {
@@ -147,6 +198,7 @@ impl ROMInfo {
                 0xFF => MBC::HuC1,
                 _ => unreachable!(),
             },
+            filename: "".to_string(),
             region: match bytes[DESTINATION_CODE_ADDRESS as usize] {
                 0x00 => Region::Japanese,
                 _ => Region::NonJapanese,
@@ -207,11 +259,15 @@ impl ROMInfo {
 pub trait ROM {
     fn read(&self, address: u16) -> u8;
     fn write(&mut self, address: u16, data: u8);
+    fn ram_mut(&mut self) -> &mut Vec<u8>;
+    fn ram(&self) -> &Vec<u8>;
+    fn info(&self) -> &ROMInfo;
 }
 
 pub struct NoMBC {
     data: Vec<u8>,
     info: ROMInfo,
+    ram: Vec<u8>,
 }
 
 impl NoMBC {
@@ -219,6 +275,7 @@ impl NoMBC {
         let rom = Self {
             data,
             info,
+            ram: Vec::new(),
         };
         println!("MBC {:?}", rom.info.mbc);
         println!("Region {:?}", rom.info.region);
@@ -236,6 +293,18 @@ impl ROM for NoMBC {
     }
 
     fn write(&mut self, _address: u16, _data: u8) {}
+
+    fn ram_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.ram
+    }
+
+    fn ram(&self) -> &Vec<u8> {
+        &self.ram
+    }
+
+    fn info(&self) -> &ROMInfo {
+        &self.info
+    }
 }
 
 pub struct MBC1 {
@@ -254,6 +323,7 @@ impl MBC1 {
         println!("MBC {:?}", info.mbc);
         println!("Region {:?}", info.region);
         println!("Has RAM {}", info.has_ram);
+        println!("Has battery {}", info.has_battery);
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; info.ram_size() as usize];
@@ -367,6 +437,18 @@ impl ROM for MBC1 {
             }
         }
     }
+
+    fn ram_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.ram
+    }
+
+    fn ram(&self) -> &Vec<u8> {
+        &self.ram
+    }
+
+    fn info(&self) -> &ROMInfo {
+        &self.info
+    }
 }
 
 pub struct MBC2 {
@@ -382,6 +464,7 @@ impl MBC2 {
         println!("MBC {:?}", info.mbc);
         println!("Region {:?}", info.region);
         println!("Has RAM {}", info.has_ram);
+        println!("Has battery {}", info.has_battery);
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; 0x200];
@@ -443,6 +526,18 @@ impl ROM for MBC2 {
             }
         }
     }
+
+    fn ram_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.ram
+    }
+
+    fn ram(&self) -> &Vec<u8> {
+        &self.ram
+    }
+
+    fn info(&self) -> &ROMInfo {
+        &self.info
+    }
 }
 
 pub struct MBC3 {
@@ -459,6 +554,7 @@ impl MBC3 {
         println!("MBC {:?}", info.mbc);
         println!("Region {:?}", info.region);
         println!("Has RAM {}", info.has_ram);
+        println!("Has battery {}", info.has_battery);
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; info.ram_size() as usize];
@@ -519,6 +615,18 @@ impl ROM for MBC3 {
         }
 
     }
+
+    fn ram_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.ram
+    }
+
+    fn ram(&self) -> &Vec<u8> {
+        &self.ram
+    }
+
+    fn info(&self) -> &ROMInfo {
+        &self.info
+    }
 }
 
 pub struct MBC5 {
@@ -535,6 +643,7 @@ impl MBC5 {
         println!("MBC {:?}", info.mbc);
         println!("Region {:?}", info.region);
         println!("Has RAM {}", info.has_ram);
+        println!("Has battery {}", info.has_battery);
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; info.ram_size() as usize];
@@ -590,5 +699,17 @@ impl ROM for MBC5 {
                 *elem = data;
             }
         }
+    }
+
+    fn ram_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.ram
+    }
+
+    fn ram(&self) -> &Vec<u8> {
+        &self.ram
+    }
+
+    fn info(&self) -> &ROMInfo {
+        &self.info
     }
 }

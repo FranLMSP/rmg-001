@@ -52,12 +52,13 @@ pub fn start_eventloop() {
     let mut pixels = create_pixels(WIDTH, HEIGHT, &window);
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        // *control_flow = ControlFlow::Wait;
 
         // Handle input events
         if input.update(&event) {
             // Close events
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
+                emulator.close();
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -76,6 +77,7 @@ pub fn start_eventloop() {
                 ..
             } => {
                 println!("The close button was pressed; stopping");
+                emulator.close();
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {

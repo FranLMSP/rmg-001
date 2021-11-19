@@ -5,6 +5,8 @@ use winit::event::{VirtualKeyCode};
 use crate::cpu::{CPU, Cycles, Interrupt};
 use crate::bus::Bus;
 use crate::joypad::{Button};
+#[cfg(not(test))]
+use crate::rom::{save_file};
 
 pub struct Emulator {
     bus: Bus,
@@ -17,6 +19,16 @@ impl Emulator {
             bus: Bus::new(),
             cpu: CPU::new(),
         }
+    }
+
+    pub fn close(&self) {
+        println!("closing emulator");
+
+        #[cfg(not(test))]
+        match save_file(self.bus.rom.ram(), self.bus.rom.info()) {
+            Err(err) => eprintln!("Could not save file: {}", err),
+            _ => {},
+        };
     }
 
     pub fn handle_input(&mut self, input: &WinitInputHelper) {

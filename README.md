@@ -17,11 +17,11 @@ Any help or suggestion is welcome!
   - [x] MBC1
   - [x] MBC2
   - [ ] MBC3 (partially implemented)
-  - [X] MBC5
+  - [x] MBC5
   - [ ] MBC6
   - [ ] MBC7
   - [ ] HuC1
-- [ ] Save files
+- [x] Save files
 - [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
 - [ ] Gameboy boot ROM (Not important for now)
 - [ ] Gameboy Color compatibility

@@ -27,8 +27,8 @@ pub const INTERRUPT_ENABLE_ADDRESS: u16 = 0xFFFF;
 pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
 pub struct Bus {
-    game_rom: Box<dyn ROM>,
     data: [u8; 0x10000],
+    pub rom: Box<dyn ROM>,
     pub ppu: PPU,
     pub joypad: Joypad,
     pub timer: Timer,
@@ -39,19 +39,19 @@ impl Bus {
         let args: Vec<String> = std::env::args().collect();
         #[cfg(not(test))]
         if args.len() < 2 {
-            println!("Please, specify a ROM file");
+            eprintln!("Please, specify a ROM file");
             std::process::exit(1);
         }
-        let game_rom = match load_rom(&args.get(1).unwrap_or(&"".to_string())) {
+        let rom = match load_rom(&args.get(1).unwrap_or(&"".to_string())) {
             Ok(rom) => rom,
             Err(err) => {
-                println!("Could not read ROM: {}", err);
+                eprintln!("Could not read ROM: {}", err);
                 std::process::exit(1);
             },
         };
         let mut bus = Self {
             data: [0x00; 0x10000],
-            game_rom,
+            rom,
             ppu: PPU::new(),
             joypad: Joypad::new(),
             timer: Timer::new(),
@@ -85,7 +85,7 @@ impl Bus {
 
     pub fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
-            return self.game_rom.read(address);
+            return self.rom.read(address);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return 0b11100000 | self.data[address as usize];
         } else if VIDEO_RAM.contains(&address) {
@@ -112,7 +112,7 @@ impl Bus {
         }
 
         if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
-            self.game_rom.write(address, data);
+            self.rom.write(address, data);
         } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) {
             self.data[address as usize] = data;
             // Copy to the ECHO RAM
@@ -120,7 +120,7 @@ impl Bus {
                 self.data[(ECHO_RAM.min().unwrap() + (address - WORK_RAM_1.min().unwrap())) as usize] = data;
             }
         } else if EXTERNAL_RAM.contains(&address) {
-            self.game_rom.write(address, data);
+            self.rom.write(address, data);
         } else if ECHO_RAM.contains(&address) {
             self.data[address as usize] = data;
             self.data[(WORK_RAM_1.min().unwrap() + (address - ECHO_RAM.min().unwrap())) as usize] = data; // Copy to the working RAM
