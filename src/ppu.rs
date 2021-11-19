@@ -156,8 +156,8 @@ impl Sprite {
             true => 16,
             false => 8,
         };
-        let x = lcd_x.saturating_sub(self.x.saturating_sub(8));
-        let y = lcd_y.saturating_sub(self.y .saturating_sub(16));
+        let x = (lcd_x + 8) - self.x;
+        let y = (lcd_y + 16) - self.y;
         let x = match self.x_flip {
             true => 7 - x,
             false => x,
@@ -430,15 +430,27 @@ impl PPU {
             let y = self.read_oam(addr);
             let x = self.read_oam(addr + 1);
 
-            if x == 0 {
-                addr += 4;
-                continue;
-            }
-
             let sprite_height: u8 = match long_sprites {
                 true => 16,
                 false => 8,
             };
+
+            if x == 0 {
+                addr += 4;
+                continue;
+            } else if x >= 160 + 8 {
+                addr += 4;
+                continue;
+            } else if y == 0 {
+                addr += 4;
+                continue;
+            } else if y >= 144 + 16 {
+                addr += 4;
+                continue;
+            } else if !long_sprites && y <= 8 {
+                addr += 4;
+                continue;
+            }
 
             let lcd_y = self.lcd_y.saturating_add(16);
 
