@@ -568,6 +568,9 @@ pub struct MBC3 {
     rom_bank: u16,
     ram_bank: u8,
     ram_timer_enable: bool,
+    map_rtc: bool,
+    prev_rtc_latch: u8,
+    rtc_register: u8,
 }
 
 impl MBC3 {
@@ -586,16 +589,23 @@ impl MBC3 {
             rom_bank: 1,
             ram_bank: 0,
             ram_timer_enable: false,
+            map_rtc: false,
+            prev_rtc_latch: 0,
+            rtc_register: 0x08,
         }
     }
 
     fn switch_rom_bank(&mut self, bank: u16) {
-        self.rom_bank = bank;
+        self.rom_bank = bank & 0b01111111;
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
         } else if self.rom_bank == 0 {
             self.rom_bank = 1;
         }
+    }
+
+    fn get_ram_address(&self, address: u16) -> usize {
+        (0x2000 * self.ram_bank as usize) + (address as usize - 0xA000)
     }
 }
 
@@ -604,25 +614,32 @@ impl ROM for MBC3 {
         if BANK_ZERO.contains(&address) {
             return self.data[address as usize];
         } else if BANK_SWITCHABLE.contains(&address) {
-            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize & 0x3FFF)) as usize];
+            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize - 0x4000)) as usize];
         } else if EXTERNAL_RAM.contains(&address) {
-            if !self.info.has_ram || !self.ram_timer_enable {
+            if self.map_rtc {
+                if !self.ram_timer_enable {
+                    return 0xFF;
+                }
                 return 0xFF;
+            } else {
+                if !self.ram_timer_enable {
+                    return 0xFF;
+                }
+                let address = self.get_ram_address(address);
+                return match self.ram.get(address) {
+                    Some(data) => *data,
+                    None => 0xFF,
+                };
             }
-            return match self.ram.get((address - EXTERNAL_RAM.min().unwrap() + (0x2000 * self.ram_bank as u16)) as usize) {
-                Some(data) => *data,
-                None => 0xFF,
-            };
         }
-        return 0xFF;
+        unreachable!("Invalid ROM read: {}", address);
     }
 
     fn write(&mut self, address: u16, data: u8) {
-        if address >= 0xA000 && address <= 0xBFFF {
-        } else if address <= 0x1FFF {
+        if address <= 0x1FFF {
             match data {
                 0x0A => self.ram_timer_enable = true,
-                0x00 => self.ram_timer_enable = true,
+                0x00 => self.ram_timer_enable = false,
                 _ => {},
             }
         } else if address >= 0x2000 && address <= 0x3FFF {
@@ -630,11 +647,29 @@ impl ROM for MBC3 {
         } else if address >= 0x4000 && address <= 0x5FFF {
             if data <= 0x03 {
                 self.ram_bank = data;
-            } else if data >= 0x08 && data <= 0x0C && self.info.has_timer {
+                self.map_rtc = false;
+            } else if data >= 0x08 && data <= 0x0C {
+                self.rtc_register = data;
+                self.map_rtc = true;
             }
         } else if address >= 0x6000 && address <= 0x7FFF {
-        }
+            if self.prev_rtc_latch == 0 && data == 1 {
+                // latch
+            }
+            self.prev_rtc_latch = data;
+        } else if address >= 0xA000 && address <= 0xBFFF {
+            if !self.ram_timer_enable {
+                return;
+            }
 
+            if self.map_rtc {
+            } else {
+                let address = self.get_ram_address(address);
+                if let Some(elem) = self.ram.get_mut(address) {
+                    *elem = data;
+                }
+            }
+        }
     }
 
     fn ram_mut(&mut self) -> &mut Vec<u8> {
@@ -677,6 +712,10 @@ impl MBC5 {
             ram_enable: false,
         }
     }
+
+    fn get_ram_address(&self, address: u16) -> usize {
+        (0x2000 * self.ram_bank as usize) + (address as usize - 0xA000)
+    }
 }
 
 impl ROM for MBC5 {
@@ -692,7 +731,7 @@ impl ROM for MBC5 {
             if !self.info.has_ram || !self.ram_enable {
                 return 0xFF;
             }
-            return match self.ram.get(((self.ram_bank as usize * 0x2000) + (address as usize - 0x2000)) as usize) {
+            return match self.ram.get(self.get_ram_address(address)) {
                 Some(data) => *data,
                 None => 0xFF,
             };
@@ -713,7 +752,8 @@ impl ROM for MBC5 {
             if !self.ram_enable || !self.info.has_ram {
                 return;
             }
-            if let Some(elem) = self.ram.get_mut(((self.ram_bank as usize * 0x2000) + (address as usize % 0x2000)) as usize) {
+            let address = self.get_ram_address(address);
+            if let Some(elem) = self.ram.get_mut(address) {
                 *elem = data;
             }
         }
