@@ -35,4 +35,6 @@ This project would have been completely impossible without all the documentation
 - Gameboy emulation guide: https://hacktixme.ga/GBEDG/
 - CPU opcodes table: https://izik1.github.io/gbops/
 - Opcodes behaviour: https://rgbds.gbdev.io/docs/v0.5.1/gbz80.7
+- Blargg's test ROMs: https://github.com/retrio/gb-test-roms
+- Mooneye test ROMs: https://github.com/Gekkio/mooneye-test-suite
 - The Ultimate Gameboy talk: https://youtu.be/HyzD8pNlpwI
