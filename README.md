@@ -10,7 +10,7 @@ Any help or suggestion is welcome!
 - [x] Interrupts
 - [x] Timer
 - [x] Joypad (not configurable yet)
-- [X] PPU implementations
+- [x] PPU implementations
 - [x] Render the pixels
 - [ ] MBC Implementations
   - [x] NoMBC

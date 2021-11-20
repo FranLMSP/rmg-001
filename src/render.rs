@@ -77,7 +77,6 @@ pub fn start_eventloop() {
                 ..
             } => {
                 println!("The close button was pressed; stopping");
-                emulator.close();
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {
