@@ -314,7 +314,7 @@ pub struct MBC1 {
     rom_bank: u16,
     ram_bank: u8,
     ram_enable: bool,
-    is_large_rom: bool,
+    bitmask: u8,
     banking_mode: BankingMode,
 }
 
@@ -327,7 +327,16 @@ impl MBC1 {
         println!("ROM banks {}", info.rom_banks);
         println!("RAM banks {}", info.ram_banks);
         let ram = vec![0; info.ram_size() as usize];
-        let is_large_rom = info.rom_banks > 32;
+        let mut bitmask = 0b11111;
+        if info.rom_banks <= 2 {
+            bitmask = 0b1;
+        } else if info.rom_banks <= 4 {
+            bitmask = 0b11;
+        } else if info.rom_banks <= 8 {
+            bitmask = 0b111;
+        } else if info.rom_banks <= 16 {
+            bitmask = 0b1111;
+        }
         Self {
             data,
             info,
@@ -335,52 +344,63 @@ impl MBC1 {
             rom_bank: 1,
             ram_bank: 0,
             ram_enable: false,
-            is_large_rom,
+            bitmask,
             banking_mode: BankingMode::Simple,
         }
     }
 
     fn switch_rom_bank(&mut self, bank: u8) {
-        self.rom_bank = bank as u16 & 0b11111;
+        self.rom_bank = bank as u16 & self.bitmask as u16;
         if self.rom_bank == 0 {
             self.rom_bank = 1;
-        }
-        if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
-            self.rom_bank = self.info.rom_banks.saturating_sub(1);
         }
     }
 
     fn switch_ram_bank(&mut self, bank: u8) {
         self.ram_bank = bank & 0b11;
-        if self.ram_bank > self.info.ram_banks.saturating_sub(1) {
-            self.ram_bank = self.info.ram_banks.saturating_sub(1);
-        }
     }
 
     fn get_bank_zero_address(&self, address: u16) -> usize {
-        if !self.is_large_rom {
-            return address as usize;
-        }
         match self.banking_mode {
             BankingMode::Simple => address as usize,
-            BankingMode::Advanced => ((self.ram_bank as usize) << 5) * ((address & 0x3FFF) as usize),
+            BankingMode::Advanced => {
+                if self.info.rom_banks <= 32 {
+                    return address as usize;
+                } else if self.info.rom_banks <= 64 {
+                    let bank = (self.ram_bank & 0b1) << 5;
+                    return (bank as usize) * (address as usize);
+                } else if self.info.rom_banks >= 128 {
+                    let bank = self.ram_bank << 5;
+                    return (bank as usize) * (address as usize);
+                }
+                address as usize
+            },
         }
     }
 
     fn get_bank_switchable_address(&self, address: u16) -> usize {
-        if self.is_large_rom {
-            let rom_bank = ((self.ram_bank as u16) << 5) | (self.rom_bank & 0b11111);
-            return ((rom_bank as usize) << 14) | (address & 0x3FFF) as usize;
+        if self.info.rom_banks <= 32 {
+            return (0x4000 * self.rom_bank as usize) + (address as usize - 0x4000);
+        } else if self.info.rom_banks <= 64 {
+            let bank = (((self.ram_bank as u16) & 0b1) << 5) | self.rom_bank;
+            return (0x4000 * bank as usize) + (address as usize - 0x4000);
+        } else if self.info.rom_banks <= 128 {
+            let bank = ((self.ram_bank as u16) << 5) | self.rom_bank;
+            return (0x4000 * bank as usize) + (address as usize - 0x4000);
         }
-        return ((self.rom_bank as usize) << 14) | (address & 0x3FFF) as usize;
+        (0x4000 * self.rom_bank as usize) + (address as usize - 0x4000)
     }
 
     fn get_ram_address(&self, address: u16) -> usize {
-        let bank = match self.banking_mode {
-            BankingMode::Simple => 0,
-            BankingMode::Advanced => self.ram_bank,
-        };
-        ((bank as usize) << 11) + ((address as usize) & 0x1FFF)
+        match self.banking_mode {
+            BankingMode::Simple => address as usize - 0xA000,
+            BankingMode::Advanced => {
+                if self.info.ram_banks <= 1 {
+                    return address as usize - 0xA000;
+                }
+                (0x2000 * self.ram_bank as usize) + (address as usize - 0xA000)
+            },
+        }
     }
 }
 
@@ -481,7 +501,8 @@ impl MBC2 {
         self.rom_bank = bank & 0b1111;
         if self.rom_bank > self.info.rom_banks.saturating_sub(1) {
             self.rom_bank = self.info.rom_banks.saturating_sub(1);
-        } else if self.rom_bank == 0 {
+        }
+        if self.rom_bank == 0 {
             self.rom_bank = 1;
         }
     }
@@ -492,7 +513,7 @@ impl ROM for MBC2 {
         if BANK_ZERO.contains(&address) {
             return self.data[address as usize];
         } else if BANK_SWITCHABLE.contains(&address) {
-            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize % 0x4000)) as usize];
+            return self.data[((self.rom_bank as usize * 0x4000) + (address as usize - 0x4000)) as usize];
         } else if address >= 0xA000 {
             let address = (address as usize) & 0x1FF;
             if !self.ram_enable {
@@ -663,7 +684,7 @@ impl ROM for MBC5 {
         if BANK_ZERO.contains(&address) {
             return self.data[address as usize];
         } else if BANK_SWITCHABLE.contains(&address) {
-            return match self.data.get(((self.rom_bank as usize * 0x4000) + (address as usize % 0x4000)) as usize) {
+            return match self.data.get(((self.rom_bank as usize * 0x4000) + (address as usize - 0x4000)) as usize) {
                 Some(byte) => *byte,
                 None => 0xFF,
             };
@@ -671,7 +692,7 @@ impl ROM for MBC5 {
             if !self.info.has_ram || !self.ram_enable {
                 return 0xFF;
             }
-            return match self.ram.get(((self.ram_bank as usize * 0x2000) + (address as usize % 0x2000)) as usize) {
+            return match self.ram.get(((self.ram_bank as usize * 0x2000) + (address as usize - 0x2000)) as usize) {
                 Some(data) => *data,
                 None => 0xFF,
             };
@@ -681,14 +702,11 @@ impl ROM for MBC5 {
 
     fn write(&mut self, address: u16, data: u8) {
         if address <= 0x1FFF {
-            match data & 0b1111 {
-                0x0A => self.ram_enable = true,
-                _ => self.ram_enable = false,
-            };
+            self.ram_enable = data == 0b00001010;
         } else if address >= 0x2000 && address <= 0x2FFF {
-            self.rom_bank = data as u16;
+            self.rom_bank = (self.rom_bank & 0x000) | data as u16;
         } else if address >= 0x3000 && address <= 0x3FFF {
-            self.rom_bank = ((data & 1) as u16) | (self.rom_bank & 0xF);
+            self.rom_bank = (((data & 1) as u16) << 8) | (self.rom_bank & 0xFF);
         } else if address >= 0x4000 && address <= 0x5FFF {
             self.ram_bank = data & 0b1111;
         } else if EXTERNAL_RAM.contains(&address) {
