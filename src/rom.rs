@@ -704,7 +704,7 @@ impl ROM for MBC5 {
         if address <= 0x1FFF {
             self.ram_enable = data == 0b00001010;
         } else if address >= 0x2000 && address <= 0x2FFF {
-            self.rom_bank = (self.rom_bank & 0x000) | data as u16;
+            self.rom_bank = (self.rom_bank & 0x100) | data as u16;
         } else if address >= 0x3000 && address <= 0x3FFF {
             self.rom_bank = (((data & 1) as u16) << 8) | (self.rom_bank & 0xFF);
         } else if address >= 0x4000 && address <= 0x5FFF {
