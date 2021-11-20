@@ -43,6 +43,7 @@ pub fn create_window<T>(width: u32, height: u32, title: String, event_loop: &Eve
 pub fn start_eventloop() {
     let mut emulator = Emulator::new();
     let mut frames = Frames::new();
+    let mut frame_limit = Frames::new();
 
     env_logger::init();
     let event_loop = EventLoop::new();
@@ -80,16 +81,16 @@ pub fn start_eventloop() {
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {
+                frame_limit.reset_timer();
                 emulator.run(Cycles(70224), pixels.get_frame());
                 frames.increment();
+                window.request_redraw();
                 if frames.elapsed_ms() >= 1000 {
                     window.set_title(&format!("rmg-001 (FPS: {})", frames.count()));
                     frames.reset_count();
                     frames.reset_timer();
                 }
-
-                // thread::sleep(time::Duration::from_millis(1));
-                window.request_redraw();
+                frame_limit.limit();
             },
             Event::RedrawRequested(_) => {
                 if pixels

@@ -1,9 +1,11 @@
+use std::{thread, time};
 use std::time::Instant;
 
 pub struct Frames {
     count: usize,
     timer: Instant,
     time_start: u128,
+    fps: u128,
 }
 
 impl Frames {
@@ -12,6 +14,7 @@ impl Frames {
             count: 0,
             timer: Instant::now(),
             time_start: 0,
+            fps: 1000 / 63,
         }
     }
 
@@ -33,5 +36,15 @@ impl Frames {
 
     pub fn count(&self) -> usize {
         self.count
+    }
+
+    pub fn limit(&mut self) {
+        let elapsed = self.elapsed_ms();
+        // println!("{}", elapsed);
+        if elapsed > self.fps {
+            // println!("Frame dropped");
+            return;
+        }
+        thread::sleep(time::Duration::from_millis((self.fps - elapsed).try_into().unwrap()));
     }
 }
