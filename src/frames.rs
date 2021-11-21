@@ -14,7 +14,7 @@ impl Frames {
             count: 0,
             timer: Instant::now(),
             time_start: 0,
-            fps: 1000 / 63,
+            fps: 16600,
         }
     }
 
@@ -23,7 +23,7 @@ impl Frames {
     }
 
     pub fn reset_timer(&mut self) {
-        self.time_start = self.timer.elapsed().as_millis();
+        self.timer = Instant::now();
     }
 
     pub fn increment(&mut self) {
@@ -38,13 +38,12 @@ impl Frames {
         self.count
     }
 
-    pub fn limit(&mut self) {
-        let elapsed = self.elapsed_ms();
-        // println!("{}", elapsed);
+    pub fn limit(&self) {
+        let elapsed = self.timer.elapsed().as_micros();
         if elapsed > self.fps {
-            // println!("Frame dropped");
             return;
         }
-        thread::sleep(time::Duration::from_millis((self.fps - elapsed).try_into().unwrap()));
+        let wait = (self.fps - elapsed).try_into().unwrap();
+        thread::sleep(time::Duration::from_micros(wait));
     }
 }
