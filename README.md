@@ -5,28 +5,35 @@ This is just a fun project I'm making for learning and practice purposes. If you
 
 Any help or suggestion is welcome!
 
-## TODO
+# Screenshots
+![CPU Instructions](screenshots/cpu_instrs.png)
+![CPU Timing](screenshots/instr_timing.png)
+![Link's Awakening](screenshots/links_awakening.png)
+![Mario Land 2](screenshots/mario-land-2.png)
+![Pokémon Silver](screenshots/pokemon-silver.png)
+![Pokémon Yellow](screenshots/pokemon-yellow.png)
+
+# TODO
 - [x] CPU implementation
 - [x] Interrupts
 - [x] Timer
 - [x] Joypad (not configurable yet)
 - [x] PPU implementations
-- [x] Render the pixels
 - [ ] MBC Implementations
   - [x] NoMBC
-  - [x] MBC1
+  - [x] MBC1 (Multicart not implemented)
   - [x] MBC2
-  - [ ] MBC3 (partially implemented)
+  - [x] MBC3 (partially implemented, RTC missing)
   - [x] MBC5
   - [ ] MBC6
   - [ ] MBC7
   - [ ] HuC1
 - [x] Save files
 - [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
-- [ ] Gameboy boot ROM (Not important for now)
+- [ ] Gameboy boot ROM (not important for now)
 - [ ] Gameboy Color compatibility
 - [ ] Sound
-- [ ] Many code refactors and optimizations are needed
+- [ ] Many code refactors and optimizations
 
 # Resources
 This project would have been completely impossible without all the documentation and help that exists online for the Nintendo Gameboy:
