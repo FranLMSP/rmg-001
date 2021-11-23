@@ -134,7 +134,6 @@ struct Sprite {
     x_flip: bool,
     y_flip: bool,
     over_bg: bool,
-    is_long: bool,
     bit_pixels: Option<[u8; 8]>,
 }
 
@@ -143,7 +142,11 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8) -> Option<(Pixel, bool)> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8, lcd_control: u8) -> Option<(Pixel, bool)> {
+        if !LCDControl::ObjectEnable.get(lcd_control) {
+            return None;
+        }
+
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
             return None;
         }
@@ -152,7 +155,9 @@ impl Sprite {
             return None;
         }
 
-        let height: u8 = match self.is_long {
+        let is_long = LCDControl::ObjectSize.get(lcd_control);
+
+        let height: u8 = match is_long {
             true => 16,
             false => 8,
         };
@@ -176,9 +181,9 @@ impl Sprite {
             None => {
                 let mut tile_number = self.tile_number;
 
-                if self.is_long && x <= 7 {
+                if is_long && x <= 7 {
                     tile_number = tile_number & 0xFE;
-                } else if self.is_long && x > 7 {
+                } else if is_long && x > 7 {
                     tile_number = tile_number | 0x01;
                 }
 
@@ -210,6 +215,7 @@ pub struct PPU {
     background_priority: bool,
     window_enable: bool,
     lcd_enable: bool,
+    window_drawn: bool,
     cycles: Cycles,
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
@@ -219,6 +225,7 @@ pub struct PPU {
     current_background_pixels: Option<[u8; 8]>,
     current_window_pixels: Option<[u8; 8]>,
     lcd_y: u8,
+    lcd_x: u8,
     scroll_x: u8,
     scroll_y: u8,
     window_x: u8,
@@ -236,6 +243,7 @@ impl PPU {
             lcdstat_request: false,
             background_priority: false,
             window_enable: false,
+            window_drawn: false,
             lcd_enable: false,
             cycles: Cycles(0),
             sprite_buffer: Vec::new(),
@@ -246,6 +254,7 @@ impl PPU {
             current_background_pixels: None,
             current_window_pixels: None,
             lcd_y: 0,
+            lcd_x: 0,
             scroll_x: 0,
             scroll_y: 0,
             window_x: 0,
@@ -295,6 +304,8 @@ impl PPU {
     pub fn get_register(&self, address: u16) -> u8 {
         if address == LCD_CONTROL_ADDRESS {
             return self.lcd_control;
+        } else if address == LCD_Y_ADDRESS {
+            return self.lcd_y;
         }
         self.io_registers[(address - 0xFF40) as usize]
     }
@@ -307,7 +318,7 @@ impl PPU {
             // Check if LCD is being turned on or off
             self.lcd_enable = get_bit(data, BitIndex::I7);
             if !get_bit(data, BitIndex::I7) || (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) {
-                self.io_registers[LCD_Y_ADDRESS as usize - 0xFF40] = 0x00;
+                self.lcd_y = 0x00;
                 // Set Hblank
                 let byte = self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40];
                 self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40] = byte & 0b11111100;
@@ -339,7 +350,6 @@ impl PPU {
             self.increment_cycles(cycles);
             return;
         }
-        self.lcd_y = self.get_register(LCD_Y_ADDRESS);
 
         if self.lcd_y < 144 {
             if self.cycles.0 <= 80 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
@@ -347,16 +357,13 @@ impl PPU {
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
                 self.stat_interrupt();
                 self.oam_search();
-            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
-                self.scroll_x = self.get_register(SCROLL_X_ADDRESS);
-                self.scroll_y = self.get_register(SCROLL_Y_ADDRESS);
-                self.window_x = self.get_register(WINDOW_X_ADDRESS);
-                self.window_y = self.get_register(WINDOW_Y_ADDRESS);
-                self.window_enable = self.get_lcd_control(LCDControl::WindowEnable);
-                self.background_priority = self.get_lcd_control(LCDControl::BackgroundPriority);
-                self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
-                self.draw_line(frame_buffer);
+                if !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                    self.window_drawn = false;
+                    self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
+                }
+                self.draw_line(cycles, frame_buffer);
             } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
@@ -364,7 +371,6 @@ impl PPU {
             }
         } else if self.lcd_y >= 144 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
-            self.window_y_counter = 0;
             self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
             self.set_interrupt(Interrupt::VBlank, true);
             self.stat_interrupt();
@@ -377,12 +383,16 @@ impl PPU {
             self.reset_cycles();
 
             self.lcd_y = self.lcd_y.wrapping_add(1);
+            self.lcd_x = 0;
+            if self.window_drawn {
+                self.window_y_counter += 1;
+            }
 
             // Frame completed
             if self.lcd_y > 153 {
+                self.window_y_counter = 0;
                 self.lcd_y = 0;
             }
-            self.force_set_register(LCD_Y_ADDRESS, self.lcd_y);
             self.stat_interrupt();
         }
     }
@@ -421,10 +431,7 @@ impl PPU {
         let long_sprites = self.get_lcd_control(LCDControl::ObjectSize);
         let mut addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
         while addr <= SPRITE_ATTRIBUTE_TABLE.max().unwrap() {
-            // The gameboy only supports 10 sprites per line,
-            // but since we are on an emulator we can avoud that limitation
             if self.sprite_buffer.len() >= 10 {
-                // todo!("Make a setting for the 10 sprites per scanline");
                 break;
             }
             let y = self.read_oam(addr);
@@ -469,7 +476,6 @@ impl PPU {
                 y,
                 tile_number,
                 palette_zero,
-                is_long: long_sprites,
                 palette: match palette_zero {
                     true => palette_0,
                     false => palette_1,
@@ -485,10 +491,10 @@ impl PPU {
         self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
     }
 
-    fn find_sprite_pixel(&mut self, lcd_x: u8) -> Option<(Pixel, bool)> {
+    fn find_sprite_pixel(&mut self) -> Option<(Pixel, bool)> {
         let lcd_y = self.lcd_y;
         for sprite in &mut self.sprite_buffer {
-            if let Some(pixel) = sprite.get_pixel(lcd_x, lcd_y, &self.vram, self.last_bg_index) {
+            if let Some(pixel) = sprite.get_pixel(self.lcd_x, lcd_y, &self.vram, self.last_bg_index, self.lcd_control) {
                 return Some(pixel);
             }
         }
@@ -553,12 +559,13 @@ impl PPU {
         (self.read_vram(addr), self.read_vram(addr + 1))
     }
 
-    fn get_window_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
+    fn get_window_pixel(&mut self) -> Option<Pixel> {
         if !self.window_enable {
             return None;
         }
 
         let lcd_y = self.lcd_y;
+        let lcd_x = self.lcd_x;
         let window_x = self.window_x;
         let window_y = self.window_y;
 
@@ -602,11 +609,12 @@ impl PPU {
         Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
-    fn get_background_pixel(&mut self, lcd_x: u8) -> Option<Pixel> {
+    fn get_background_pixel(&mut self) -> Option<Pixel> {
         if !self.background_priority {
             return None;
         }
         let lcd_y = self.lcd_y;
+        let lcd_x = self.lcd_x;
         let y = lcd_y.wrapping_add(self.scroll_y);
         let x = lcd_x.wrapping_add(self.scroll_x);
         let bit_pixel_index = x.rem_euclid(8) as usize;
@@ -637,34 +645,37 @@ impl PPU {
         Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
     }
 
-    fn draw_line(&mut self, frame_buffer: &mut [u8]) {
-        let lcd_y = self.lcd_y;
-        if lcd_y as u32 >= LCD_HEIGHT {
+    fn draw_line(&mut self, cycles: Cycles, frame_buffer: &mut [u8]) {
+        if self.lcd_y as u32 >= LCD_HEIGHT {
             return;
         }
+        self.scroll_x = self.get_register(SCROLL_X_ADDRESS);
+        self.scroll_y = self.get_register(SCROLL_Y_ADDRESS);
+        self.window_x = self.get_register(WINDOW_X_ADDRESS);
+        self.window_y = self.get_register(WINDOW_Y_ADDRESS);
+        self.window_enable = self.get_lcd_control(LCDControl::WindowEnable);
+        self.background_priority = self.get_lcd_control(LCDControl::BackgroundPriority);
         self.current_background_pixels = None;
         self.current_window_pixels = None;
-
         self.bg_palette = self.get_register(BACKGROUND_PALETTE_ADDRESS);
-        let mut lcd_x: u8 = 0;
-        let mut window_drawn = false;
-        while (lcd_x as u32) < LCD_WIDTH {
-            let idx = (lcd_x as usize + (lcd_y as usize * LCD_WIDTH as usize)) * 4;
+        let mut count = 0;
+        while count < cycles.0 && (self.lcd_x as u32) < LCD_WIDTH {
+            let idx = (self.lcd_x as usize + (self.lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
-            if let Some(window_pixel) = self.get_window_pixel(lcd_x) {
-                window_drawn = true;
+            if let Some(window_pixel) = self.get_window_pixel() {
+                self.window_drawn = true;
                 let rgba = PPU::get_rgba(window_pixel, WINDOW_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
-            } else if let Some(background_pixel) = self.get_background_pixel(lcd_x) {
+            } else if let Some(background_pixel) = self.get_background_pixel() {
                 let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
             }
             if self.get_lcd_control(LCDControl::ObjectEnable) {
-                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel(lcd_x) {
+                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel() {
                     let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
                         true => SPRITE_0_COLORS,
                         false => SPRITE_1_COLORS,
@@ -675,10 +686,8 @@ impl PPU {
                 }
             }
 
-            lcd_x += 1;
-        }
-        if window_drawn {
-            self.window_y_counter += 1;
+            self.lcd_x += 1;
+            count += 1;
         }
     }
 
