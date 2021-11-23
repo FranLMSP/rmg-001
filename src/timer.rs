@@ -31,6 +31,18 @@ impl Timer {
         }
     }
 
+    pub fn div(&self) -> u16 {
+        self.divider
+    }
+
+    pub fn set_div(&mut self, val: u16) {
+        self.divider = val;
+    }
+
+    pub fn prev_result(&self) -> bool {
+        self.prev_result
+    }
+
     pub fn is_io_register(address: u16) -> bool {
         address >= 0xFF04 && address <= 0xFF07
     }
@@ -45,10 +57,9 @@ impl Timer {
     pub fn set_register(&mut self, address: u16, data: u8) {
         if address == TIMER_DIVIDER_REGISTER_ADDRESS {
             self.divider = 0;
-            self.io_registers[(TIMER_DIVIDER_REGISTER_ADDRESS - 0xFF04) as usize] = 0;
-        } else {
-            self.io_registers[(address - 0xFF04) as usize] = data;
+            return;
         }
+        self.io_registers[(address - 0xFF04) as usize] = data;
     }
 
     pub fn get_interrupt(&self) -> bool {
@@ -109,5 +120,61 @@ impl Timer {
             0b11 => ((self.divider >> 7) & 1) == 1,
             _ => unreachable!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tima_increment() {
+        let mut timer = Timer::new();
+        timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
+        timer.set_register(TIMER_COUNTER_ADDRESS, 0);
+        timer.set_div(0b10111);
+        timer.do_cycles(Cycles(1));
+        assert_eq!(timer.div(), 0b11000);
+        assert_eq!(timer.prev_result(), true);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
+        assert_eq!(timer.get_interrupt(), false);
+
+        timer.do_cycles(Cycles(7));
+        assert_eq!(timer.div(), 0b11111);
+        assert_eq!(timer.prev_result(), true);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
+        assert_eq!(timer.get_interrupt(), false);
+        timer.do_cycles(Cycles(1));
+        assert_eq!(timer.div(), 0b100000);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
+        assert_eq!(timer.prev_result(), false);
+        assert_eq!(timer.get_interrupt(), false);
+    }
+
+    #[test]
+    fn test_tima_overflow() {
+        let mut timer = Timer::new();
+        timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
+        timer.set_register(TIMER_COUNTER_ADDRESS, 0xFF);
+        timer.set_div(0b10111);
+        timer.do_cycles(Cycles(9));
+        assert_eq!(timer.div(), 0b100000);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0x00);
+        assert_eq!(timer.get_interrupt(), true);
+    }
+
+    #[test]
+    fn test_timer_enable() {
+        let mut timer = Timer::new();
+        timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
+        timer.set_register(TIMER_COUNTER_ADDRESS, 0);
+        timer.set_div(0b11000);
+        timer.do_cycles(Cycles(1));
+        assert_eq!(timer.div(), 0b11001);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
+        timer.set_register(TIMER_CONTROL_ADDRESS, 0b001);
+        timer.do_cycles(Cycles(1));
+        assert_eq!(timer.div(), 0b11010);
+        assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
     }
 }
