@@ -44,4 +44,5 @@ This project would have been completely impossible without all the documentation
 - Opcodes behaviour: https://rgbds.gbdev.io/docs/v0.5.1/gbz80.7
 - Blargg's test ROMs: https://github.com/retrio/gb-test-roms
 - Mooneye test ROMs: https://github.com/Gekkio/mooneye-test-suite
+- Sound emulation guide: https://nightshade256.github.io/2021/03/27/gb-sound-emulation.html
 - The Ultimate Gameboy talk: https://youtu.be/HyzD8pNlpwI

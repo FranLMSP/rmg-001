@@ -10,7 +10,7 @@ optimize = ["log/release_max_level_warn"]
 default = ["optimize"]
 
 [dependencies]
-rand = "0.8"
+cpal = "0.13"
 env_logger = "0.9"
 log = "0.4"
 pixels = "0.7"

@@ -73,11 +73,6 @@ impl Timer {
     pub fn read_divider(&self) -> u8 {
         self.divider.to_be_bytes()[0]
     }
-
-    pub fn reset(&mut self) {
-        println!("Reset divider");
-        self.divider = 0;
-    }
     
     pub fn do_cycles(&mut self, cycles: Cycles) {
         self.is_enabled = self.is_timer_enabled();

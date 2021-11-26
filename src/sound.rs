@@ -1,4 +1,5 @@
 use std::ops::RangeInclusive;
+use crate::cpu::Cycles;
 
 pub const NR10_ADDRESS: u16 = 0xFF10;
 pub const NR11_ADDRESS: u16 = 0xFF11;
@@ -33,6 +34,12 @@ pub struct Sound {
 }
 
 impl Sound {
+    pub fn new() -> Self {
+        Self {
+            io_registers: [0; 48],
+        }
+    }
+
     pub fn is_io_register(address: u16) -> bool {
         address >= 0xFF10 && address <= 0xFF3F
     }
@@ -43,5 +50,16 @@ impl Sound {
 
     pub fn set_register(&mut self, address: u16, data: u8) {
         self.io_registers[(address - 0xFF10) as usize] = data;
+    }
+
+    pub fn do_cycles(&self, cycles: Cycles) {
+        let mut count = 0;
+        while count < cycles.0 {
+            self.cycle();
+            count += 1;
+        }
+    }
+
+    fn cycle(&self) {
     }
 }

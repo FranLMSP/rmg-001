@@ -10,6 +10,7 @@ use crate::ppu::{
 use crate::cpu::{Interrupt};
 use crate::timer::{Timer};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
+use crate::sound::{Sound};
 
 pub const BANK_ZERO: RangeInclusive<u16>                 = 0x0000..=0x3FFF;
 pub const BANK_SWITCHABLE: RangeInclusive<u16>           = 0x4000..=0x7FFF;
@@ -32,6 +33,7 @@ pub struct Bus {
     pub ppu: PPU,
     pub joypad: Joypad,
     pub timer: Timer,
+    pub sound: Sound,
 }
 
 impl Bus {
@@ -55,6 +57,7 @@ impl Bus {
             ppu: PPU::new(),
             joypad: Joypad::new(),
             timer: Timer::new(),
+            sound: Sound::new(),
         };
 
         // Hardware registers after the bootrom
@@ -94,6 +97,8 @@ impl Bus {
             return self.ppu.read_oam(address);
         } else if PPU::is_io_register(address) {
             return self.ppu.get_register(address);
+        } else if Sound::is_io_register(address) {
+            return self.sound.get_register(address);
         } else if address == JOYPAD_ADDRESS {
             return self.joypad.read(self.data[address as usize]);
         }  else if Timer::is_io_register(address) {
@@ -126,6 +131,8 @@ impl Bus {
             self.data[(WORK_RAM_1.min().unwrap() + (address - ECHO_RAM.min().unwrap())) as usize] = data; // Copy to the working RAM
         } else if Timer::is_io_register(address) {
             self.timer.set_register(address, data);
+        } else if Sound::is_io_register(address) {
+            self.sound.set_register(address, data);
         } else if address == JOYPAD_ADDRESS {
             let byte = self.data[address as usize];
             self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
