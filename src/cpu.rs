@@ -8,7 +8,12 @@ use crate::utils::{
     sub_half_carry,
     add_half_carry_16bit,
 };
-use crate::bus::{Bus, INTERRUPT_ENABLE_ADDRESS, INTERRUPT_FLAG_ADDRESS};
+use crate::bus::{Bus};
+use crate::interrupts::{
+    Interrupt,
+    INTERRUPT_ENABLE_ADDRESS,
+    INTERRUPT_FLAG_ADDRESS,
+};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Register {
@@ -51,45 +56,6 @@ pub enum FlagRegister {
     Substract, // Set if a substraction was performed in the last math instruction
     HalfCarry, // Set if a carry ocurred from the lower nibble in the last math operation
     Carry, // Set if a carry was ocurrend from the last math operation or if register A is the smaller value when executing the CP instruction
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Interrupt {
-    VBlank,
-    LCDSTAT,
-    Timer,
-    Serial,
-    Joypad,
-}
-
-impl Interrupt {
-    fn get_bit_index(&self) -> BitIndex {
-        match self {
-           Interrupt::VBlank  => BitIndex::I0,
-           Interrupt::LCDSTAT => BitIndex::I1,
-           Interrupt::Timer   => BitIndex::I2,
-           Interrupt::Serial  => BitIndex::I3,
-           Interrupt::Joypad  => BitIndex::I4,
-        }
-    }
-
-    pub fn get(&self, byte: u8) -> bool {
-        get_bit(byte, self.get_bit_index())
-    }
-
-    pub fn set(&self, byte: u8, val: bool) -> u8 {
-        set_bit(byte, val, self.get_bit_index())
-    }
-    
-    pub fn get_vector(&self) -> u16 {
-        match self {
-           Interrupt::VBlank  => 0x40,
-           Interrupt::LCDSTAT => 0x48,
-           Interrupt::Timer   => 0x50,
-           Interrupt::Serial  => 0x58,
-           Interrupt::Joypad  => 0x60,
-        }
-    }
 }
 
 pub struct Registers {
@@ -914,7 +880,7 @@ impl CPU {
 
     pub fn handle_interrupt(&mut self, bus: &mut Bus, interrupt: Interrupt) {
         // println!("Interrupt: {:?}", interrupt);
-        bus.set_interrupt_flag(interrupt, false);
+        bus.interrupts.set(interrupt, false);
         self.ime = false;
         self.registers.decrement(Register::PC, 3);
         self.exec(Opcode::CALL(OpcodeParameter::U16(interrupt.get_vector())), bus);

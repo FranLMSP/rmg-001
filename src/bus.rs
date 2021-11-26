@@ -7,10 +7,14 @@ use crate::ppu::{
     PPU,
     DMA_ADDRESS,
 };
-use crate::cpu::{Interrupt};
 use crate::timer::{Timer};
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
 use crate::sound::{Sound};
+use crate::interrupts::{
+    Interrupts,
+    INTERRUPT_ENABLE_ADDRESS,
+    INTERRUPT_FLAG_ADDRESS,
+};
 
 pub const BANK_ZERO: RangeInclusive<u16>                 = 0x0000..=0x3FFF;
 pub const BANK_SWITCHABLE: RangeInclusive<u16>           = 0x4000..=0x7FFF;
@@ -23,9 +27,6 @@ pub const SPRITE_ATTRIBUTE_TABLE: RangeInclusive<u16>    = 0xFE00..=0xFE9F;
 pub const NOT_USABLE: RangeInclusive<u16>                = 0xFEA0..=0xFEFF;
 pub const IO_REGISTERS: RangeInclusive<u16>              = 0xFF00..=0xFF7F;
 pub const HIGH_RAM: RangeInclusive<u16>                  = 0xFF80..=0xFFFE;
-pub const INTERRUPT_ENABLE_REGISTER: RangeInclusive<u16> = 0xFFFF..=0xFFFF;
-pub const INTERRUPT_ENABLE_ADDRESS: u16 = 0xFFFF;
-pub const INTERRUPT_FLAG_ADDRESS: u16 = 0xFF0F;
 
 pub struct Bus {
     data: [u8; 0x10000],
@@ -34,6 +35,7 @@ pub struct Bus {
     pub joypad: Joypad,
     pub timer: Timer,
     pub sound: Sound,
+    pub interrupts: Interrupts,
 }
 
 impl Bus {
@@ -58,6 +60,7 @@ impl Bus {
             joypad: Joypad::new(),
             timer: Timer::new(),
             sound: Sound::new(),
+            interrupts: Interrupts::new(),
         };
 
         // Hardware registers after the bootrom
@@ -90,7 +93,7 @@ impl Bus {
         if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
             return self.rom.read(address);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
-            return 0b11100000 | self.data[address as usize];
+            return self.interrupts.read(address);
         } else if VIDEO_RAM.contains(&address) {
             return self.ppu.read_vram(address);
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
@@ -118,6 +121,8 @@ impl Bus {
 
         if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
             self.rom.write(address, data);
+        } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
+            self.interrupts.write(address, data);
         } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) {
             self.data[address as usize] = data;
             // Copy to the ECHO RAM
@@ -156,18 +161,9 @@ impl Bus {
         }
     }
 
-    pub fn force_write(&mut self, address: u16, data: u8) {
-        self.data[address as usize] = data;
-    }
-
     pub fn write_16bit(&mut self, address: u16, data: u16) {
         let bytes = data.to_le_bytes();
         self.write(address, bytes[0]);
         self.write(address.wrapping_add(1), bytes[1]);
-    }
-
-    pub fn set_interrupt_flag(&mut self, interrupt: Interrupt, val: bool) {
-        let byte = self.read(INTERRUPT_FLAG_ADDRESS);
-        self.write(INTERRUPT_FLAG_ADDRESS, interrupt.set(byte, val));
     }
 }

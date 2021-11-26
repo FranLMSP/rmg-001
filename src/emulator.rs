@@ -2,7 +2,8 @@
 use winit_input_helper::WinitInputHelper;
 use winit::event::{VirtualKeyCode};
 
-use crate::cpu::{CPU, Cycles, Interrupt};
+use crate::cpu::{CPU, Cycles};
+use crate::interrupts::Interrupt;
 use crate::bus::Bus;
 use crate::joypad::{Button};
 #[cfg(not(test))]
@@ -99,7 +100,7 @@ impl Emulator {
             self.bus.joypad.release(Button::Select);
         }
         if change {
-            self.bus.set_interrupt_flag(Interrupt::Joypad, true);
+            self.bus.interrupts.request(Interrupt::Joypad);
         }
     }
 
@@ -108,20 +109,8 @@ impl Emulator {
         while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
             self.cpu.run(&mut self.bus);
             let cycles = self.cpu.get_last_op_cycles().to_t();
-            self.bus.ppu.do_cycles(cycles, frame_buffer);
-            if self.bus.ppu.get_interrupt(Interrupt::VBlank) {
-                self.bus.set_interrupt_flag(Interrupt::VBlank, true);
-                self.bus.ppu.set_interrupt(Interrupt::VBlank, false);
-            }
-            if self.bus.ppu.get_interrupt(Interrupt::LCDSTAT) {
-                self.bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
-                self.bus.ppu.set_interrupt(Interrupt::LCDSTAT, false);
-            }
-            self.bus.timer.do_cycles(cycles);
-            if self.bus.timer.get_interrupt() {
-                self.bus.set_interrupt_flag(Interrupt::Timer, true);
-                self.bus.timer.set_interrupt(false);
-            }
+            self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, frame_buffer);
+            self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
@@ -135,20 +124,8 @@ impl Emulator {
         while !exit {
             self.cpu.run(&mut self.bus);
             let cycles = self.cpu.get_last_op_cycles().to_t();
-            self.bus.ppu.do_cycles(cycles, &mut frame);
-            if self.bus.ppu.get_interrupt(Interrupt::VBlank) {
-                self.bus.set_interrupt_flag(Interrupt::VBlank, true);
-                self.bus.ppu.set_interrupt(Interrupt::VBlank, false);
-            }
-            if self.bus.ppu.get_interrupt(Interrupt::LCDSTAT) {
-                self.bus.set_interrupt_flag(Interrupt::LCDSTAT, true);
-                self.bus.ppu.set_interrupt(Interrupt::LCDSTAT, false);
-            }
-            self.bus.timer.do_cycles(cycles);
-            if self.bus.timer.get_interrupt() {
-                self.bus.set_interrupt_flag(Interrupt::Timer, true);
-                self.bus.timer.set_interrupt(false);
-            }
+            self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, &mut frame);
+            self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
 
             // exit = self.cpu.get_exec_calls_count() >= 1258895; // log 1
             exit = self.cpu.get_exec_calls_count() >= 161502; // log 2

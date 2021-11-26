@@ -1,4 +1,5 @@
 use crate::cpu::{Cycles};
+use crate::interrupts::{Interrupt, Interrupts};
 use crate::utils::{
     BitIndex,
     get_bit,
@@ -13,7 +14,6 @@ pub struct Timer {
     divider: u16,
     prev_result: bool,
     is_enabled: bool,
-    interrupt: bool,
     control: u8,
     io_registers: [u8; 4],
 }
@@ -25,7 +25,6 @@ impl Timer {
             divider: 0,
             control: 0,
             prev_result: false,
-            interrupt: false,
             is_enabled: false,
             io_registers: [0; 4],
         }
@@ -62,29 +61,21 @@ impl Timer {
         self.io_registers[(address - 0xFF04) as usize] = data;
     }
 
-    pub fn get_interrupt(&self) -> bool {
-        self.interrupt
-    }
-
-    pub fn set_interrupt(&mut self, val: bool) {
-        self.interrupt = val
-    }
-
     pub fn read_divider(&self) -> u8 {
         self.divider.to_be_bytes()[0]
     }
     
-    pub fn do_cycles(&mut self, cycles: Cycles) {
+    pub fn do_cycles(&mut self, interrupts: &mut Interrupts, cycles: Cycles) {
         self.is_enabled = self.is_timer_enabled();
         self.control = self.get_register(TIMER_CONTROL_ADDRESS);
         let mut count = 0;
         while count < cycles.0 {
-            self.cycle();
+            self.cycle(interrupts);
             count += 1;
         }
     }
 
-    fn cycle(&mut self) {
+    fn cycle(&mut self, interrupts: &mut Interrupts) {
         self.divider = self.divider.wrapping_add(1);
 
         let result = self.is_enabled && self.get_tima_rate();
@@ -93,7 +84,7 @@ impl Timer {
             let tima = self.get_register(TIMER_COUNTER_ADDRESS).wrapping_add(1);
             if tima == 0 {
                 self.set_register(TIMER_COUNTER_ADDRESS, self.get_register(TIMER_MODULO_ADDRESS));
-                self.interrupt = true;
+                interrupts.request(Interrupt::Timer);
             } else {
                 self.set_register(TIMER_COUNTER_ADDRESS, tima);
             }
@@ -125,50 +116,53 @@ mod tests {
     #[test]
     fn test_tima_increment() {
         let mut timer = Timer::new();
+        let mut interrupts = Interrupts::new();
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0);
         timer.set_div(0b10111);
-        timer.do_cycles(Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1));
         assert_eq!(timer.div(), 0b11000);
         assert_eq!(timer.prev_result(), true);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
-        assert_eq!(timer.get_interrupt(), false);
+        assert_eq!(interrupts.get(Interrupt::Timer), false);
 
-        timer.do_cycles(Cycles(7));
+        timer.do_cycles(&mut interrupts, Cycles(7));
         assert_eq!(timer.div(), 0b11111);
         assert_eq!(timer.prev_result(), true);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
-        assert_eq!(timer.get_interrupt(), false);
-        timer.do_cycles(Cycles(1));
+        assert_eq!(interrupts.get(Interrupt::Timer), false);
+        timer.do_cycles(&mut interrupts, Cycles(1));
         assert_eq!(timer.div(), 0b100000);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
         assert_eq!(timer.prev_result(), false);
-        assert_eq!(timer.get_interrupt(), false);
+        assert_eq!(interrupts.get(Interrupt::Timer), false);
     }
 
     #[test]
     fn test_tima_overflow() {
         let mut timer = Timer::new();
+        let mut interrupts = Interrupts::new();
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0xFF);
         timer.set_div(0b10111);
-        timer.do_cycles(Cycles(9));
+        timer.do_cycles(&mut interrupts, Cycles(9));
         assert_eq!(timer.div(), 0b100000);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0x00);
-        assert_eq!(timer.get_interrupt(), true);
+        assert_eq!(interrupts.get(Interrupt::Timer), true);
     }
 
     #[test]
     fn test_timer_enable() {
         let mut timer = Timer::new();
+        let mut interrupts = Interrupts::new();
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0);
         timer.set_div(0b11000);
-        timer.do_cycles(Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1));
         assert_eq!(timer.div(), 0b11001);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b001);
-        timer.do_cycles(Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1));
         assert_eq!(timer.div(), 0b11010);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
     }

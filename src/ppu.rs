@@ -4,7 +4,8 @@ use crate::utils::{
     set_bit,
 };
 use crate::bus::{SPRITE_ATTRIBUTE_TABLE};
-use crate::cpu::{Cycles, Interrupt};
+use crate::cpu::{Cycles};
+use crate::interrupts::{Interrupts, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;
 pub const LCD_HEIGHT: u32 = 144;
@@ -210,8 +211,6 @@ impl Sprite {
 
 pub struct PPU {
     state: bool,
-    vblank_request: bool,
-    lcdstat_request: bool,
     background_priority: bool,
     window_enable: bool,
     lcd_enable: bool,
@@ -239,8 +238,6 @@ impl PPU {
     pub fn new() -> Self {
         Self {
             state: false,
-            vblank_request: false,
-            lcdstat_request: false,
             background_priority: false,
             window_enable: false,
             window_drawn: false,
@@ -262,22 +259,6 @@ impl PPU {
             io_registers: [0; 12],
             vram: [0; 0x2000],
             oam: [0; 0xA0],
-        }
-    }
-
-    pub fn set_interrupt(&mut self, interrupt: Interrupt, val: bool) {
-        match interrupt {
-            Interrupt::VBlank => self.vblank_request = val,
-            Interrupt::LCDSTAT => self.lcdstat_request = val,
-            _ => unreachable!(),
-        };
-    }
-
-    pub fn get_interrupt(&self, interrupt: Interrupt) -> bool {
-        match interrupt {
-            Interrupt::VBlank => self.vblank_request,
-            Interrupt::LCDSTAT => self.lcdstat_request,
-            _ => unreachable!(),
         }
     }
 
@@ -345,7 +326,7 @@ impl PPU {
         self.cycles.0 += cycles.0;
     }
 
-    pub fn do_cycles(&mut self, cycles: Cycles, frame_buffer: &mut [u8]) {
+    pub fn do_cycles(&mut self, interrupts: &mut Interrupts, cycles: Cycles, frame_buffer: &mut [u8]) {
         if !self.lcd_enable {
             self.increment_cycles(cycles);
             return;
@@ -355,7 +336,7 @@ impl PPU {
             if self.cycles.0 <= 80 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
                 // Mode 2 OAM scan
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
-                self.stat_interrupt();
+                self.stat_interrupt(interrupts);
                 self.oam_search();
             } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
@@ -367,13 +348,13 @@ impl PPU {
             } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
-                self.stat_interrupt();
+                self.stat_interrupt(interrupts);
             }
         } else if self.lcd_y >= 144 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank)) {
             // Mode 1 Vertical blank
             self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank), true);
-            self.set_interrupt(Interrupt::VBlank, true);
-            self.stat_interrupt();
+            interrupts.request(Interrupt::VBlank);
+            self.stat_interrupt(interrupts);
         }
 
         self.increment_cycles(cycles);
@@ -393,11 +374,11 @@ impl PPU {
                 self.window_y_counter = 0;
                 self.lcd_y = 0;
             }
-            self.stat_interrupt();
+            self.stat_interrupt(interrupts);
         }
     }
 
-    fn stat_interrupt(&mut self) {
+    fn stat_interrupt(&mut self, interrupts: &mut Interrupts) {
         let prev_state = self.state;
         let lyc_compare = self.lcd_y == self.get_register(LCD_Y_COMPARE_ADDRESS);
         self.set_lcd_status(LCDStatus::LYCFlag, lyc_compare);
@@ -417,7 +398,7 @@ impl PPU {
                 self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::VBlank))
             );
         if self.state && !prev_state {
-            self.set_interrupt(Interrupt::LCDSTAT, self.state);
+            interrupts.request(Interrupt::LCDSTAT);
         }
     }
 
