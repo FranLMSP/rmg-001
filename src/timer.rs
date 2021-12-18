@@ -1,4 +1,4 @@
-use crate::cpu::{Cycles};
+use crate::cpu::Cycles;
 use crate::interrupts::{Interrupt, Interrupts};
 use crate::utils::{
     BitIndex,

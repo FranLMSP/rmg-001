@@ -1,15 +1,13 @@
 use std::ops::RangeInclusive;
-use crate::utils::{
-    join_bytes
-};
+use crate::utils::join_bytes;
 use crate::rom::{ROM, load_rom};
 use crate::ppu::{
     PPU,
     DMA_ADDRESS,
 };
-use crate::timer::{Timer};
+use crate::timer::Timer;
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
-use crate::sound::{Sound};
+use crate::sound::Sound;
 use crate::interrupts::{
     Interrupts,
     INTERRUPT_ENABLE_ADDRESS,

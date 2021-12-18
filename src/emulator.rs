@@ -1,11 +1,11 @@
 // use std::{thread, time};
 use winit_input_helper::WinitInputHelper;
-use winit::event::{VirtualKeyCode};
+use winit::event::VirtualKeyCode;
 
 use crate::cpu::{CPU, Cycles};
 use crate::interrupts::Interrupt;
 use crate::bus::Bus;
-use crate::joypad::{Button};
+use crate::joypad::Button;
 #[cfg(not(test))]
 use crate::rom::{save_file};
 
@@ -111,6 +111,7 @@ impl Emulator {
             let cycles = self.cpu.get_last_op_cycles().to_t();
             self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, frame_buffer);
             self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
+            self.bus.sound.do_cycles(cycles);
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));

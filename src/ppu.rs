@@ -3,8 +3,8 @@ use crate::utils::{
     get_bit,
     set_bit,
 };
-use crate::bus::{SPRITE_ATTRIBUTE_TABLE};
-use crate::cpu::{Cycles};
+use crate::bus::SPRITE_ATTRIBUTE_TABLE;
+use crate::cpu::Cycles;
 use crate::interrupts::{Interrupts, Interrupt};
 
 pub const LCD_WIDTH: u32 = 160;

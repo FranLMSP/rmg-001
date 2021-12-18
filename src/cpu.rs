@@ -8,7 +8,7 @@ use crate::utils::{
     sub_half_carry,
     add_half_carry_16bit,
 };
-use crate::bus::{Bus};
+use crate::bus::Bus;
 use crate::interrupts::{
     Interrupt,
     INTERRUPT_ENABLE_ADDRESS,

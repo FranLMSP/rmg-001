@@ -1,6 +1,6 @@
 use crate::emulator::Emulator;
 use crate::frames::Frames;
-use crate::cpu::{Cycles};
+use crate::cpu::Cycles;
 use crate::ppu::{WIDTH, HEIGHT};
 
 use log::error;
