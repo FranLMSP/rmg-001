@@ -1,7 +1,7 @@
 use std::env;
 use std::ops::RangeInclusive;
 use std::sync::{Arc, Mutex};
-use cpal::{Stream, StreamConfig, Device, Sample};
+use cpal::{Stream, StreamConfig, Device, Sample, SampleRate};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crate::cpu::Cycles;
 use crate::utils::join_bytes;
@@ -34,6 +34,8 @@ pub const NR52_ADDRESS: u16 = 0xFF26;
 
 pub const WAVE_PATTERN_RAM: RangeInclusive<u16> = 0xFF30..=0xFF3F;
 
+pub const SAMPLE_RATE: u32 = 48000;
+
 const WAVE_DUTY_PATTERNS: [[u8; 8]; 4] = [
     [0, 0, 0, 0, 0, 0, 0, 1],
     [0, 0, 0, 0, 0, 0, 1, 1],
@@ -48,25 +50,15 @@ struct ChannelTwo {
     frequency_timer: u16,
     duty_position: usize,
     sample_timer: usize,
-    sample_rate: usize,
     buffer_pos: usize,
 }
 
 impl ChannelTwo {
-    pub fn new(device: &Device, config: &StreamConfig, sample_rate: usize) -> Self {
+    pub fn new(device: &Device, config: &StreamConfig) -> Self {
         let mut count: usize = 0;
-        // let mut count: f32 = 0.0;
-        let buffer = Arc::new(Mutex::new(vec![0.0; sample_rate]));
+        let buffer = Arc::new(Mutex::new(vec![0.0; SAMPLE_RATE as usize]));
         let buffer_clone = buffer.clone();
         let stream = device.build_output_stream(&config, move |data: &mut [f32], _| {
-            /* for sample in data.iter_mut() {
-                let y: f32 = ((count / (sample_rate as f32)) * 440.0 * 2.0 * 3.14159).sin().clamp(-1.0, 1.0);
-                *sample = Sample::from(&y);
-                count += 1.0;
-                if count >= sample_rate as f32 {
-                    count = 0.0;
-                }
-            } */
             let b = buffer_clone.lock().unwrap();
             for sample in data.iter_mut() {
                 *sample = Sample::from(&b[count]);
@@ -84,7 +76,6 @@ impl ChannelTwo {
             duty_position: 0,
             sample_timer: 0,
             buffer_pos: 0,
-            sample_rate,
             buffer,
         }
     }
@@ -114,10 +105,10 @@ impl ChannelTwo {
                 self.duty_position = 0;
             }
         }
-        self.sample_timer = self.sample_timer.saturating_add(self.sample_rate);
+        self.sample_timer = self.sample_timer.saturating_add(SAMPLE_RATE as usize);
         if self.sample_timer >= 4194304 {
             self.update_buffer(duty);
-            self.sample_timer = 0;
+            self.sample_timer -= 4194304;
         }
     }
 }
@@ -148,13 +139,12 @@ impl Sound {
                 .expect("error while querying configs");
             let supported_config = supported_configs_range.next()
                 .expect("no supported config?!")
-                .with_max_sample_rate();
+                .with_sample_rate(SampleRate(SAMPLE_RATE));
             // let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
-            let sample_rate = supported_config.sample_rate().0;
             let config: StreamConfig = supported_config.into();
             return Self {
                 io_registers: [0; 48],
-                channel_two: Some(ChannelTwo::new(&device, &config, sample_rate as usize)),
+                channel_two: Some(ChannelTwo::new(&device, &config)),
             };
         }
 
