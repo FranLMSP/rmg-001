@@ -4,6 +4,7 @@ pub mod ppu;
 pub mod timer;
 pub mod sound;
 pub mod rom;
+pub mod ram;
 pub mod bus;
 pub mod interrupts;
 pub mod joypad;

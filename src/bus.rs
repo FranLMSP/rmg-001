@@ -1,6 +1,7 @@
 use std::ops::RangeInclusive;
 use crate::utils::join_bytes;
 use crate::rom::{ROM, load_rom};
+use crate::ram::{RAM, DMGRAM, CGBRAM, WRAM_BANK_SELECT_ADDRESS};
 use crate::ppu::{
     PPU,
     DMA_ADDRESS,
@@ -29,6 +30,7 @@ pub const HIGH_RAM: RangeInclusive<u16>                  = 0xFF80..=0xFFFE;
 pub struct Bus {
     data: [u8; 0x10000],
     pub rom: Box<dyn ROM>,
+    pub ram: Box<dyn RAM>,
     pub ppu: PPU,
     pub joypad: Joypad,
     pub timer: Timer,
@@ -51,9 +53,15 @@ impl Bus {
                 std::process::exit(1);
             },
         };
+        let info = rom.info().clone();
+        let cgb_mode = info.cgb_features() || info.cgb_only();
         let mut bus = Self {
             data: [0x00; 0x10000],
             rom,
+            ram: match cgb_mode {
+                true => Box::new(CGBRAM::new()),
+                false => Box::new(DMGRAM::new()),
+            },
             ppu: PPU::new(),
             joypad: Joypad::new(),
             timer: Timer::new(),
@@ -90,6 +98,10 @@ impl Bus {
     pub fn read(&self, address: u16) -> u8 {
         if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
             return self.rom.read(address);
+        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) || address == WRAM_BANK_SELECT_ADDRESS {
+            return self.ram.read(address);
+        } else if ECHO_RAM.contains(&address) {
+            return self.ram.read(WORK_RAM_1.min().unwrap() + ((address - ECHO_RAM.min().unwrap()) & 0x1FFF));
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return self.interrupts.read(address);
         } else if VIDEO_RAM.contains(&address) {
@@ -121,17 +133,12 @@ impl Bus {
             self.rom.write(address, data);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             self.interrupts.write(address, data);
-        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) {
-            self.data[address as usize] = data;
-            // Copy to the ECHO RAM
-            if address <= 0xDDFF {
-                self.data[(ECHO_RAM.min().unwrap() + (address - WORK_RAM_1.min().unwrap())) as usize] = data;
-            }
+        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) || address == WRAM_BANK_SELECT_ADDRESS {
+            self.ram.write(address, data);
         } else if EXTERNAL_RAM.contains(&address) {
             self.rom.write(address, data);
         } else if ECHO_RAM.contains(&address) {
-            self.data[address as usize] = data;
-            self.data[(WORK_RAM_1.min().unwrap() + (address - ECHO_RAM.min().unwrap())) as usize] = data; // Copy to the working RAM
+            self.ram.write(WORK_RAM_1.min().unwrap() + ((address - ECHO_RAM.min().unwrap()) & 0x1FFF), data);
         } else if Timer::is_io_register(address) {
             self.timer.set_register(address, data);
         } else if Sound::is_io_register(address) {

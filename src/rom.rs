@@ -41,6 +41,7 @@ pub fn load_rom(_filename: &str) -> std::io::Result<Box<dyn ROM>> {
         filename: "".to_string(),
         publisher: "".to_string(),
         title: "".to_string(),
+        cgb_features: false,
         cgb_only: false,
         sgb_features: false,
         has_ram: false,
@@ -150,6 +151,7 @@ pub struct ROMInfo {
     filename: String,
     publisher: String,
     title: String,
+    cgb_features: bool,
     cgb_only: bool,
     sgb_features: bool,
     has_ram: bool,
@@ -161,6 +163,14 @@ pub struct ROMInfo {
 }
 
 impl ROMInfo {
+    pub fn cgb_features(&self) -> bool {
+        self.cgb_features
+    }
+
+    pub fn cgb_only(&self) -> bool {
+        self.cgb_only
+    }
+
     pub fn set_filename(&mut self, filename: String) {
         self.filename = filename;
     }
@@ -205,6 +215,7 @@ impl ROMInfo {
             },
             publisher: "".to_string(), // TODO: Extract publisher
             title: "".to_string(), // TODO: Extract the game title
+            cgb_features: bytes[CGB_FLAG_ADDRESS as usize] == 0x80,
             cgb_only: bytes[CGB_FLAG_ADDRESS as usize] == 0xC0,
             sgb_features: bytes[SGB_FLAG_ADDRESS as usize] == 0x03,
             has_ram: match rom_type {
