@@ -62,7 +62,7 @@ impl Bus {
                 true => Box::new(CGBRAM::new()),
                 false => Box::new(DMGRAM::new()),
             },
-            ppu: PPU::new(),
+            ppu: PPU::new(cgb_mode),
             joypad: Joypad::new(),
             timer: Timer::new(),
             sound: Sound::new(),
@@ -105,7 +105,7 @@ impl Bus {
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             return self.interrupts.read(address);
         } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.read_vram(address);
+            return self.ppu.read_vram_external(address);
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
             return self.ppu.read_oam(address);
         } else if PPU::is_io_register(address) {
@@ -147,7 +147,7 @@ impl Bus {
             let byte = self.data[address as usize];
             self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
         } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.write_vram(address, data);
+            return self.ppu.write_vram_external(address, data);
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
             return self.ppu.write_oam(address, data);
         } else if address == DMA_ADDRESS {

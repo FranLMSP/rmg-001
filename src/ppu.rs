@@ -26,6 +26,7 @@ pub const OBJECT_PALETTE_0_ADDRESS: u16 = 0xFF48;
 pub const OBJECT_PALETTE_1_ADDRESS: u16 = 0xFF49;
 pub const WINDOW_Y_ADDRESS: u16 = 0xFF4A;
 pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
+pub const VRAM_BANK_SELECT_ADDRESS: u16 = 0xFF4F;
 
 pub const TILE_MAP_ADDRESS: u16 = 0x9800;
 
@@ -126,6 +127,26 @@ pub enum LCDStatus {
     ModeFlag(LCDStatusModeFlag),
 }
 
+struct BgAttributes {
+    bg_to_oam_priority: bool,
+    vertical_flip: bool,
+    horizontal_flip: bool,
+    vram_bank: u8,
+    palette_number: u8,
+}
+
+impl BgAttributes {
+    pub fn new(byte: u8) -> Self {
+        Self {
+            bg_to_oam_priority: get_bit(byte, BitIndex::I7),
+            vertical_flip: get_bit(byte, BitIndex::I6),
+            horizontal_flip: get_bit(byte, BitIndex::I5),
+            vram_bank: get_bit(byte, BitIndex::I3) as u8,
+            palette_number: byte & 0b111,
+        }
+    }
+}
+
 struct Sprite {
     x: u8,
     y: u8,
@@ -136,6 +157,8 @@ struct Sprite {
     y_flip: bool,
     over_bg: bool,
     bit_pixels: Option<[u8; 8]>,
+    vram_bank: u8,
+    palette_number: u8,
 }
 
 impl Sprite {
@@ -229,13 +252,15 @@ pub struct PPU {
     scroll_y: u8,
     window_x: u8,
     window_y: u8,
-    io_registers: [u8; 12],
-    vram: [u8; 0x2000],
+    io_registers: [u8; 16],
+    vram: [u8; 0x2000 * 2],
     oam: [u8; 0xA0],
+    vram_bank: u8,
+    cgb_mode: bool,
 }
 
 impl PPU {
-    pub fn new() -> Self {
+    pub fn new(cgb_mode: bool) -> Self {
         Self {
             state: false,
             background_priority: false,
@@ -256,21 +281,41 @@ impl PPU {
             scroll_y: 0,
             window_x: 0,
             window_y: 0,
-            io_registers: [0; 12],
-            vram: [0; 0x2000],
+            io_registers: [0; 16],
+            vram: [0; 0x2000 * 2],
             oam: [0; 0xA0],
+            vram_bank: 0,
+            cgb_mode,
         }
     }
 
-    pub fn is_io_register(address: u16) -> bool {
-        address >= 0xFF40 && address <= 0xFF4B
+    pub fn set_vram_bank(&mut self, bank: u8) {
+        if self.cgb_mode {
+            self.vram_bank = bank & 1;
+        }
     }
 
-    pub fn read_vram(&self, address: u16) -> u8 {
+    pub fn get_vram_bank(&self) -> u8 {
+        self.vram_bank | 0xFE
+    }
+
+    pub fn is_io_register(address: u16) -> bool {
+        address >= 0xFF40 && address <= 0xFF4F
+    }
+
+    pub fn read_vram_external(&self, address: u16) -> u8 {
+        self.vram[((address + (0x2000 * self.vram_bank as u16)) - 0x8000) as usize]
+    }
+
+    pub fn write_vram_external(&mut self, address: u16, data: u8) {
+        self.vram[((address + (0x2000 * self.vram_bank as u16)) - 0x8000) as usize] = data;
+    }
+
+    fn read_vram(&self, address: u16) -> u8 {
         self.vram[(address - 0x8000) as usize]
     }
 
-    pub fn write_vram(&mut self, address: u16, data: u8) {
+    fn write_vram(&mut self, address: u16, data: u8) {
         self.vram[(address - 0x8000) as usize] = data;
     }
 
@@ -283,7 +328,9 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
-        if address == LCD_CONTROL_ADDRESS {
+        if address == VRAM_BANK_SELECT_ADDRESS {
+            return self.get_vram_bank();
+        } else if address == LCD_CONTROL_ADDRESS {
             return self.lcd_control;
         } else if address == LCD_Y_ADDRESS {
             return self.lcd_y;
@@ -292,7 +339,9 @@ impl PPU {
     }
 
     pub fn set_register(&mut self, address: u16, data: u8) {
-        if address == LCD_Y_ADDRESS {
+        if address == VRAM_BANK_SELECT_ADDRESS {
+            return self.set_vram_bank(data);
+        } else if address == LCD_Y_ADDRESS {
             return;
         } else if address == LCD_CONTROL_ADDRESS {
             self.lcd_control = data;
@@ -465,11 +514,18 @@ impl PPU {
                 y_flip: get_bit(attributes, BitIndex::I6),
                 over_bg: get_bit(attributes, BitIndex::I7),
                 bit_pixels: None,
+                vram_bank: match self.cgb_mode && get_bit(attributes, BitIndex::I3) {
+                    true => 1,
+                    false => 0,
+                },
+                palette_number: attributes & 0b111,
             });
 
             addr += 4;
         }
-        self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
+        if !self.cgb_mode {
+            self.sprite_buffer.sort_by(|a, b| a.x().cmp(&b.x()));
+        }
     }
 
     fn find_sprite_pixel(&mut self) -> Option<(Pixel, bool)> {
@@ -522,12 +578,17 @@ impl PPU {
         self.force_set_register(LCD_STATUS_ADDRESS, byte);
     }
 
-    fn get_tile_bytes(&self, x: u8, y: u8, tilemap_area: u16, default_method: bool) -> (u8, u8) {
+    fn get_tile_bytes(&self, x: u8, y: u8, tilemap_area: u16, default_method: bool) -> (u8, u8, BgAttributes) {
         let index_x = x as u16 / 8;
         let index_y = (y as u16 / 8) * 32;
         let index = index_x + index_y;
-        let tile_line = (y).rem_euclid(8) * 2;
         let tile_number = self.read_vram(tilemap_area + index as u16) as u16;
+        let mut tile_line = (y).rem_euclid(8);
+        let attributes = BgAttributes::new(self.read_vram(tilemap_area + 0x2000 + index as u16));
+        if self.cgb_mode && attributes.vertical_flip {
+            tile_line = 7 - tile_line;
+        }
+        tile_line = tile_line * 2;
         let addr = if default_method {
             0x8000 + tile_line as u16 + (tile_number * 16)
         } else {
@@ -537,7 +598,31 @@ impl PPU {
             (base + tile_line + (tile_number * 16)) as u16
         };
 
-        (self.read_vram(addr), self.read_vram(addr + 1))
+        if !self.cgb_mode {
+            return (self.read_vram(addr), self.read_vram(addr + 1), attributes);
+        }
+        let byte1 = self.read_vram(addr + (0x2000 * (attributes.vram_bank as u16)));
+        let byte2 = self.read_vram(addr + (0x2000 * (attributes.vram_bank as u16)) + 1);
+        if attributes.horizontal_flip {
+            let byte1 = ((byte1 >> 7) & 0b1) |
+                    ((byte1 >> 5) & 0b10) |
+                    ((byte1 >> 3) & 0b100) |
+                    ((byte1 >> 1) & 0b1000) |
+                    ((byte1 << 1) & 0b10000) |
+                    ((byte1 << 3) & 0b100000) |
+                    ((byte1 << 5) & 0b1000000) |
+                    ((byte1 << 7) & 0b10000000);
+            let byte2 = ((byte2 >> 7) & 0b1) |
+                    ((byte2 >> 5) & 0b10) |
+                    ((byte2 >> 3) & 0b100) |
+                    ((byte2 >> 1) & 0b1000) |
+                    ((byte2 << 1) & 0b10000) |
+                    ((byte2 << 3) & 0b100000) |
+                    ((byte2 << 5) & 0b1000000) |
+                    ((byte2 << 7) & 0b10000000);
+            return (byte1, byte2, attributes);
+        }
+        return (byte1, byte2, attributes);
     }
 
     fn get_window_pixel(&mut self) -> Option<Pixel> {
@@ -577,7 +662,7 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
+                let (tile_byte_1, tile_byte_2, _) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_window_pixels = Some(bit_pixels_array);
 
@@ -614,7 +699,7 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
+                let (tile_byte_1, tile_byte_2, _) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_background_pixels = Some(bit_pixels_array);
 
