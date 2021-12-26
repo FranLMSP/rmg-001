@@ -36,6 +36,7 @@ pub struct Bus {
     pub timer: Timer,
     pub sound: Sound,
     pub interrupts: Interrupts,
+    pub cgb_mode: bool,
 }
 
 impl Bus {
@@ -67,6 +68,7 @@ impl Bus {
             timer: Timer::new(),
             sound: Sound::new(),
             interrupts: Interrupts::new(),
+            cgb_mode,
         };
 
         // Hardware registers after the bootrom

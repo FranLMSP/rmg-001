@@ -87,6 +87,21 @@ impl Registers {
         }
     }
 
+    pub fn new_cgb() -> Self {
+        Self {
+            a: 0x11,
+            f: 0x00,
+            b: 0x00,
+            c: 0x00,
+            d: 0xFF,
+            e: 0x56,
+            h: 0x00,
+            l: 0x0D,
+            sp: 0xFFFE,
+            pc: 0x0100,
+        }
+    }
+
     pub fn get(&self, register: Register) -> u16 {
         match register {
             Register::A => self.a as u16,
@@ -818,9 +833,12 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(cgb_mode: bool) -> Self {
         Self {
-            registers: Registers::new(),
+            registers: match cgb_mode {
+                true => Registers::new_cgb(),
+                false => Registers::new(),
+            },
             cycles: Cycles(0),
             last_op_cycles: Cycles(0),
             exec_calls_count: 0,
