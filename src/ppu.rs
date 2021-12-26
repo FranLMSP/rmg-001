@@ -71,9 +71,9 @@ impl ColorPalette {
 }
 
 fn extract_rgb(color: u16) -> RGBA {
-    let red   = (color        & 0b1111).to_be_bytes()[1];
-    let green = ((color >> 4) & 0b1111).to_be_bytes()[1];
-    let blue  = ((color >> 8) & 0b1111).to_be_bytes()[1];
+    let red   = (color         & 0b11111).to_be_bytes()[1];
+    let green = ((color >> 5)  & 0b11111).to_be_bytes()[1];
+    let blue  = ((color >> 10) & 0b11111).to_be_bytes()[1];
     RGBA((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2), 0)
 }
 
@@ -195,12 +195,16 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8, lcd_control: u8, is_cgb: bool) -> Option<(Pixel, bool, u8)> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8, last_bg_priority: bool, lcd_control: u8, is_cgb: bool) -> Option<(Pixel, bool, u8)> {
         if !LCDControl::ObjectEnable.get(lcd_control) {
             return None;
         }
 
         if lcd_x < self.x.saturating_sub(8) || lcd_x >= self.x {
+            return None;
+        }
+
+        if is_cgb && LCDControl::BackgroundPriority.get(lcd_control) && last_bg_priority {
             return None;
         }
 
@@ -244,8 +248,8 @@ impl Sprite {
                 let addr = 0x8000 + (tile_number as u16 * 16) + tile_line as u16;
 
                 let vram_start = 0x8000;
-                let tile_byte_1 = vram[(addr - vram_start) as usize];
-                let tile_byte_2 = vram[(addr - vram_start + 1) as usize];
+                let tile_byte_1 = vram[(0x2000 * self.vram_bank as usize) + (addr - vram_start) as usize];
+                let tile_byte_2 = vram[(0x2000 * self.vram_bank as usize) + (addr - vram_start + 1) as usize];
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.bit_pixels = Some(bit_pixels_array);
 
@@ -274,6 +278,7 @@ pub struct PPU {
     sprite_buffer: Vec<Sprite>,
     window_y_counter: u8,
     last_bg_index: u8,
+    last_bg_priority: bool,
     bg_palette: u8,
     lcd_control: u8,
     current_background_pixels: Option<([u8; 8], u8)>,
@@ -306,6 +311,7 @@ impl PPU {
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
             last_bg_index: 0,
+            last_bg_priority: false,
             bg_palette: 0,
             lcd_control: 0,
             current_background_pixels: None,
@@ -482,7 +488,7 @@ impl PPU {
             self.lcd_y = self.lcd_y.wrapping_add(1);
             self.lcd_x = 0;
             if self.window_drawn {
-                self.window_y_counter += 1;
+                self.window_y_counter = self.window_y_counter.saturating_add(1);
             }
 
             // Frame completed
@@ -598,7 +604,7 @@ impl PPU {
     fn find_sprite_pixel(&mut self) -> Option<(Pixel, bool, u8)> {
         let lcd_y = self.lcd_y;
         for sprite in &mut self.sprite_buffer {
-            if let Some(pixel) = sprite.get_pixel(self.lcd_x, lcd_y, &self.vram, self.last_bg_index, self.lcd_control, self.cgb_mode) {
+            if let Some(pixel) = sprite.get_pixel(self.lcd_x, lcd_y, &self.vram, self.last_bg_index, self.last_bg_priority, self.lcd_control, self.cgb_mode) {
                 return Some(pixel);
             }
         }
@@ -693,8 +699,15 @@ impl PPU {
     }
 
     fn get_window_pixel(&mut self) -> Option<(Pixel, u8)> {
-        if !self.window_enable {
+        if  !self.window_enable {
+            self.last_bg_index = 0b00;
             return None;
+        }
+        if !self.cgb_mode {
+            if !self.background_priority || !self.window_enable {
+                self.last_bg_index = 0b00;
+                return None;
+            }
         }
 
         let lcd_y = self.lcd_y;
@@ -732,6 +745,7 @@ impl PPU {
                 let (tile_byte_1, tile_byte_2, info) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_window_pixels = Some((bit_pixels_array, info.palette_number));
+                self.last_bg_priority = info.bg_to_oam_priority;
 
                 (bit_pixels_array, info.palette_number)
             },
@@ -746,7 +760,8 @@ impl PPU {
     }
 
     fn get_background_pixel(&mut self) -> Option<(Pixel, u8)> {
-        if !self.background_priority {
+        if !self.cgb_mode && !self.background_priority {
+            self.last_bg_index = 0b00;
             return None;
         }
         let lcd_y = self.lcd_y;
@@ -772,6 +787,7 @@ impl PPU {
                 let (tile_byte_1, tile_byte_2, info) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
                 self.current_background_pixels = Some((bit_pixels_array, info.palette_number));
+                self.last_bg_priority = info.bg_to_oam_priority;
 
                 (bit_pixels_array, info.palette_number)
             },
