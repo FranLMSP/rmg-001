@@ -2,6 +2,7 @@ use crate::utils::{
     BitIndex,
     get_bit,
     set_bit,
+    join_bytes,
 };
 use crate::bus::SPRITE_ATTRIBUTE_TABLE;
 use crate::cpu::Cycles;
@@ -28,6 +29,11 @@ pub const WINDOW_Y_ADDRESS: u16 = 0xFF4A;
 pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
 pub const VRAM_BANK_SELECT_ADDRESS: u16 = 0xFF4F;
 
+pub const BCPS_BGPI_ADDRESS: u16 = 0xFF68;
+pub const BCPD_BGPD_ADDRESS: u16 = 0xFF69;
+pub const OCPS_OBPI_ADDRESS: u16 = 0xFF6A;
+pub const OCPD_OBPD_ADDRESS: u16 = 0xFF6B;
+
 pub const TILE_MAP_ADDRESS: u16 = 0x9800;
 
 #[derive(Debug, Copy, Clone)]
@@ -46,6 +52,29 @@ struct ColorPalette {
     light: RGBA,
     dark:  RGBA,
     black: RGBA,
+}
+
+impl ColorPalette {
+    pub fn new_cgb(cram: &[u8], palette_number: u8) -> Self {
+        let addr = (palette_number as usize) * 8;
+        let white = join_bytes(cram[addr + 1], cram[addr]);
+        let light = join_bytes(cram[addr + 3], cram[addr + 2]);
+        let dark  = join_bytes(cram[addr + 5], cram[addr + 4]);
+        let black = join_bytes(cram[addr + 7], cram[addr + 6]);
+        Self {
+            white: extract_rgb(white),
+            light: extract_rgb(light),
+            dark:  extract_rgb(dark),
+            black: extract_rgb(black),
+        }
+    }
+}
+
+fn extract_rgb(color: u16) -> RGBA {
+    let red   = (color        & 0b1111).to_be_bytes()[1];
+    let green = ((color >> 4) & 0b1111).to_be_bytes()[1];
+    let blue  = ((color >> 8) & 0b1111).to_be_bytes()[1];
+    RGBA((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2), 0)
 }
 
 const BACKGROUND_COLORS: ColorPalette = ColorPalette {
@@ -166,7 +195,7 @@ impl Sprite {
         self.x
     }
 
-    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8, lcd_control: u8) -> Option<(Pixel, bool)> {
+    pub fn get_pixel(&mut self, lcd_x: u8, lcd_y: u8, vram: &[u8], last_bg_index: u8, lcd_control: u8, is_cgb: bool) -> Option<(Pixel, bool, u8)> {
         if !LCDControl::ObjectEnable.get(lcd_control) {
             return None;
         }
@@ -228,7 +257,10 @@ impl Sprite {
             return None;
         }
 
-        Some((PPU::get_pixel(PPU::get_palette(bit_pixel, self.palette)), self.palette_zero))
+        if !is_cgb {
+            return Some((PPU::get_pixel(PPU::get_palette(bit_pixel, self.palette)), self.palette_zero, 0));
+        }
+        Some((PPU::get_pixel(bit_pixel), self.palette_zero, self.palette_number))
     }
 }
 
@@ -244,8 +276,8 @@ pub struct PPU {
     last_bg_index: u8,
     bg_palette: u8,
     lcd_control: u8,
-    current_background_pixels: Option<[u8; 8]>,
-    current_window_pixels: Option<[u8; 8]>,
+    current_background_pixels: Option<([u8; 8], u8)>,
+    current_window_pixels: Option<([u8; 8], u8)>,
     lcd_y: u8,
     lcd_x: u8,
     scroll_x: u8,
@@ -253,7 +285,10 @@ pub struct PPU {
     window_x: u8,
     window_y: u8,
     io_registers: [u8; 16],
+    cram_registers: [u8; 4],
     vram: [u8; 0x2000 * 2],
+    bg_cram: [u8; 64],
+    obj_cram: [u8; 64],
     oam: [u8; 0xA0],
     vram_bank: u8,
     cgb_mode: bool,
@@ -282,7 +317,10 @@ impl PPU {
             window_x: 0,
             window_y: 0,
             io_registers: [0; 16],
+            cram_registers: [0; 4],
             vram: [0; 0x2000 * 2],
+            bg_cram: [0; 64],
+            obj_cram: [0; 64],
             oam: [0; 0xA0],
             vram_bank: 0,
             cgb_mode,
@@ -300,7 +338,8 @@ impl PPU {
     }
 
     pub fn is_io_register(address: u16) -> bool {
-        address >= 0xFF40 && address <= 0xFF4F
+        (address >= 0xFF68 && address <= 0xFF6B) ||
+        (address >= 0xFF40 && address <= 0xFF4F)
     }
 
     pub fn read_vram_external(&self, address: u16) -> u8 {
@@ -328,7 +367,9 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
-        if address == VRAM_BANK_SELECT_ADDRESS {
+        if address >= 0xFF68 && address <= 0xFF6B {
+            return self.cram_registers[(address as usize) - 0xFF68];
+        } else if address == VRAM_BANK_SELECT_ADDRESS {
             return self.get_vram_bank();
         } else if address == LCD_CONTROL_ADDRESS {
             return self.lcd_control;
@@ -339,7 +380,33 @@ impl PPU {
     }
 
     pub fn set_register(&mut self, address: u16, data: u8) {
-        if address == VRAM_BANK_SELECT_ADDRESS {
+        if address >= 0xFF68 && address <= 0xFF6B {
+            self.cram_registers[(address as usize) - 0xFF68] = data;
+
+            if address == BCPD_BGPD_ADDRESS {
+                if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                    return;
+                }
+                let byte = self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68];
+                let auto_increment = get_bit(byte, BitIndex::I7);
+                let cram_address = byte & 0b11111;
+                self.bg_cram[cram_address as usize] = data;
+                if auto_increment {
+                    self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b11111) | ((auto_increment as u8) << 7);
+                }
+            } else if address == OCPD_OBPD_ADDRESS {
+                if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                    return;
+                }
+                let byte = self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68];
+                let auto_increment = get_bit(byte, BitIndex::I7);
+                let cram_address = byte & 0b11111;
+                self.obj_cram[cram_address as usize] = data;
+                if auto_increment {
+                    self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b11111) | ((auto_increment as u8) << 7);
+                }
+            }
+        } else if address == VRAM_BANK_SELECT_ADDRESS {
             return self.set_vram_bank(data);
         } else if address == LCD_Y_ADDRESS {
             return;
@@ -528,10 +595,10 @@ impl PPU {
         }
     }
 
-    fn find_sprite_pixel(&mut self) -> Option<(Pixel, bool)> {
+    fn find_sprite_pixel(&mut self) -> Option<(Pixel, bool, u8)> {
         let lcd_y = self.lcd_y;
         for sprite in &mut self.sprite_buffer {
-            if let Some(pixel) = sprite.get_pixel(self.lcd_x, lcd_y, &self.vram, self.last_bg_index, self.lcd_control) {
+            if let Some(pixel) = sprite.get_pixel(self.lcd_x, lcd_y, &self.vram, self.last_bg_index, self.lcd_control, self.cgb_mode) {
                 return Some(pixel);
             }
         }
@@ -625,7 +692,7 @@ impl PPU {
         return (byte1, byte2, attributes);
     }
 
-    fn get_window_pixel(&mut self) -> Option<Pixel> {
+    fn get_window_pixel(&mut self) -> Option<(Pixel, u8)> {
         if !self.window_enable {
             return None;
         }
@@ -652,9 +719,9 @@ impl PPU {
             self.current_window_pixels = None;
         }
 
-        let bit_pixel = match self.current_window_pixels {
+        let (bit_pixels_array, palette_number) = match self.current_window_pixels {
             Some(bit_pixels_array) => {
-                bit_pixels_array[bit_pixel_index]
+                bit_pixels_array
             },
             None => {
                 let default_mode = self.get_lcd_control(LCDControl::TileAddressMode);
@@ -662,20 +729,23 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2, _) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
+                let (tile_byte_1, tile_byte_2, info) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
-                self.current_window_pixels = Some(bit_pixels_array);
+                self.current_window_pixels = Some((bit_pixels_array, info.palette_number));
 
-                bit_pixels_array[bit_pixel_index]
+                (bit_pixels_array, info.palette_number)
             },
         };
-
+        let bit_pixel = bit_pixels_array[bit_pixel_index];
         self.last_bg_index = bit_pixel & 0b11;
 
-        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
+        if !self.cgb_mode {
+            return Some((PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)), 0));
+        }
+        Some((PPU::get_pixel(bit_pixel), palette_number))
     }
 
-    fn get_background_pixel(&mut self) -> Option<Pixel> {
+    fn get_background_pixel(&mut self) -> Option<(Pixel, u8)> {
         if !self.background_priority {
             return None;
         }
@@ -689,9 +759,9 @@ impl PPU {
             self.current_background_pixels = None;
         }
 
-        let bit_pixel = match self.current_background_pixels {
+        let (bit_pixels_array, palette_number) = match self.current_background_pixels {
             Some(bit_pixels_array) => {
-                bit_pixels_array[bit_pixel_index]
+                bit_pixels_array
             },
             None => {
                 let default_mode = self.get_lcd_control(LCDControl::TileAddressMode);
@@ -699,16 +769,20 @@ impl PPU {
                     true  => 0x9C00,
                     false => 0x9800,
                 };
-                let (tile_byte_1, tile_byte_2, _) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
+                let (tile_byte_1, tile_byte_2, info) = self.get_tile_bytes(x, y, tilemap_area, default_mode);
                 let bit_pixels_array = PPU::get_byte_pixels(tile_byte_1, tile_byte_2);
-                self.current_background_pixels = Some(bit_pixels_array);
+                self.current_background_pixels = Some((bit_pixels_array, info.palette_number));
 
-                bit_pixels_array[bit_pixel_index]
+                (bit_pixels_array, info.palette_number)
             },
         };
+        let bit_pixel = bit_pixels_array[bit_pixel_index];
         self.last_bg_index = bit_pixel & 0b11;
 
-        Some(PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)))
+        if !self.cgb_mode {
+            return Some((PPU::get_pixel(PPU::get_palette(bit_pixel, self.bg_palette)), 0));
+        }
+        Some((PPU::get_pixel(bit_pixel), palette_number))
     }
 
     fn draw_line(&mut self, cycles: Cycles, frame_buffer: &mut [u8]) {
@@ -728,24 +802,36 @@ impl PPU {
         while count < cycles.0 && (self.lcd_x as u32) < LCD_WIDTH {
             let idx = (self.lcd_x as usize + (self.lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
-            if let Some(window_pixel) = self.get_window_pixel() {
+            if let Some((window_pixel, palette_number)) = self.get_window_pixel() {
                 self.window_drawn = true;
-                let rgba = PPU::get_rgba(window_pixel, WINDOW_COLORS);
+                let colors = match self.cgb_mode {
+                    true => ColorPalette::new_cgb(&self.bg_cram, palette_number),
+                    false => WINDOW_COLORS,
+                };
+                let rgba = PPU::get_rgba(window_pixel, colors);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
-            } else if let Some(background_pixel) = self.get_background_pixel() {
-                let rgba = PPU::get_rgba(background_pixel, BACKGROUND_COLORS);
+            } else if let Some((background_pixel, palette_number)) = self.get_background_pixel() {
+                let colors = match self.cgb_mode {
+                    true => ColorPalette::new_cgb(&self.bg_cram, palette_number),
+                    false => BACKGROUND_COLORS,
+                };
+                let rgba = PPU::get_rgba(background_pixel, colors);
                 frame_buffer[idx]     = rgba[0];
                 frame_buffer[idx + 1] = rgba[1];
                 frame_buffer[idx + 2] = rgba[2];
             }
             if self.get_lcd_control(LCDControl::ObjectEnable) {
-                if let Some((sprite_pixel, palette_zero)) = self.find_sprite_pixel() {
-                    let rgba = PPU::get_rgba(sprite_pixel, match palette_zero {
-                        true => SPRITE_0_COLORS,
-                        false => SPRITE_1_COLORS,
-                    });
+                if let Some((sprite_pixel, palette_zero, palette_number)) = self.find_sprite_pixel() {
+                    let colors = match self.cgb_mode {
+                        true => ColorPalette::new_cgb(&self.obj_cram, palette_number),
+                        false => match palette_zero {
+                            true => SPRITE_0_COLORS,
+                            false => SPRITE_1_COLORS,
+                        },
+                    };
+                    let rgba = PPU::get_rgba(sprite_pixel, colors);
                     frame_buffer[idx]     = rgba[0];
                     frame_buffer[idx + 1] = rgba[1];
                     frame_buffer[idx + 2] = rgba[2];
