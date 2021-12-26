@@ -29,10 +29,9 @@ Any help or suggestion is welcome!
   - [ ] MBC7
   - [ ] HuC1
 - [x] Save files
-- [ ] Web Assembly support (because this is a Rust project and it has to support Web Assembly)
 - [ ] Gameboy boot ROM (not important for now)
-- [ ] Gameboy Color compatibility
-- [ ] Sound
+- [ ] Gameboy Color compatibility (WIP)
+- [ ] Sound (WIP)
 - [ ] Many code refactors and optimizations
 
 # Resources
