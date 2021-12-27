@@ -360,10 +360,6 @@ impl PPU {
         self.vram[(address - 0x8000) as usize]
     }
 
-    fn write_vram(&mut self, address: u16, data: u8) {
-        self.vram[(address - 0x8000) as usize] = data;
-    }
-
     pub fn read_oam(&self, address: u16) -> u8 {
         self.oam[(address - 0xFE00) as usize]
     }
@@ -395,10 +391,10 @@ impl PPU {
                 }
                 let byte = self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68];
                 let auto_increment = get_bit(byte, BitIndex::I7);
-                let cram_address = byte & 0b11111;
+                let cram_address = byte & 0b111111;
                 self.bg_cram[cram_address as usize] = data;
                 if auto_increment {
-                    self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b11111) | ((auto_increment as u8) << 7);
+                    self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
                 }
             } else if address == OCPD_OBPD_ADDRESS {
                 if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
@@ -406,10 +402,10 @@ impl PPU {
                 }
                 let byte = self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68];
                 let auto_increment = get_bit(byte, BitIndex::I7);
-                let cram_address = byte & 0b11111;
+                let cram_address = byte & 0b111111;
                 self.obj_cram[cram_address as usize] = data;
                 if auto_increment {
-                    self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b11111) | ((auto_increment as u8) << 7);
+                    self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
                 }
             }
         } else if address == VRAM_BANK_SELECT_ADDRESS {
