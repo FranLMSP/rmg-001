@@ -53,7 +53,7 @@ impl CGBRAM {
         if self.bank > 7 {
             self.bank = 7;
         } else if bank == 0 {
-            self.bank = 0;
+            self.bank = 1;
         }
     }
 }
@@ -66,7 +66,7 @@ impl RAM for CGBRAM {
         if address <= 0xCFFF {
             return self.data[(address - 0xC000) as usize];
         }
-        self.data[((address - 0xC000) as usize) * (self.bank as usize)]
+        self.data[((address - 0xD000) as usize) + (4096 * (self.bank as usize))]
     }
 
     fn write(&mut self, address: u16, value: u8) {
@@ -75,6 +75,6 @@ impl RAM for CGBRAM {
         } else if address <= 0xCFFF {
             return self.data[(address - 0xC000) as usize] = value;
         }
-        self.data[((address - 0xC000) as usize) * (self.bank as usize)] = value;
+        self.data[((address - 0xD000) as usize) + (4096 * (self.bank as usize))] = value;
     }
 }
