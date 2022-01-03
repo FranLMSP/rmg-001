@@ -29,6 +29,12 @@ pub const WINDOW_Y_ADDRESS: u16 = 0xFF4A;
 pub const WINDOW_X_ADDRESS: u16 = 0xFF4B;
 pub const VRAM_BANK_SELECT_ADDRESS: u16 = 0xFF4F;
 
+pub const HDMA1_ADDRESS: u16 = 0xFF51;
+pub const HDMA2_ADDRESS: u16 = 0xFF52;
+pub const HDMA3_ADDRESS: u16 = 0xFF53;
+pub const HDMA4_ADDRESS: u16 = 0xFF54;
+pub const HDMA5_ADDRESS: u16 = 0xFF55;
+
 pub const BCPS_BGPI_ADDRESS: u16 = 0xFF68;
 pub const BCPD_BGPD_ADDRESS: u16 = 0xFF69;
 pub const OCPS_OBPI_ADDRESS: u16 = 0xFF6A;
@@ -296,6 +302,9 @@ pub struct PPU {
     obj_cram: [u8; 64],
     oam: [u8; 0xA0],
     vram_bank: u8,
+    hdma_source: u16,
+    hdma_destination: u16,
+    hdma_start: u8,
     cgb_mode: bool,
 }
 
@@ -329,6 +338,9 @@ impl PPU {
             obj_cram: [0; 64],
             oam: [0; 0xA0],
             vram_bank: 0,
+            hdma_source: 0,
+            hdma_destination: 0,
+            hdma_start: 0,
             cgb_mode,
         }
     }
@@ -343,7 +355,16 @@ impl PPU {
         self.vram_bank | 0xFE
     }
 
+    pub fn hdma_source(&self) -> u16 {
+        self.hdma_source
+    }
+
+    pub fn hdma_destination(&self) -> u16 {
+        self.hdma_destination
+    }
+
     pub fn is_io_register(address: u16) -> bool {
+        (address >= 0xFF51 && address <= 0xFF55) ||
         (address >= 0xFF68 && address <= 0xFF6B) ||
         (address >= 0xFF40 && address <= 0xFF4F)
     }
@@ -369,7 +390,19 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
-        if address >= 0xFF68 && address <= 0xFF6B {
+        if address >= 0xFF51 && address <= 0xFF55 {
+            if address == HDMA1_ADDRESS {
+                return self.hdma_source.to_be_bytes()[0];
+            } else if address == HDMA2_ADDRESS {
+                return self.hdma_source.to_be_bytes()[1];
+            } else if address == HDMA3_ADDRESS {
+                return self.hdma_destination.to_be_bytes()[0];
+            } else if address == HDMA4_ADDRESS {
+                return self.hdma_destination.to_be_bytes()[1];
+            } else if address == HDMA5_ADDRESS {
+                return self.hdma_start;
+            }
+        } else if address >= 0xFF68 && address <= 0xFF6B {
             return self.cram_registers[(address as usize) - 0xFF68];
         } else if address == VRAM_BANK_SELECT_ADDRESS {
             return self.get_vram_bank();
@@ -382,7 +415,19 @@ impl PPU {
     }
 
     pub fn set_register(&mut self, address: u16, data: u8) {
-        if address >= 0xFF68 && address <= 0xFF6B {
+        if address >= 0xFF51 && address <= 0xFF55 {
+            if address == HDMA1_ADDRESS {
+                self.hdma_source = (self.hdma_source & 0xFF) | ((data as u16) << 8);
+            } else if address == HDMA2_ADDRESS {
+                self.hdma_source = (self.hdma_source & 0xFF00) | (data as u16);
+            } else if address == HDMA3_ADDRESS {
+                self.hdma_destination = (self.hdma_destination & 0xFF) | ((data as u16) << 8);
+            } else if address == HDMA4_ADDRESS {
+                self.hdma_destination = (self.hdma_destination & 0xFF00) | (data as u16);
+            } else if address == HDMA5_ADDRESS {
+                self.hdma_start = data;
+            }
+        } else if address >= 0xFF68 && address <= 0xFF6B {
             self.cram_registers[(address as usize) - 0xFF68] = data;
 
             if address == BCPD_BGPD_ADDRESS {

@@ -5,6 +5,7 @@ use crate::ram::{RAM, DMGRAM, CGBRAM, WRAM_BANK_SELECT_ADDRESS};
 use crate::ppu::{
     PPU,
     DMA_ADDRESS,
+    HDMA5_ADDRESS,
 };
 use crate::timer::Timer;
 use crate::joypad::{Joypad, JOYPAD_ADDRESS};
@@ -153,14 +154,11 @@ impl Bus {
         } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
             return self.ppu.write_oam(address, data);
         } else if address == DMA_ADDRESS {
-            self.data[address as usize] = data;
-            let source = (data as u16) * 0x100;
-            let mut count: u16 = 0;
-            let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
-            while count < 160 {
-                self.ppu.write_oam(oam_addr + count, self.read(source + count));
-                count += 1;
-            }
+            self.ppu.set_register(address, data);
+            self.dma_transfer(data);
+        } else if address == HDMA5_ADDRESS {
+            self.ppu.set_register(address, data);
+            self.hdma_transfer(data);
         } else if PPU::is_io_register(address) {
             self.ppu.set_register(address, data);
         } else {
@@ -172,5 +170,28 @@ impl Bus {
         let bytes = data.to_le_bytes();
         self.write(address, bytes[0]);
         self.write(address.wrapping_add(1), bytes[1]);
+    }
+
+    fn dma_transfer(&mut self, data: u8) {
+        let source = (data as u16) * 0x100;
+        let mut count: u16 = 0;
+        let oam_addr = SPRITE_ATTRIBUTE_TABLE.min().unwrap();
+        while count < 160 {
+            self.ppu.write_oam(oam_addr + count, self.read(source + count));
+            count += 1;
+        }
+    }
+
+    fn hdma_transfer(&mut self, data: u8) {
+        let source = self.ppu.hdma_source() & 0xFFF0;
+        let destination = (self.ppu.hdma_destination() & 0xFF0) + 0x8000;
+        let length = (((data & 0x7F) as u16) + 1) * 0x10;
+        let mut count: u16 = 0;
+        while count < length {
+            let byte = self.read(source + count);
+            self.ppu.write_vram_external(destination + count, byte);
+            count += 1;
+        }
+        self.ppu.set_register(HDMA5_ADDRESS, 0xFF);
     }
 }
