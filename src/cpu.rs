@@ -833,12 +833,22 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new(cgb_mode: bool) -> Self {
+    pub fn new() -> Self {
         Self {
-            registers: match cgb_mode {
-                true => Registers::new_cgb(),
-                false => Registers::new(),
-            },
+            registers: Registers::new(),
+            cycles: Cycles(0),
+            last_op_cycles: Cycles(0),
+            exec_calls_count: 0,
+            is_halted: false,
+            ei_delay: false,
+            ime: true,
+            enable_logs: !env::var("CPU_LOG").is_err() || !env::var("CPU_LOGS").is_err(),
+        }
+    }
+
+    pub fn new_cgb() -> Self {
+        Self {
+            registers: Registers::new_cgb(),
             cycles: Cycles(0),
             last_op_cycles: Cycles(0),
             exec_calls_count: 0,

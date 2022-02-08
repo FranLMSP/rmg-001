@@ -17,10 +17,13 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Self {
         let bus = Bus::new();
-        let cgb_mode = bus.cgb_mode;
+        let cpu = match bus.cgb_mode {
+            true => CPU::new_cgb(),
+            false => CPU::new(),
+        };
         Self {
             bus,
-            cpu: CPU::new(cgb_mode),
+            cpu,
         }
     }
 
