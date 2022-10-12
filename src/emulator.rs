@@ -115,8 +115,11 @@ impl Emulator {
             self.cpu.run(&mut self.bus);
             let cycles = self.cpu.get_last_op_cycles().to_t();
             self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, frame_buffer);
-            self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
             self.bus.sound.do_cycles(cycles);
+            self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
+            if self.bus.double_speed_mode() {
+                self.bus.timer.do_cycles(&mut self.bus.interrupts, Cycles(cycles.0 * 3.0));
+            }
 
             // 1 CPU cycle = 238.42ns
             // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));

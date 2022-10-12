@@ -175,10 +175,10 @@ impl Sound {
     }
 
     pub fn do_cycles(&mut self, cycles: Cycles) {
-        let mut count = 0;
+        let mut count = 0.0;
         while count < cycles.0 {
             self.cycle();
-            count += 1;
+            count += 1.0;
         }
     }
 

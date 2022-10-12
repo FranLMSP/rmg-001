@@ -316,7 +316,7 @@ impl PPU {
             window_enable: false,
             window_drawn: false,
             lcd_enable: false,
-            cycles: Cycles(0),
+            cycles: Cycles(0.0),
             sprite_buffer: Vec::new(),
             window_y_counter: 0,
             last_bg_index: 0,
@@ -482,7 +482,7 @@ impl PPU {
     }
 
     pub fn reset_cycles(&mut self) {
-        self.cycles.0 = 0;
+        self.cycles.0 = 0.0;
     }
 
     pub fn increment_cycles(&mut self, cycles: Cycles) {
@@ -496,19 +496,19 @@ impl PPU {
         }
 
         if self.lcd_y < 144 {
-            if self.cycles.0 <= 80 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
+            if self.cycles.0 <= 80.0 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM)) {
                 // Mode 2 OAM scan
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::SearchingOAM), true);
                 self.stat_interrupt(interrupts);
                 self.oam_search();
-            } else if self.cycles.0 > 80 && self.cycles.0 <= 80 + 172 {
+            } else if self.cycles.0 > 80.0 && self.cycles.0 <= 80.0 + 172.0 {
                 // Mode 3 drawing pixel line. This could also last 289 cycles
                 if !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
                     self.window_drawn = false;
                     self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD), true);
                 }
                 self.draw_line(cycles, frame_buffer);
-            } else if self.cycles.0 > 80 + 172 && self.cycles.0 <= 80 + 172 + 204 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
+            } else if self.cycles.0 > 80.0 + 172.0 && self.cycles.0 <= 80.0 + 172.0 + 204.0 && !self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank)) {
                 // Mode 0 Horizontal blank. This could last 87 or 204 cycles depending on the mode 3
                 self.set_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::HBlank), true);
                 self.stat_interrupt(interrupts);
@@ -523,7 +523,7 @@ impl PPU {
         self.increment_cycles(cycles);
 
         // Horizontal scan completed
-        if self.cycles.0 > 456 {
+        if self.cycles.0 > 456.0 {
             self.reset_cycles();
 
             self.lcd_y = self.lcd_y.wrapping_add(1);
@@ -855,7 +855,7 @@ impl PPU {
         self.current_background_pixels = None;
         self.current_window_pixels = None;
         self.bg_palette = self.get_register(BACKGROUND_PALETTE_ADDRESS);
-        let mut count = 0;
+        let mut count = 0.0;
         while count < cycles.0 && (self.lcd_x as u32) < LCD_WIDTH {
             let idx = (self.lcd_x as usize + (self.lcd_y as usize * LCD_WIDTH as usize)) * 4;
 
@@ -896,7 +896,7 @@ impl PPU {
             }
 
             self.lcd_x += 1;
-            count += 1;
+            count += 1.0;
         }
     }
 

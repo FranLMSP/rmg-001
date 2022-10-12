@@ -27,6 +27,7 @@ pub const SPRITE_ATTRIBUTE_TABLE: RangeInclusive<u16>    = 0xFE00..=0xFE9F;
 pub const NOT_USABLE: RangeInclusive<u16>                = 0xFEA0..=0xFEFF;
 pub const IO_REGISTERS: RangeInclusive<u16>              = 0xFF00..=0xFF7F;
 pub const HIGH_RAM: RangeInclusive<u16>                  = 0xFF80..=0xFFFE;
+pub const PREPARE_SPEED_SWITCH_ADDRESS: u16              = 0xFF4D;
 
 pub struct Bus {
     data: [u8; 0x10000],
@@ -38,6 +39,8 @@ pub struct Bus {
     pub sound: Sound,
     pub interrupts: Interrupts,
     pub cgb_mode: bool,
+    pub double_speed_mode: bool,
+    pub prepare_double_speed_mode: bool,
 }
 
 impl Bus {
@@ -70,6 +73,8 @@ impl Bus {
             sound: Sound::new(),
             interrupts: Interrupts::new(),
             cgb_mode,
+            double_speed_mode: false,
+            prepare_double_speed_mode: false,
         };
 
         // Hardware registers after the bootrom
@@ -119,6 +124,11 @@ impl Bus {
             return self.joypad.read(self.data[address as usize]);
         }  else if Timer::is_io_register(address) {
             return self.timer.get_register(address);
+        } else if address == PREPARE_SPEED_SWITCH_ADDRESS && self.cgb_mode {
+            let byte = self.data[address as usize];
+            let current_speed = (self.double_speed_mode as u8) << 7;
+            let prepare_speed_switch = self.prepare_double_speed_mode as u8;
+            return (byte & 0b0111_1110) | current_speed | prepare_speed_switch;
         }
         self.data[address as usize]
     }
@@ -161,6 +171,11 @@ impl Bus {
             self.hdma_transfer(data);
         } else if PPU::is_io_register(address) {
             self.ppu.set_register(address, data);
+        } else if address == PREPARE_SPEED_SWITCH_ADDRESS && self.cgb_mode {
+            let current_byte = self.data[address as usize];
+            self.prepare_double_speed_mode = (data & 1) == 1;
+            // bit 7 is read only on cgb mode
+            self.data[address as usize] = (current_byte & 0b1000_0000) | (data & 0b0111_1111);
         } else {
             self.data[address as usize] = data;
         }
@@ -170,6 +185,18 @@ impl Bus {
         let bytes = data.to_le_bytes();
         self.write(address, bytes[0]);
         self.write(address.wrapping_add(1), bytes[1]);
+    }
+
+    pub fn prepare_double_speed_mode(&self) -> bool {
+        self.cgb_mode && self.prepare_double_speed_mode
+    }
+
+    pub fn double_speed_mode(&self) -> bool {
+        self.cgb_mode && self.double_speed_mode
+    }
+
+    pub fn set_double_speed_mode(&mut self, val: bool) {
+        self.double_speed_mode = val;
     }
 
     fn dma_transfer(&mut self, data: u8) {

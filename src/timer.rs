@@ -68,10 +68,10 @@ impl Timer {
     pub fn do_cycles(&mut self, interrupts: &mut Interrupts, cycles: Cycles) {
         self.is_enabled = self.is_timer_enabled();
         self.control = self.get_register(TIMER_CONTROL_ADDRESS);
-        let mut count = 0;
+        let mut count = 0.0;
         while count < cycles.0 {
             self.cycle(interrupts);
-            count += 1;
+            count += 1.0;
         }
     }
 
@@ -120,18 +120,18 @@ mod tests {
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0);
         timer.set_div(0b10111);
-        timer.do_cycles(&mut interrupts, Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1.0));
         assert_eq!(timer.div(), 0b11000);
         assert_eq!(timer.prev_result(), true);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
         assert_eq!(interrupts.get(Interrupt::Timer), false);
 
-        timer.do_cycles(&mut interrupts, Cycles(7));
+        timer.do_cycles(&mut interrupts, Cycles(7.0));
         assert_eq!(timer.div(), 0b11111);
         assert_eq!(timer.prev_result(), true);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
         assert_eq!(interrupts.get(Interrupt::Timer), false);
-        timer.do_cycles(&mut interrupts, Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1.0));
         assert_eq!(timer.div(), 0b100000);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
         assert_eq!(timer.prev_result(), false);
@@ -145,7 +145,7 @@ mod tests {
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0xFF);
         timer.set_div(0b10111);
-        timer.do_cycles(&mut interrupts, Cycles(9));
+        timer.do_cycles(&mut interrupts, Cycles(9.0));
         assert_eq!(timer.div(), 0b100000);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0x00);
         assert_eq!(interrupts.get(Interrupt::Timer), true);
@@ -158,11 +158,11 @@ mod tests {
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b101);
         timer.set_register(TIMER_COUNTER_ADDRESS, 0);
         timer.set_div(0b11000);
-        timer.do_cycles(&mut interrupts, Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1.0));
         assert_eq!(timer.div(), 0b11001);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 0);
         timer.set_register(TIMER_CONTROL_ADDRESS, 0b001);
-        timer.do_cycles(&mut interrupts, Cycles(1));
+        timer.do_cycles(&mut interrupts, Cycles(1.0));
         assert_eq!(timer.div(), 0b11010);
         assert_eq!(timer.get_register(TIMER_COUNTER_ADDRESS), 1);
     }
