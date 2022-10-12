@@ -390,17 +390,14 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
-        if address >= 0xFF51 && address <= 0xFF55 {
-            if address == HDMA1_ADDRESS {
-                return self.hdma_source.to_be_bytes()[0];
-            } else if address == HDMA2_ADDRESS {
-                return self.hdma_source.to_be_bytes()[1];
-            } else if address == HDMA3_ADDRESS {
-                return self.hdma_destination.to_be_bytes()[0];
-            } else if address == HDMA4_ADDRESS {
-                return self.hdma_destination.to_be_bytes()[1];
-            } else if address == HDMA5_ADDRESS {
-                return self.hdma_start;
+        if address >= HDMA1_ADDRESS && address <= HDMA5_ADDRESS {
+            return match address {
+                HDMA1_ADDRESS => self.hdma_source.to_be_bytes()[0],
+                HDMA2_ADDRESS => self.hdma_source.to_be_bytes()[1],
+                HDMA3_ADDRESS => self.hdma_destination.to_be_bytes()[0],
+                HDMA4_ADDRESS => self.hdma_destination.to_be_bytes()[1],
+                HDMA5_ADDRESS => self.hdma_start,
+                _ => 0x00,
             }
         } else if address >= 0xFF68 && address <= 0xFF6B {
             return self.cram_registers[(address as usize) - 0xFF68];
@@ -415,18 +412,15 @@ impl PPU {
     }
 
     pub fn set_register(&mut self, address: u16, data: u8) {
-        if address >= 0xFF51 && address <= 0xFF55 {
-            if address == HDMA1_ADDRESS {
-                self.hdma_source = (self.hdma_source & 0xFF) | ((data as u16) << 8);
-            } else if address == HDMA2_ADDRESS {
-                self.hdma_source = (self.hdma_source & 0xFF00) | (data as u16);
-            } else if address == HDMA3_ADDRESS {
-                self.hdma_destination = (self.hdma_destination & 0xFF) | ((data as u16) << 8);
-            } else if address == HDMA4_ADDRESS {
-                self.hdma_destination = (self.hdma_destination & 0xFF00) | (data as u16);
-            } else if address == HDMA5_ADDRESS {
-                self.hdma_start = data;
-            }
+        if address >= HDMA1_ADDRESS && address <= HDMA5_ADDRESS {
+            match address {
+                HDMA1_ADDRESS => self.hdma_source = (self.hdma_source & 0xFF) | ((data as u16) << 8),
+                HDMA2_ADDRESS => self.hdma_source = (self.hdma_source & 0xFF00) | (data as u16),
+                HDMA3_ADDRESS => self.hdma_destination = (self.hdma_destination & 0xFF) | ((data as u16) << 8),
+                HDMA4_ADDRESS => self.hdma_destination = (self.hdma_destination & 0xFF00) | (data as u16),
+                HDMA5_ADDRESS => self.hdma_start = data,
+                _ => (),
+            };
         } else if address >= 0xFF68 && address <= 0xFF6B {
             self.cram_registers[(address as usize) - 0xFF68] = data;
 
