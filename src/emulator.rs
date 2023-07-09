@@ -109,21 +109,35 @@ impl Emulator {
         }
     }
 
+    fn tick(&mut self, frame_buffer: &mut [u8]) {
+        self.cpu.run(&mut self.bus);
+        let cycles = self.cpu.get_last_op_cycles().to_t();
+        self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, frame_buffer);
+        self.bus.sound.do_cycles(cycles);
+        self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
+        if self.bus.double_speed_mode() {
+            self.bus.timer.do_cycles(&mut self.bus.interrupts, Cycles(cycles.0 * 3.0));
+        }
+
+        // 1 CPU cycle = 238.42ns
+        // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
+    }
+
     pub fn run(&mut self, cpu_cycles: Cycles, frame_buffer: &mut [u8]) {
         self.cpu.reset_cycles();
         while self.cpu.get_cycles().to_t().0 <= cpu_cycles.0 {
-            self.cpu.run(&mut self.bus);
-            let cycles = self.cpu.get_last_op_cycles().to_t();
-            self.bus.ppu.do_cycles(&mut self.bus.interrupts, cycles, frame_buffer);
-            self.bus.sound.do_cycles(cycles);
-            self.bus.timer.do_cycles(&mut self.bus.interrupts, cycles);
-            if self.bus.double_speed_mode() {
-                self.bus.timer.do_cycles(&mut self.bus.interrupts, Cycles(cycles.0 * 3.0));
+            self.tick(frame_buffer);
+        }
+    }
+
+    pub fn run_frame(&mut self, frame_buffer: &mut [u8]) {
+        self.cpu.reset_cycles();
+        let mut frame_started = true;
+        while self.bus.ppu.lcd_y() < 144 || frame_started {
+            self.tick(frame_buffer);
+            if self.bus.ppu.lcd_y() == 0 {
+                frame_started = false;
             }
-
-            // 1 CPU cycle = 238.42ns
-            // thread::sleep(time::Duration::from_nanos((self.cpu.get_last_op_cycles().0 * 238).try_into().unwrap()));
-
         }
     }
 

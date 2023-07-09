@@ -1,6 +1,5 @@
 use crate::emulator::Emulator;
 use crate::frames::Frames;
-use crate::cpu::Cycles;
 use crate::ppu::{WIDTH, HEIGHT};
 
 use log::error;
@@ -81,7 +80,7 @@ pub fn start_eventloop() {
                 *control_flow = ControlFlow::Exit
             },
             Event::MainEventsCleared => {
-                emulator.run(Cycles(70224.0), pixels.get_frame());
+                emulator.run_frame(pixels.get_frame());
                 frame_counter.increment();
                 if frame_counter.elapsed_ms() >= 1000 {
                     window.set_title(&format!("rmg-001 (FPS: {})", frame_counter.count()));

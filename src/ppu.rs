@@ -345,6 +345,10 @@ impl PPU {
         }
     }
 
+    pub fn lcd_y(&self) -> u8 {
+        self.lcd_y
+    }
+
     pub fn set_vram_bank(&mut self, bank: u8) {
         if self.cgb_mode {
             self.vram_bank = bank & 1;
