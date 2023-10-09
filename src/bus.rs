@@ -104,7 +104,12 @@ impl Bus {
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
+        if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
+            let byte = self.data[address as usize];
+            let current_speed = (self.double_speed_mode as u8) << 7;
+            let prepare_speed_switch = self.prepare_double_speed_mode as u8;
+            return (byte & 0b0111_1110) | current_speed | prepare_speed_switch;
+        } else if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
             return self.rom.read(address);
         } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) || address == WRAM_BANK_SELECT_ADDRESS {
             return self.ram.read(address);
@@ -124,11 +129,6 @@ impl Bus {
             return self.joypad.read(self.data[address as usize]);
         }  else if Timer::is_io_register(address) {
             return self.timer.get_register(address);
-        } else if address == PREPARE_SPEED_SWITCH_ADDRESS && self.cgb_mode {
-            let byte = self.data[address as usize];
-            let current_speed = (self.double_speed_mode as u8) << 7;
-            let prepare_speed_switch = self.prepare_double_speed_mode as u8;
-            return (byte & 0b0111_1110) | current_speed | prepare_speed_switch;
         }
         self.data[address as usize]
     }
@@ -142,7 +142,12 @@ impl Bus {
             // print!("{}", data as char); 
         }
 
-        if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
+        if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
+            let current_byte = self.data[address as usize];
+            self.prepare_double_speed_mode = (data & 1) == 1;
+            // bit 7 is read only on cgb mode
+            self.data[address as usize] = (current_byte & 0b1000_0000) | (data & 0b0111_1111);
+        } else if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
             self.rom.write(address, data);
         } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
             self.interrupts.write(address, data);
@@ -171,11 +176,6 @@ impl Bus {
             self.hdma_transfer(data);
         } else if PPU::is_io_register(address) {
             self.ppu.set_register(address, data);
-        } else if address == PREPARE_SPEED_SWITCH_ADDRESS && self.cgb_mode {
-            let current_byte = self.data[address as usize];
-            self.prepare_double_speed_mode = (data & 1) == 1;
-            // bit 7 is read only on cgb mode
-            self.data[address as usize] = (current_byte & 0b1000_0000) | (data & 0b0111_1111);
         } else {
             self.data[address as usize] = data;
         }
