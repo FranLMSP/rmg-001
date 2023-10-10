@@ -394,85 +394,83 @@ impl PPU {
     }
 
     pub fn get_register(&self, address: u16) -> u8 {
-        if address >= HDMA1_ADDRESS && address <= HDMA5_ADDRESS {
-            return match address {
+        match address {
+            HDMA1_ADDRESS..=HDMA5_ADDRESS => match address {
                 HDMA1_ADDRESS => self.hdma_source.to_be_bytes()[0],
                 HDMA2_ADDRESS => self.hdma_source.to_be_bytes()[1],
                 HDMA3_ADDRESS => self.hdma_destination.to_be_bytes()[0],
                 HDMA4_ADDRESS => self.hdma_destination.to_be_bytes()[1],
                 HDMA5_ADDRESS => self.hdma_start,
                 _ => 0x00,
-            }
-        } else if address >= 0xFF68 && address <= 0xFF6B {
-            return self.cram_registers[(address as usize) - 0xFF68];
-        } else if address == VRAM_BANK_SELECT_ADDRESS {
-            return self.get_vram_bank();
-        } else if address == LCD_CONTROL_ADDRESS {
-            return self.lcd_control;
-        } else if address == LCD_Y_ADDRESS {
-            return self.lcd_y;
+            },
+            0xFF68..=0xFF6B => self.cram_registers[(address as usize) - 0xFF68],
+            VRAM_BANK_SELECT_ADDRESS => self.get_vram_bank(),
+            LCD_CONTROL_ADDRESS => self.lcd_control,
+            LCD_Y_ADDRESS => self.lcd_y,
+            _ => self.io_registers[(address - 0xFF40) as usize],
         }
-        self.io_registers[(address - 0xFF40) as usize]
     }
 
     pub fn set_register(&mut self, address: u16, data: u8) {
-        if address >= HDMA1_ADDRESS && address <= HDMA5_ADDRESS {
-            match address {
+        match address {
+            HDMA1_ADDRESS..=HDMA5_ADDRESS => match address {
                 HDMA1_ADDRESS => self.hdma_source = (self.hdma_source & 0xFF) | ((data as u16) << 8),
                 HDMA2_ADDRESS => self.hdma_source = (self.hdma_source & 0xFF00) | (data as u16),
                 HDMA3_ADDRESS => self.hdma_destination = (self.hdma_destination & 0xFF) | ((data as u16) << 8),
                 HDMA4_ADDRESS => self.hdma_destination = (self.hdma_destination & 0xFF00) | (data as u16),
                 HDMA5_ADDRESS => self.hdma_start = data,
                 _ => (),
-            };
-        } else if address >= 0xFF68 && address <= 0xFF6B {
-            self.cram_registers[(address as usize) - 0xFF68] = data;
-
-            if address == BCPD_BGPD_ADDRESS {
-                if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
-                    return;
+            },
+            0xFF68..=0xFF6B => {
+                self.cram_registers[(address as usize) - 0xFF68] = data;
+                match address {
+                    BCPD_BGPD_ADDRESS => {
+                        if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                            return;
+                        }
+                        let byte = self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68];
+                        let auto_increment = get_bit(byte, BitIndex::I7);
+                        let cram_address = byte & 0b111111;
+                        self.bg_cram[cram_address as usize] = data;
+                        if auto_increment {
+                            self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
+                        }
+                    },
+                    OCPD_OBPD_ADDRESS => {
+                        if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
+                            return;
+                        }
+                        let byte = self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68];
+                        let auto_increment = get_bit(byte, BitIndex::I7);
+                        let cram_address = byte & 0b111111;
+                        self.obj_cram[cram_address as usize] = data;
+                        if auto_increment {
+                            self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
+                        }
+                    }
+                    _ => {},
                 }
-                let byte = self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68];
-                let auto_increment = get_bit(byte, BitIndex::I7);
-                let cram_address = byte & 0b111111;
-                self.bg_cram[cram_address as usize] = data;
-                if auto_increment {
-                    self.cram_registers[(BCPS_BGPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
+            },
+            VRAM_BANK_SELECT_ADDRESS => self.set_vram_bank(data),
+            LCD_Y_ADDRESS => {},
+            LCD_CONTROL_ADDRESS => {
+                self.lcd_control = data;
+                // Check if LCD is being turned on or off
+                self.lcd_enable = get_bit(data, BitIndex::I7);
+                if !get_bit(data, BitIndex::I7) || (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) {
+                    self.lcd_y = 0x00;
+                    // Set Hblank
+                    let byte = self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40];
+                    self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40] = byte & 0b11111100;
                 }
-            } else if address == OCPD_OBPD_ADDRESS {
-                if self.get_lcd_status(LCDStatus::ModeFlag(LCDStatusModeFlag::TransferringToLCD)) {
-                    return;
-                }
-                let byte = self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68];
-                let auto_increment = get_bit(byte, BitIndex::I7);
-                let cram_address = byte & 0b111111;
-                self.obj_cram[cram_address as usize] = data;
-                if auto_increment {
-                    self.cram_registers[(OCPS_OBPI_ADDRESS as usize) - 0xFF68] = ((byte + 1) & 0b111111) | ((auto_increment as u8) << 7);
-                }
-            }
-        } else if address == VRAM_BANK_SELECT_ADDRESS {
-            return self.set_vram_bank(data);
-        } else if address == LCD_Y_ADDRESS {
-            return;
-        } else if address == LCD_CONTROL_ADDRESS {
-            self.lcd_control = data;
-            // Check if LCD is being turned on or off
-            self.lcd_enable = get_bit(data, BitIndex::I7);
-            if !get_bit(data, BitIndex::I7) || (get_bit(data, BitIndex::I7) && !get_bit(self.lcd_control, BitIndex::I7)) {
-                self.lcd_y = 0x00;
-                // Set Hblank
-                let byte = self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40];
-                self.io_registers[LCD_STATUS_ADDRESS as usize - 0xFF40] = byte & 0b11111100;
-            }
-            return;
-        } else if address == LCD_STATUS_ADDRESS {
-            let address = address - 0xFF40;
-            let byte = self.io_registers[address as usize];
-            self.io_registers[address as usize] = (data & 0b11111000) | (byte & 0b00000111);
-        } else {
-            self.io_registers[address as usize - 0xFF40] = data;
-        }
+            },
+            LCD_STATUS_ADDRESS => {
+                let address = address - 0xFF40;
+                let byte = self.io_registers[address as usize];
+                self.io_registers[address as usize] = (data & 0b11111000) | (byte & 0b00000111);
+            },
+            _ => self.io_registers[address as usize - 0xFF40] = data,
+        };
     }
 
     pub fn force_set_register(&mut self, address: u16, data: u8) {

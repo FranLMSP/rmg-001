@@ -1,3 +1,4 @@
+use std::env;
 use std::ops::RangeInclusive;
 use crate::utils::join_bytes;
 use crate::rom::{ROM, load_rom};
@@ -29,6 +30,21 @@ pub const IO_REGISTERS: RangeInclusive<u16>              = 0xFF00..=0xFF7F;
 pub const HIGH_RAM: RangeInclusive<u16>                  = 0xFF80..=0xFFFE;
 pub const PREPARE_SPEED_SWITCH_ADDRESS: u16              = 0xFF4D;
 
+enum MemoryMap {
+    BankZero,
+    BankSwitchable,
+    VideoRam,
+    ExternalRam,
+    WorkRam1,
+    WorkRam2,
+    EchoRam,
+    SpriteAttributeTable,
+    NotUsable,
+    IoRegisters,
+    HighRam,
+    InterruptEnable,
+}
+
 pub struct Bus {
     data: [u8; 0x10000],
     pub rom: Box<dyn ROM>,
@@ -59,7 +75,8 @@ impl Bus {
             },
         };
         let info = rom.info().clone();
-        let cgb_mode = info.cgb_features() || info.cgb_only();
+        let force_dmg_mode = !env::var("FORCE_DMG").is_err();
+        let cgb_mode = (info.cgb_features() || info.cgb_only()) && !force_dmg_mode;
         let mut bus = Self {
             data: [0x00; 0x10000],
             rom,
@@ -103,34 +120,53 @@ impl Bus {
         bus
     }
 
-    pub fn read(&self, address: u16) -> u8 {
-        if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
-            let byte = self.data[address as usize];
-            let current_speed = (self.double_speed_mode as u8) << 7;
-            let prepare_speed_switch = self.prepare_double_speed_mode as u8;
-            return (byte & 0b0111_1110) | current_speed | prepare_speed_switch;
-        } else if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address)  || EXTERNAL_RAM.contains(&address) {
-            return self.rom.read(address);
-        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) || address == WRAM_BANK_SELECT_ADDRESS {
-            return self.ram.read(address);
-        } else if ECHO_RAM.contains(&address) {
-            return self.ram.read(WORK_RAM_1.min().unwrap() + ((address - ECHO_RAM.min().unwrap()) & 0x1FFF));
-        } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
-            return self.interrupts.read(address);
-        } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.read_vram_external(address);
-        } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
-            return self.ppu.read_oam(address);
-        } else if PPU::is_io_register(address) {
-            return self.ppu.get_register(address);
-        } else if Sound::is_io_register(address) {
-            return self.sound.get_register(address);
-        } else if address == JOYPAD_ADDRESS {
-            return self.joypad.read(self.data[address as usize]);
-        }  else if Timer::is_io_register(address) {
-            return self.timer.get_register(address);
+    fn map_address(address: u16) -> MemoryMap {
+        match address {
+            0x0000..=0x3FFF => MemoryMap::BankZero,
+            0x4000..=0x7FFF => MemoryMap::BankSwitchable,
+            0x8000..=0x9FFF => MemoryMap::VideoRam,
+            0xA000..=0xBFFF => MemoryMap::ExternalRam,
+            0xC000..=0xCFFF => MemoryMap::WorkRam1,
+            0xD000..=0xDFFF => MemoryMap::WorkRam2,
+            0xE000..=0xFDFF => MemoryMap::EchoRam,
+            0xFE00..=0xFE9F => MemoryMap::SpriteAttributeTable,
+            0xFEA0..=0xFEFF => MemoryMap::NotUsable,
+            0xFF00..=0xFF7F => MemoryMap::IoRegisters,
+            0xFF80..=0xFFFE => MemoryMap::HighRam,
+            INTERRUPT_ENABLE_ADDRESS => MemoryMap::InterruptEnable,
         }
-        self.data[address as usize]
+    }
+
+    pub fn read(&self, address: u16) -> u8 {
+        match Bus::map_address(address) {
+            MemoryMap::BankZero | MemoryMap::BankSwitchable | MemoryMap::ExternalRam => self.rom.read(address),
+            MemoryMap::WorkRam1 | MemoryMap::WorkRam2 | MemoryMap::EchoRam => self.ram.read(address),
+            MemoryMap::VideoRam => self.ppu.read_vram_external(address),
+            MemoryMap::SpriteAttributeTable => self.ppu.read_oam(address),
+            MemoryMap::IoRegisters => {
+                if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
+                    let byte = self.data[address as usize];
+                    let current_speed = (self.double_speed_mode as u8) << 7;
+                    let prepare_speed_switch = self.prepare_double_speed_mode as u8;
+                    return (byte & 0b0111_1110) | current_speed | prepare_speed_switch;
+                } else if address == WRAM_BANK_SELECT_ADDRESS {
+                    return self.ram.read(address);
+                } else if address == INTERRUPT_FLAG_ADDRESS {
+                    return self.interrupts.read(address);
+                } else if PPU::is_io_register(address) {
+                    return self.ppu.get_register(address);
+                } else if Sound::is_io_register(address) {
+                    return self.sound.get_register(address);
+                } else if Timer::is_io_register(address) {
+                    return self.timer.get_register(address);
+                } else if address == JOYPAD_ADDRESS {
+                    return self.joypad.read(self.data[address as usize]);
+                }
+                return self.data[address as usize];
+            },
+            MemoryMap::InterruptEnable => self.interrupts.read(address),
+            _ => self.data[address as usize],
+        }
     }
 
     pub fn read_16bit(&self, address: u16) -> u16 {
@@ -138,47 +174,48 @@ impl Bus {
     }
 
     pub fn write(&mut self, address: u16, data: u8) {
-        if address == 0xFF01 {
-            // print!("{}", data as char); 
-        }
-
-        if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
-            let current_byte = self.data[address as usize];
-            self.prepare_double_speed_mode = (data & 1) == 1;
-            // bit 7 is read only on cgb mode
-            self.data[address as usize] = (current_byte & 0b1000_0000) | (data & 0b0111_1111);
-        } else if BANK_ZERO.contains(&address) || BANK_SWITCHABLE.contains(&address) || EXTERNAL_RAM.contains(&address) {
-            self.rom.write(address, data);
-        } else if address == INTERRUPT_ENABLE_ADDRESS || address == INTERRUPT_FLAG_ADDRESS {
-            self.interrupts.write(address, data);
-        } else if WORK_RAM_1.contains(&address) || WORK_RAM_2.contains(&address) || address == WRAM_BANK_SELECT_ADDRESS {
-            self.ram.write(address, data);
-        } else if EXTERNAL_RAM.contains(&address) {
-            self.rom.write(address, data);
-        } else if ECHO_RAM.contains(&address) {
-            self.ram.write(WORK_RAM_1.min().unwrap() + ((address - ECHO_RAM.min().unwrap()) & 0x1FFF), data);
-        } else if Timer::is_io_register(address) {
-            self.timer.set_register(address, data);
-        } else if Sound::is_io_register(address) {
-            self.sound.set_register(address, data);
-        } else if address == JOYPAD_ADDRESS {
-            let byte = self.data[address as usize];
-            self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
-        } else if VIDEO_RAM.contains(&address) {
-            return self.ppu.write_vram_external(address, data);
-        } else if SPRITE_ATTRIBUTE_TABLE.contains(&address) {
-            return self.ppu.write_oam(address, data);
-        } else if address == DMA_ADDRESS {
-            self.ppu.set_register(address, data);
-            self.dma_transfer(data);
-        } else if address == HDMA5_ADDRESS {
-            self.ppu.set_register(address, data);
-            self.hdma_transfer(data);
-        } else if PPU::is_io_register(address) {
-            self.ppu.set_register(address, data);
-        } else {
-            self.data[address as usize] = data;
-        }
+        match Bus::map_address(address) {
+            MemoryMap::BankZero | MemoryMap::BankSwitchable | MemoryMap::ExternalRam => self.rom.write(address, data),
+            MemoryMap::WorkRam1 | MemoryMap::WorkRam2 | MemoryMap::EchoRam => self.ram.write(address, data),
+            MemoryMap::VideoRam => self.ppu.write_vram_external(address, data),
+            MemoryMap::SpriteAttributeTable => self.ppu.write_oam(address, data),
+            MemoryMap::IoRegisters => {
+                if self.cgb_mode && address == PREPARE_SPEED_SWITCH_ADDRESS {
+                    let current_byte = self.data[address as usize];
+                    self.prepare_double_speed_mode = (data & 1) == 1;
+                    // bit 7 is read only on cgb mode
+                    self.data[address as usize] = (current_byte & 0b1000_0000) | (data & 0b0111_1111);
+                } else if address == WRAM_BANK_SELECT_ADDRESS {
+                    self.ram.write(address, data);
+                } else if address == INTERRUPT_FLAG_ADDRESS {
+                    self.interrupts.write(address, data);
+                } else if PPU::is_io_register(address) {
+                    self.ppu.set_register(address, data);
+                    match address {
+                        DMA_ADDRESS => {
+                            self.ppu.set_register(address, data);
+                            self.dma_transfer(data);
+                        },
+                        HDMA5_ADDRESS => {
+                            self.ppu.set_register(address, data);
+                            self.hdma_transfer(data);
+                        },
+                        _ => {}
+                    }
+                } else if Sound::is_io_register(address) {
+                    self.sound.set_register(address, data);
+                } else if Timer::is_io_register(address) {
+                    self.timer.set_register(address, data);
+                } else if address == JOYPAD_ADDRESS {
+                    let byte = self.data[address as usize];
+                    self.data[address as usize] = (data & 0b11110000) | (byte & 0b00001111);
+                } else {
+                    self.data[address as usize] = data;
+                }
+            },
+            MemoryMap::InterruptEnable => self.interrupts.write(address, data),
+            _ => self.data[address as usize] = data,
+        };
     }
 
     pub fn write_16bit(&mut self, address: u16, data: u16) {

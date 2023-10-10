@@ -2,6 +2,7 @@ use crate::emulator::Emulator;
 use crate::frames::Frames;
 use crate::ppu::{WIDTH, HEIGHT};
 
+use std::env;
 use log::error;
 use pixels::{wgpu, Pixels, PixelsBuilder, SurfaceTexture};
 use winit::dpi::LogicalSize;
@@ -10,10 +11,13 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 use winit_input_helper::WinitInputHelper;
 
+fn is_fps_unlocked() -> bool {
+    !env::var("UNLOCK_FPS").is_err()
+}
+
 pub fn create_pixels(width: u32, height: u32, window: &Window) -> Pixels {
     let window_size = window.inner_size();
     let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, window);
-    // Pixels::new(width, height, surface_texture).unwrap()
     PixelsBuilder::new(width, height, surface_texture)
         .device_descriptor(wgpu::DeviceDescriptor {
             limits: wgpu::Limits {
@@ -24,7 +28,7 @@ pub fn create_pixels(width: u32, height: u32, window: &Window) -> Pixels {
             },
             ..wgpu::DeviceDescriptor::default()
         })
-        .enable_vsync(false)
+        .enable_vsync(!is_fps_unlocked())
         .build()
         .unwrap()
 }
@@ -88,7 +92,9 @@ pub fn start_eventloop() {
                     frame_counter.reset_timer();
                 }
                 window.request_redraw();
-                frame_limit.limit();
+                if !is_fps_unlocked() {
+                    frame_limit.limit();
+                }
                 frame_limit.reset_timer();
             },
             Event::RedrawRequested(_) => {
